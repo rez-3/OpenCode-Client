@@ -260,6 +260,14 @@ function initTerminal() {
 
     terminalInstance.open(container);
 
+    // FitAddon 精确填充容器
+    let fitAddon;
+    if (typeof FitAddon !== 'undefined') {
+        fitAddon = new FitAddon.FitAddon();
+        terminalInstance.loadAddon(fitAddon);
+        fitAddon.fit();
+    }
+
     setTimeout(() => terminalInstance.focus(), 300);
     container.addEventListener('click', () => terminalInstance.focus());
 
@@ -267,25 +275,22 @@ function initTerminal() {
     terminalInstance.write('$ ');
 
     // 自适应大小 + ConPTY 同步
-    const fitTerminal = () => {
-        if (!terminalInstance || !container) return;
-        const h = container.clientHeight;
-        const w = container.clientWidth;
-        if (h < 30 || w < 30) return;
-        const cols = Math.max(10, Math.floor(w / 8.6));
-        const rows = Math.max(3, Math.floor(h / 18));
-        terminalInstance.resize(cols, rows);
-        // 同步 ConPTY 大小
-        if (api.ResizeTerminal) {
-            api.ResizeTerminal(cols, rows);
+    const doFit = () => {
+        if (fitAddon) {
+            fitAddon.fit();
+            // 获取实际行列，同步 ConPTY
+            const dims = fitAddon.proposeDimensions();
+            if (dims && api.ResizeTerminal) {
+                api.ResizeTerminal(dims.cols, dims.rows);
+            }
         }
     };
 
-    setTimeout(fitTerminal, 200);
-    setTimeout(fitTerminal, 500);
-    window.addEventListener('resize', fitTerminal);
-    if (window.ResizeObserver) {
-        new ResizeObserver(() => fitTerminal()).observe(container);
+    setTimeout(doFit, 200);
+    setTimeout(doFit, 600);
+    window.addEventListener('resize', doFit);
+    if (window.ResizeObserver && container) {
+        new ResizeObserver(() => doFit()).observe(container);
     }
 
     // PTY 先启再绑事件
@@ -314,25 +319,10 @@ function initTerminal() {
                 api.TerminalWrite(data);
             }
         });
-
-        const status = document.getElementById('terminalStatus');
-        if (status) status.textContent = '已连接';
     };
 
     startAndBind();
 }
-
-// OpenCode 视图显示时初始化终端（仅一次）
-const opencodeObserver = new MutationObserver(() => {
-    const panel = document.getElementById('view-opencode');
-    if (panel && panel.classList.contains('active') && !terminalInstance) {
-        setTimeout(initTerminal, 200);
-    }
-});
-opencodeObserver.observe(document.getElementById('view-opencode'), {
-    attributes: true,
-    attributeFilter: ['class'],
-});
 
 // ============================================================
 // View 2: 模型配置
