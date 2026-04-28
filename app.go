@@ -140,10 +140,23 @@ func (a *App) RefreshAvailableModels() ([]string, error) {
 // UpdateModels 批量更新模型配置并保存到 JSONC 文件。
 func (a *App) UpdateModels(entries []ModelEntry) ModelSaveResult {
 	if err := saveConfig(entries); err != nil {
-		return ModelSaveResult{
-			Success: false,
-			Error:   err.Error(),
-		}
+		return ModelSaveResult{Success: false, Error: err.Error()}
+	}
+	return ModelSaveResult{Success: true}
+}
+
+// AddModelEntry 添加 agent 或 category 条目。
+func (a *App) AddModelEntry(key, model, entryType string) ModelSaveResult {
+	if err := addConfigEntry(key, model, entryType); err != nil {
+		return ModelSaveResult{Success: false, Error: err.Error()}
+	}
+	return ModelSaveResult{Success: true}
+}
+
+// DeleteModelEntry 删除 agent 或 category 条目。
+func (a *App) DeleteModelEntry(key, entryType string) ModelSaveResult {
+	if err := deleteConfigEntry(key, entryType); err != nil {
+		return ModelSaveResult{Success: false, Error: err.Error()}
 	}
 	return ModelSaveResult{Success: true}
 }
