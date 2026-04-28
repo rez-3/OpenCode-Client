@@ -22,7 +22,11 @@
         <nav class="sidebar" id="sidebar">
             <div class="nav-item active" data-view="view-opencode">
                 <span class="nav-icon">📂</span>
-                <span class="nav-label">OpenCode</span>
+                <span class="nav-label">工作区</span>
+            </div>
+            <div class="nav-item" data-view="view-providers">
+                <span class="nav-icon">🔌</span>
+                <span class="nav-label">供应商配置</span>
             </div>
             <div class="nav-item" data-view="view-models">
                 <span class="nav-icon">⚙️</span>
@@ -142,9 +146,6 @@
                 <section class="batch-bar">
                     <span class="batch-label">批量操作：</span>
                     <div class="batch-buttons" id="batchButtons"></div>
-                    <div class="batch-extra">
-                        <button class="btn btn-sm btn-config" id="btnOpenConfig" title="OpenCode 模型配置">⚙️ OpenCode 配置</button>
-                    </div>
                 </section>
 
                 <!-- 技能列表 -->
@@ -161,6 +162,17 @@
                 </div>
                 <div class="cmd-content" id="cmdContent">
                     <div class="loading"><div class="spinner"></div><p>正在加载命令列表...</p></div>
+                </div>
+            </div>
+
+            <!-- ===== View 5: 供应商配置 ===== -->
+            <div class="view-panel" id="view-providers">
+                <section class="path-bar">
+                    <span class="path-label">配置文件：</span>
+                    <span class="path-value" id="providerConfigPath">加载中...</span>
+                </section>
+                <div class="providers-list" id="providersList">
+                    <div class="loading"><div class="spinner"></div><p>正在加载供应商...</p></div>
                 </div>
             </div>
 

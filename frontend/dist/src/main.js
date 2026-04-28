@@ -136,27 +136,20 @@ const api = (() => {
             'openai/gpt-5.1-codex', 'openai/gpt-5.5',
             'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
         ],
-        RefreshAvailableModels: async () => [
-            'deepseek/deepseek-chat', 'deepseek/deepseek-reasoner',
-            'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro',
-            'openai/gpt-5.1-codex', 'openai/gpt-5.5',
-            'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
-        ],
-        UpdateModels: async (entries) => ({ success: true }),
-        GetConfigPath: async () => '~/.config/opencode/oh-my-openagent.jsonc',
-        // 命令
-        GetCommands: async () => JSON.parse(JSON.stringify(mockCommands)),
-        // OpenCode 启动
-        startTerminal: async () => { console.log('mock: terminal started'); },
-        RunOpenCode: async (dir, model, agent, continueFlag, sessionId) => {
-            console.log('mock run opencode:', { dir, model, agent, continueFlag, sessionId });
-            showToast(`模拟启动: opencode${model ? ' -m '+model : ''}${agent ? ' --agent '+agent : ''}`, 'success');
-        },
-        OpenDirectoryDialog: async () => {
-            console.log('mock: returning test dir');
-            return 'C:\\projects\\my-project';
-        },
-    };
+    RefreshAvailableModels: async () => [
+        'deepseek/deepseek-chat', 'deepseek/deepseek-reasoner',
+        'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro',
+        'openai/gpt-5.1-codex', 'openai/gpt-5.5',
+        'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
+    ],
+    GetProviders: async () => [
+        { key: 'deepseek', name: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', apiKey: 'sk-ec****ffe1', enabled: true, models: [{id:'deepseek-v4-pro',name:'DeepSeek-V4-Pro'}] },
+        { key: 'siliconflow', name: 'SiliconFlow', baseURL: 'https://api.siliconflow.cn/v1', apiKey: 'sk-vg****bshs', enabled: false, models: [] },
+    ],
+    SaveProvider: async (p) => ({ success: true }),
+    DeleteProvider: async (key) => ({ success: true }),
+    GetProviderConfigPath: async () => '~/.config/opencode/opencode.jsonc',
+};
 })();
 
 // ============================================================
@@ -875,11 +868,8 @@ document.getElementById('btnOpenDir').addEventListener('click', async () => {
     }
 });
 
-// 技能管理 - OpenCode 配置按钮 → 跳转到模型配置视图
-document.getElementById('btnOpenConfig').addEventListener('click', () => {
-    switchView('view-models');
-});
-
+// ============================================================
+// 事件绑定
 // ============================================================
 // View 4: 常用命令
 // ============================================================
@@ -1022,6 +1012,201 @@ document.addEventListener('DOMContentLoaded', () => {
     if (opencodePanel && opencodePanel.classList.contains('active')) {
         setTimeout(initTerminal, 300);
     }
+});
+
+// ============================================================
+// 供应商配置（内联编辑）
+// ============================================================
+async function loadProviders() {
+    const list = document.getElementById('providersList');
+    list.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载供应商...</p></div>';
+    try {
+        const [providers, cfgPath] = await Promise.all([
+            api.GetProviders(),
+            api.GetProviderConfigPath(),
+        ]);
+        document.getElementById('providerConfigPath').textContent = cfgPath || '未知';
+        renderProviders(providers || []);
+    } catch (err) {
+        list.innerHTML = `<div class="error"><p>⚠️ 加载失败</p><p class="error-detail">${escapeHtml(err.message||err)}</p></div>`;
+    }
+}
+
+function emptyProvider() {
+    return { key: '', name: '', baseURL: '', apiKey: '', enabled: true, models: [], _new: true };
+}
+
+function renderProviders(providers) {
+    const list = document.getElementById('providersList');
+    const html = providers.map(p => providerCardHtml(p)).join('');
+    list.innerHTML = html + `
+        <div class="provider-card provider-card-add" id="btnAddCard" style="border:dashed 1px var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text-muted)">
+            <span>➕ 添加供应商</span>
+        </div>`;
+    // 绑定事件
+    bindProviderEvents(providers);
+    document.getElementById('btnAddCard').addEventListener('click', () => addNewCard());
+}
+
+function providerCardHtml(p) {
+    const isNew = p._new;
+    return `
+        <div class="provider-card" data-key="${escapeHtml(p.key)}">
+            <div class="provider-card-header">
+                <div style="flex:1;display:flex;gap:8px;align-items:center">
+                    <input class="prov-edit-key" value="${escapeHtml(p.key)}" placeholder="key (如 deepseek)" style="width:140px;font-size:13px;font-weight:600" ${isNew?'':'readonly'} />
+                    <input class="prov-edit-name" value="${escapeHtml(p.name||'')}" placeholder="名称" style="width:160px;font-size:12px" />
+                </div>
+                <div class="provider-card-actions" style="display:flex;gap:6px;align-items:center">
+                    <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer">
+                        <input type="checkbox" class="prov-edit-enabled" ${p.enabled!==false?'checked':''} /> 启用
+                    </label>
+                    <button class="btn btn-sm btn-save-card" data-key="${escapeHtml(p.key)}">💾 保存</button>
+                    <button class="btn btn-del btn-del-card" data-key="${escapeHtml(p.key)}" title="删除">✕</button>
+                </div>
+            </div>
+            <div class="provider-card-body">
+                <div style="display:flex;gap:10px">
+                    <label style="flex:1">
+                        <span style="font-size:10px;color:var(--text-muted)">请求地址 (baseURL)</span>
+                        <input class="prov-edit-url" value="${escapeHtml(p.baseURL||'')}" placeholder="https://api.xxx.com/v1" style="width:100%;margin-top:2px" />
+                    </label>
+                    <label style="flex:1">
+                        <span style="font-size:10px;color:var(--text-muted)">API Key</span>
+                        <div style="display:flex;gap:0;margin-top:2px">
+                            <input class="prov-edit-apikey" value="${escapeHtml(p.apiKey||'')}" type="password" placeholder="sk-..." style="width:100%;border-right:none;border-radius:4px 0 0 4px" />
+                            <button class="btn-eye" type="button" title="切换明文">👁</button>
+                        </div>
+                    </label>
+                </div>
+                <div class="provider-models">
+                    <div class="provider-models-title">📦 模型 <button class="btn btn-sm btn-add btn-add-model-card" data-key="${escapeHtml(p.key)}" style="font-size:10px;padding:2px 8px">+</button></div>
+                    <div class="card-models-list" data-key="${escapeHtml(p.key)}">
+                        ${(p.models||[]).map((m,i) => `
+                            <div class="model-subcard">
+                                <div style="display:flex;align-items:center;gap:8px;flex:1">
+                                    <span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">模型ID</span>
+                                    <input class="model-edit-id" value="${escapeHtml(m.id)}" placeholder="deepseek-v4-pro" style="font-size:12px;flex:1;width:50%" />
+                                    <span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">名称</span>
+                                    <input class="model-edit-name" value="${escapeHtml(m.name||'')}" placeholder="DeepSeek-V4-Pro" style="font-size:12px;flex:1;width:50%" />
+                                </div>
+                                <button class="btn btn-del btn-del-model" title="删除">✕</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
+let providerCache = [];
+
+function bindProviderEvents(providers) {
+    providerCache = providers;
+
+    // 保存按钮
+    document.querySelectorAll('.btn-save-card').forEach(btn => {
+        btn.addEventListener('click', () => saveProviderFromDom(btn.dataset.key));
+    });
+
+    // 删除按钮
+    document.querySelectorAll('.btn-del-card').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            if (!confirm(`确定删除供应商 "${key}" 吗？`)) return;
+            api.DeleteProvider(key).then(r => {
+                if (r.success) { showToast(`已删除 ${key}`, 'success'); loadProviders(); }
+                else showToast('删除失败: '+r.error, 'error');
+            });
+        });
+    });
+
+    // 添加模型
+    document.querySelectorAll('.btn-add-model-card').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            const list = document.querySelector(`.card-models-list[data-key="${CSS.escape(key)}"]`);
+            const row = document.createElement('div');
+            row.className = 'model-subcard';
+            row.innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;flex:1">
+                    <span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">模型ID</span>
+                    <input class="model-edit-id" placeholder="deepseek-v4-pro" style="font-size:12px;font-family:monospace;flex:1;width:50%" />
+                    <span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">名称</span>
+                    <input class="model-edit-name" placeholder="DeepSeek-V4-Pro" style="font-size:12px;flex:1;width:50%" />
+                </div>
+                <button class="btn btn-del btn-del-model" title="删除">✕</button>
+            `;
+            row.querySelector('.btn-del-model').addEventListener('click', () => row.remove());
+            list.appendChild(row);
+        });
+    });
+
+    // 删除模型
+    document.querySelectorAll('.btn-del-model').forEach(btn => {
+        btn.addEventListener('click', () => btn.parentElement.remove());
+    });
+
+    // API Key 小眼睛切换
+    document.querySelectorAll('.btn-eye').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.parentElement.querySelector('.prov-edit-apikey');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁';
+            }
+        });
+    });
+}
+
+function addNewCard() {
+    const isNew = providerCache.some(p => p._new);
+    if (isNew) { showToast('请先保存当前新增的供应商', 'info'); return; }
+    providerCache.push(emptyProvider());
+    renderProviders(providerCache);
+}
+
+function saveProviderFromDom(key) {
+    const card = document.querySelector(`.provider-card[data-key="${CSS.escape(key)}"]`);
+    if (!card) return;
+
+    const data = {
+        key: card.querySelector('.prov-edit-key').value.trim(),
+        name: card.querySelector('.prov-edit-name').value.trim(),
+        baseURL: card.querySelector('.prov-edit-url').value.trim(),
+        apiKey: card.querySelector('.prov-edit-apikey').value.trim(),
+        enabled: card.querySelector('.prov-edit-enabled').checked,
+        models: []
+    };
+
+    if (!data.key) { showToast('Key 不能为空', 'error'); return; }
+
+    card.querySelectorAll('.model-subcard').forEach(row => {
+        const id = row.querySelector('.model-edit-id')?.value?.trim();
+        const name = row.querySelector('.model-edit-name')?.value?.trim();
+        if (id) data.models.push({ id, name: name || id });
+    });
+
+    const btn = card.querySelector('.btn-save-card');
+    btn.disabled = true; btn.textContent = '...';
+
+    api.SaveProvider(data).then(r => {
+        if (r.success) {
+            showToast(`供应商 ${data.key} 已保存`, 'success');
+            loadProviders();
+        } else {
+            showToast('保存失败: ' + r.error, 'error');
+            btn.disabled = false; btn.textContent = '💾 保存';
+        }
+    });
+}
+
+// 侧边栏导航触发
+document.querySelectorAll('.nav-item[data-view="view-providers"]').forEach(item => {
+    item.addEventListener('click', () => setTimeout(loadProviders, 100));
 });
 
 // Wails 就绪事件

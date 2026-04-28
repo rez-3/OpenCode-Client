@@ -15,7 +15,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "Skill 管理器",
+		Title:     "OpenCode管理中心",
 		Width:     960,
 		Height:    640,
 		MinWidth:  700,

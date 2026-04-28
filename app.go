@@ -148,9 +148,45 @@ func (a *App) UpdateModels(entries []ModelEntry) ModelSaveResult {
 	return ModelSaveResult{Success: true}
 }
 
-// GetConfigPath 返回配置文件路径。
+// GetConfigPath 返回模型配置文件路径。
 func (a *App) GetConfigPath() string {
 	return configPath()
+}
+
+// GetProviderConfigPath 返回供应商配置文件路径。
+func (a *App) GetProviderConfigPath() string {
+	return opencodeConfigPath()
+}
+
+// ========== 供应商配置方法 ==========
+
+// GetProviders 获取所有供应商配置。
+func (a *App) GetProviders() ([]ProviderInfo, error) {
+	return getProviders(), nil
+}
+
+// SaveProvider 保存供应商配置。
+func (a *App) SaveProvider(ps ProviderSave) SaveResult {
+	if err := saveProvider(ps); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
+	}
+	return SaveResult{Success: true}
+}
+
+// DeleteProvider 删除供应商。
+func (a *App) DeleteProvider(key string) SaveResult {
+	if err := deleteProvider(key); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
+	}
+	return SaveResult{Success: true}
+}
+
+// ========== 数据传输类型 ==========
+
+// SaveResult 保存操作结果。
+type SaveResult struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
 }
 
 // ========== 数据传输类型 ==========
