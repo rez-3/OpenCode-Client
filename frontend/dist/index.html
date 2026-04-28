@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Skill 管理器</title>
+    <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="app-title">🧩 Skill 管理器</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-theme" id="btnTheme" title="切换主题">🌙</button>
+        </div>
+    </header>
+
+    <!-- 技能管理视图 -->
+    <div class="main-layout" id="mainLayout">
+        <div class="content-area" id="contentArea">
+            <!-- 统计栏 -->
+            <section class="stats-bar" id="statsBar">
+                <div class="stat-item">
+                    <span class="stat-value" id="statTotal">0</span>
+                    <span class="stat-label">个技能</span>
+                </div>
+                <div class="stats-spacer"></div>
+                <button class="btn btn-refresh" id="btnRefresh" title="刷新技能列表">🔄 刷新</button>
+            </section>
+
+            <!-- 源路径 -->
+            <section class="path-bar">
+                <span class="path-label">源目录：</span>
+                <span class="path-value" id="sourcePath">加载中...</span>
+                <button class="btn btn-sm btn-open" id="btnOpenDir" title="在资源管理器中打开">📂 打开</button>
+            </section>
+
+            <!-- 批量操作栏 -->
+            <section class="batch-bar">
+                <span class="batch-label">批量操作：</span>
+                <div class="batch-buttons" id="batchButtons"></div>
+                <div class="batch-extra">
+                    <button class="btn btn-sm btn-config" id="btnOpenConfig" title="OpenCode 模型配置">⚙️ OpenCode 模型配置</button>
+                </div>
+            </section>
+
+            <!-- 技能列表 -->
+            <main class="skill-list" id="skillList">
+                <div class="loading"><div class="spinner"></div><p>正在加载技能列表...</p></div>
+            </main>
+        </div>
+
+        <!-- OpenCode 模型配置侧边抽屉 -->
+        <aside class="drawer" id="configDrawer">
+            <div class="drawer-header">
+                <h2 class="drawer-title">⚙️ OpenCode 模型配置</h2>
+                <button class="btn btn-close" id="btnCloseDrawer">✕</button>
+            </div>
+            <div class="drawer-body">
+                <section class="path-bar">
+                    <span class="path-value" id="configPath">加载中...</span>
+                    <button class="btn btn-sm btn-refresh" id="btnRefreshModels">🔄 刷新列表</button>
+                </section>
+
+                <main class="model-list" id="modelConfig">
+                    <div class="loading"><div class="spinner"></div><p>正在加载...</p></div>
+                </main>
+            </div>
+            <div class="drawer-footer" id="modelActions" style="display:none">
+                <button class="btn btn-primary btn-save" id="btnSaveModels">💾 保存</button>
+                <span class="save-status" id="saveStatus"></span>
+            </div>
+        </aside>
+
+        <!-- 抽屉遮罩 -->
+        <div class="drawer-overlay" id="drawerOverlay"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/src/main.js"></script>
+</body>
+</html>
