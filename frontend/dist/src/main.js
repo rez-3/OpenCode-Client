@@ -334,7 +334,6 @@ let modelSectionsLoaded = false;
 
 async function loadModelConfig() {
     const container = document.getElementById('modelConfig');
-    if (modelSectionsLoaded) return;
 
     container.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载模型配置...</p></div>';
 
@@ -350,7 +349,6 @@ async function loadModelConfig() {
         availableModels = models || [];
 
         document.getElementById('configPath').textContent = confPath || '未知';
-        modelSectionsLoaded = true;
         renderModelConfig();
     } catch (err) {
         container.innerHTML = `<div class="error">
@@ -377,17 +375,52 @@ function renderModelConfig() {
     container.innerHTML = '';
     actions.style.display = 'flex';
 
-    // Agents 分组
+    // 全选栏
+    const bar = document.createElement('div');
+    bar.className = 'batch-model-bar';
+    bar.innerHTML = `
+        <label class="batch-check">
+            <input type="checkbox" id="selectAllModels" /> <span>全选</span>
+        </label>
+        <select class="batch-model-select" id="batchModelSelect">
+            <option value="">-- 批量设置模型 --</option>
+            ${availableModels.map(m => `<option value="${m}">${m}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm" id="btnApplyBatch">应用</button>
+    `;
+    container.appendChild(bar);
+
+    document.getElementById('selectAllModels').addEventListener('change', e => {
+        document.querySelectorAll('.model-check').forEach(cb => cb.checked = e.target.checked);
+    });
+    document.getElementById('btnApplyBatch').addEventListener('click', () => {
+        const model = document.getElementById('batchModelSelect').value;
+        if (!model) return;
+        document.querySelectorAll('.model-check:checked').forEach(cb => {
+            const key = cb.dataset.key;
+            const entry = modelEntries.find(e => e.key === key);
+            if (entry) entry.model = model;
+        });
+        renderModelConfig();
+        updateSaveStatus();
+    });
+
+    // Agents
     if (agents.length > 0) {
-        const group = createModelGroup('🤖 Agents', agents);
-        container.appendChild(group);
+        container.appendChild(createModelGroup('🤖 Agents', agents));
+    }
+    // Categories
+    if (categories.length > 0) {
+        container.appendChild(createModelGroup('📦 Categories', categories));
     }
 
-    // Categories 分组
-    if (categories.length > 0) {
-        const group = createModelGroup('📦 Categories', categories);
-        container.appendChild(group);
-    }
+    // 绑定选择事件
+    container.querySelectorAll('.model-select').forEach(select => {
+        select.addEventListener('change', e => {
+            const entry = modelEntries.find(en => en.key === e.target.dataset.key);
+            if (entry) { entry.model = e.target.value; updateSaveStatus(); }
+        });
+    });
 
     updateSaveStatus();
 }
@@ -412,6 +445,12 @@ function createModelGroup(title, entries) {
         const topRow = document.createElement('div');
         topRow.className = 'model-row-top';
 
+        // 勾选框
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'model-check';
+        cb.dataset.key = entry.key;
+
         const nameSpan = document.createElement('span');
         nameSpan.className = 'model-key';
         nameSpan.textContent = entry.key;
@@ -428,33 +467,21 @@ function createModelGroup(title, entries) {
             select.appendChild(opt);
         });
 
-        select.addEventListener('change', (e) => {
-            const key = e.target.dataset.key;
-            const ent = modelEntries.find(en => en.key === key);
-            if (ent) {
-                ent.model = e.target.value;
-                // 更新变更标记
-                const orig = originalEntries.find(o => o.key === key);
-                const changed = orig && orig.model !== ent.model;
-                row.classList.toggle('changed', changed);
-                updateSaveStatus();
-            }
-        });
-
         const badge = document.createElement('span');
         badge.className = 'model-type-badge';
         badge.textContent = entry.type;
 
+        topRow.appendChild(cb);
         topRow.appendChild(nameSpan);
         topRow.appendChild(select);
         topRow.appendChild(badge);
         row.appendChild(topRow);
 
         if (entry.comment) {
-            const commentDiv = document.createElement('div');
-            commentDiv.className = 'model-comment';
-            commentDiv.textContent = entry.comment;
-            row.appendChild(commentDiv);
+            const comment = document.createElement('div');
+            comment.className = 'model-comment';
+            comment.textContent = entry.comment;
+            row.appendChild(comment);
         }
 
         body.appendChild(row);
@@ -462,13 +489,6 @@ function createModelGroup(title, entries) {
 
     group.appendChild(header);
     group.appendChild(body);
-
-    // 折叠功能
-    header.addEventListener('click', () => {
-        header.classList.toggle('collapsed');
-        body.classList.toggle('collapsed');
-    });
-
     return group;
 }
 

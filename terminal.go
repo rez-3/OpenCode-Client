@@ -24,16 +24,22 @@ func (a *App) StartTerminal() string {
 	}
 	globalTtyMu.Unlock()
 
-	cpty, err := conpty.Start("cmd.exe")
+	startPTY(a)
+	return "ok"
+}
+
+func startPTY(a *App) {
+	// /k 保持 cmd 进程存活，子进程退出后不关闭
+	cpty, err := conpty.Start("cmd.exe /k")
 	if err != nil {
-		return "error: " + err.Error()
+		runtime.EventsEmit(a.ctx, "terminal-output", "\r\n\x1b[31m[PTY启动失败]\x1b[0m\r\n")
+		return
 	}
 
 	globalTtyMu.Lock()
 	globalTty = cpty
 	globalTtyMu.Unlock()
 
-	// 读输出 → 前端
 	go func() {
 		buf := make([]byte, 1024)
 		for {
@@ -46,8 +52,6 @@ func (a *App) StartTerminal() string {
 			}
 		}
 	}()
-
-	return "ok"
 }
 
 // TerminalWrite 向终端写入数据

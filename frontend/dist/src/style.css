@@ -373,6 +373,17 @@ html, body {
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    padding: 0;
+    background: #1e1e1e;
+}
+
+/* 终端填满 */
+.terminal-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #1e1e1e;
 }
 
 /* 常用命令视图：整体滚动 */
@@ -541,21 +552,66 @@ html, body {
     overflow: hidden;
     min-height: 0;
     padding: 0 !important;
+    background: #1e1e1e;
 }
 .terminal-container .xterm {
     height: 100% !important;
     width: 100% !important;
     padding: 0 !important;
+    margin: 0 !important;
 }
 .terminal-container .xterm-viewport {
     overflow-y: auto;
     width: 100% !important;
+    scrollbar-width: none;
+}
+.terminal-container .xterm-viewport::-webkit-scrollbar {
+    display: none;
 }
 .terminal-container .xterm-screen {
     width: 100% !important;
 }
 .terminal-container .xterm-rows {
     padding: 0 !important;
+}
+.terminal-container .xterm-rows > div {
+    padding: 0 !important;
+}
+
+/* ========== 模型配置批量栏 ========== */
+.batch-model-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+}
+.batch-check {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.batch-model-select {
+    flex: 1;
+    padding: 4px 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+}
+.model-check {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
 /* ============================================================
