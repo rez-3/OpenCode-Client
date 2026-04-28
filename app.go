@@ -23,6 +23,8 @@ func NewApp() *App {
 // startup 在应用启动时调用
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// 后台预加载模型列表
+	go loadModels()
 }
 
 // GetSkills 返回所有技能及其在各平台的链接状态。
@@ -126,6 +128,12 @@ func (a *App) GetModelConfig() ([]ModelEntry, error) {
 
 // GetAvailableModels 通过 opencode models 获取所有可用模型。
 func (a *App) GetAvailableModels() ([]string, error) {
+	return getAvailableModels()
+}
+
+// RefreshAvailableModels 强制刷新模型列表缓存。
+func (a *App) RefreshAvailableModels() ([]string, error) {
+	refreshModels()
 	return getAvailableModels()
 }
 

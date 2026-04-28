@@ -46,6 +46,10 @@ export function Refresh() {
   return window['go']['main']['App']['Refresh']();
 }
 
+export function RefreshAvailableModels() {
+  return window['go']['main']['App']['RefreshAvailableModels']();
+}
+
 export function RunOpenCode(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['RunOpenCode'](arg1, arg2, arg3, arg4, arg5);
 }

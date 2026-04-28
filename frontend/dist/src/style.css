@@ -342,9 +342,22 @@ html, body {
     display: flex;
 }
 
+/* 模型配置视图内，path-bar 固定顶部 */
+#view-models .path-bar {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+#view-models .model-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
 /* 视图内子元素不再单独设 flex:1/overflow，统一由 view-panel 滚动 */
-.view-panel .skill-list,
-.view-panel .model-list {
+.view-panel .skill-list {
     flex: none;
     overflow-y: visible;
 }

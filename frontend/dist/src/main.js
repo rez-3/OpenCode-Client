@@ -136,6 +136,12 @@ const api = (() => {
             'openai/gpt-5.1-codex', 'openai/gpt-5.5',
             'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
         ],
+        RefreshAvailableModels: async () => [
+            'deepseek/deepseek-chat', 'deepseek/deepseek-reasoner',
+            'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro',
+            'openai/gpt-5.1-codex', 'openai/gpt-5.5',
+            'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
+        ],
         UpdateModels: async (entries) => ({ success: true }),
         GetConfigPath: async () => '~/.config/opencode/oh-my-openagent.jsonc',
         // 命令
@@ -601,7 +607,7 @@ document.getElementById('btnRefreshModels').addEventListener('click', async () =
     btn.disabled = true;
     btn.textContent = '⏳ 刷新中...';
     try {
-        const newModels = await api.GetAvailableModels();
+        const newModels = await api.RefreshAvailableModels();
         if (newModels) availableModels = newModels;
         // 重新获取配置（可能外部已修改）
         const [entries] = await Promise.all([

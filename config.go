@@ -126,13 +126,6 @@ func stripComments(text string) string {
 	return strings.Join(result, "\n")
 }
 
-// ========== 获取模型列表 ==========
-
-// getAvailableModels 执行 opencode models 获取可用模型列表。
-func getAvailableModels() ([]string, error) {
-	return runModelsCmd()
-}
-
 // ========== 配置转前端结构 ==========
 
 // configToEntries 将 OpenAgentConfig 转为前端展示用的 ModelEntry 列表。
