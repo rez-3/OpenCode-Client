@@ -227,6 +227,120 @@ func TestSaveConfigDeletesRemovedModelEntry(t *testing.T) {
 	}
 }
 
+func TestAddModelTypeAndDynamicSectionEntries(t *testing.T) {
+	configPath := setupTempConfig(t, `{
+  "agents": {
+    "oracle": {
+      "model": "old/oracle"
+    }
+  },
+  "mcp": {
+    "enabled": true
+  }
+}`)
+
+	if err := addModelType("reviewers"); err != nil {
+		t.Fatalf("add model type: %v", err)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after add type: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{`"reviewers": {`, `"mcp": {`} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("config missing %q after add type:\n%s", want, text)
+		}
+	}
+
+	if err := saveConfig([]ModelEntry{
+		{Key: "oracle", Type: "agents", Model: "old/oracle"},
+		{Key: "lint", Type: "reviewers", Model: "review/model", Comment: "评审模型"},
+	}); err != nil {
+		t.Fatalf("save dynamic type entry: %v", err)
+	}
+
+	data, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after save dynamic type: %v", err)
+	}
+	text = string(data)
+	for _, want := range []string{`"reviewers": {`, `"lint": {`, `"model": "review/model" // 评审模型`, `"mcp": {`} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("config missing %q after dynamic save:\n%s", want, text)
+		}
+	}
+	if err := validateJSONC(data); err != nil {
+		t.Fatalf("saved config is invalid JSONC: %v\n%s", err, text)
+	}
+}
+
+func TestDeleteModelTypeRemovesWholeSection(t *testing.T) {
+	configPath := setupTempConfig(t, `{
+  "agents": {
+    "oracle": {
+      "model": "old/oracle"
+    }
+  },
+  "reviewers": {
+    "lint": {
+      "model": "review/model" // 评审模型
+    },
+    "security": {
+      "model": "security/model"
+    }
+  },
+  "mcp": {
+    "enabled": true
+  }
+}`)
+
+	if err := deleteModelType("reviewers"); err != nil {
+		t.Fatalf("delete model type: %v", err)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after delete type: %v", err)
+	}
+	text := string(data)
+	for _, gone := range []string{`"reviewers"`, `"lint"`, `review/model`, `security/model`} {
+		if strings.Contains(text, gone) {
+			t.Fatalf("config still contains deleted type content %q:\n%s", gone, text)
+		}
+	}
+	for _, want := range []string{`"agents": {`, `"oracle": {`, `"mcp": {`, `"enabled": true`} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("config missing preserved content %q after delete type:\n%s", want, text)
+		}
+	}
+	if err := validateJSONC(data); err != nil {
+		t.Fatalf("saved config is invalid JSONC: %v\n%s", err, text)
+	}
+}
+
+func TestParseModelConfigSectionsIgnoresEmptyNonModelSections(t *testing.T) {
+	cfg, err := parseModelConfigSections(stripComments(`{
+  "agents": {},
+  "reviewers": {},
+  "mcp": {},
+  "settings": {},
+  "commands": {}
+}`))
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	for _, want := range []string{"agents", "reviewers"} {
+		if _, ok := cfg[want]; !ok {
+			t.Fatalf("expected model section %q in %#v", want, cfg)
+		}
+	}
+	for _, gone := range []string{"mcp", "settings", "commands"} {
+		if _, ok := cfg[gone]; ok {
+			t.Fatalf("unexpected non-model section %q in %#v", gone, cfg)
+		}
+	}
+}
+
 func setupTempConfig(t *testing.T, content string) string {
 	t.Helper()
 	home := t.TempDir()

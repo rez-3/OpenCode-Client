@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -14,11 +15,8 @@ var configWriteMu sync.Mutex
 
 // ========== 配置数据结构 ==========
 
-// OpenAgentConfig 表示 oh-my-openagent.jsonc 的顶层结构。
-type OpenAgentConfig struct {
-	Agents     map[string]ModelConfig `json:"agents"`
-	Categories map[string]ModelConfig `json:"categories"`
-}
+// OpenAgentConfig 表示 oh-my-openagent.jsonc 的顶层模型配置结构。
+type OpenAgentConfig map[string]map[string]ModelConfig
 
 // ModelConfig 单个 agent/category 的模型配置。
 type ModelConfig struct {
@@ -55,8 +53,8 @@ func loadConfig() (*OpenAgentConfig, string, map[string]string, error) {
 	// 去掉单行注释后解析 JSON
 	cleaned := stripComments(rawText)
 
-	var config OpenAgentConfig
-	if err := json.Unmarshal([]byte(cleaned), &config); err != nil {
+	config, err := parseModelConfigSections(cleaned)
+	if err != nil {
 		return nil, rawText, nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
@@ -64,6 +62,53 @@ func loadConfig() (*OpenAgentConfig, string, map[string]string, error) {
 	comments := extractComments(rawText)
 
 	return &config, rawText, comments, nil
+}
+
+func parseModelConfigSections(cleaned string) (OpenAgentConfig, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(cleaned), &raw); err != nil {
+		return nil, err
+	}
+
+	config := make(OpenAgentConfig)
+	for section, sectionData := range raw {
+		var rawEntries map[string]json.RawMessage
+		if err := json.Unmarshal(sectionData, &rawEntries); err != nil {
+			continue
+		}
+		if len(rawEntries) == 0 {
+			if isEmptyModelSectionName(section) {
+				config[section] = map[string]ModelConfig{}
+			}
+			continue
+		}
+
+		entries := make(map[string]ModelConfig)
+		isModelSection := true
+		for key, entryData := range rawEntries {
+			var entry ModelConfig
+			if err := json.Unmarshal(entryData, &entry); err != nil || entry.Model == "" {
+				isModelSection = false
+				break
+			}
+			entries[key] = entry
+		}
+		if isModelSection {
+			config[section] = entries
+		}
+	}
+	return config, nil
+}
+
+func isEmptyModelSectionName(section string) bool {
+	section = normalizeModelEntryType(section)
+	if section == "agents" || section == "categories" {
+		return true
+	}
+	if section == "mcp" || section == "provider" || section == "providers" || section == "commands" || section == "settings" {
+		return false
+	}
+	return len(section) > 3 && strings.HasSuffix(section, "s")
 }
 
 // GetFullConfig 返回完整 JSONC 字符串（前端解析后只显示 agents/categories）
@@ -92,6 +137,7 @@ func (a *App) SaveFullConfig(jsonStr string) SaveResult {
 func saveConfig(entries []ModelEntry) error {
 	configWriteMu.Lock()
 	defer configWriteMu.Unlock()
+	entries = normalizeModelEntries(entries)
 
 	path := configPath()
 	data, err := os.ReadFile(path)
@@ -101,27 +147,33 @@ func saveConfig(entries []ModelEntry) error {
 
 	lines := strings.Split(string(data), "\n")
 	modelRe := regexp.MustCompile(`("model"\s*:\s*)"[^"]*"`)
-	var cfg OpenAgentConfig
-	if err := json.Unmarshal([]byte(stripComments(string(data))), &cfg); err != nil {
+	cfg, err := parseModelConfigSections(stripComments(string(data)))
+	if err != nil {
 		return fmt.Errorf("解析配置失败: %w", err)
 	}
 
-	lines, err = removeMissingModelEntries(lines, cfg.Agents, entries, "agent")
-	if err != nil {
-		return err
-	}
-	lines, err = removeMissingModelEntries(lines, cfg.Categories, entries, "category")
-	if err != nil {
-		return err
+	for entryType, existing := range cfg {
+		lines, err = removeMissingModelEntries(lines, existing, entries, entryType)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, entry := range entries {
 		var updated bool
 		var keyExists bool
-		keyPattern := fmt.Sprintf(`"%s":`, entry.Key)
-		for i, line := range lines {
+		sectionStart, sectionEnd := findSectionRange(lines, entry.Type)
+		if sectionStart < 0 {
+			lines, err = insertModelType(lines, entry.Type)
+			if err != nil {
+				return err
+			}
+			sectionStart, sectionEnd = findSectionRange(lines, entry.Type)
+		}
+		for i := sectionStart + 1; i < sectionEnd; i++ {
+			line := lines[i]
 			trimmed := strings.TrimSpace(line)
-			if !strings.Contains(trimmed, keyPattern) || !strings.Contains(trimmed, "{") {
+			if !isObjectKeyLine(trimmed, entry.Key) {
 				continue
 			}
 			keyExists = true
@@ -158,6 +210,26 @@ func saveConfig(entries []ModelEntry) error {
 	return writeConfigFile(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
+func normalizeModelEntries(entries []ModelEntry) []ModelEntry {
+	normalized := make([]ModelEntry, len(entries))
+	for i, entry := range entries {
+		normalized[i] = entry
+		normalized[i].Type = normalizeModelEntryType(entry.Type)
+	}
+	return normalized
+}
+
+func normalizeModelEntryType(entryType string) string {
+	switch strings.TrimSpace(entryType) {
+	case "agent":
+		return "agents"
+	case "category":
+		return "categories"
+	default:
+		return strings.TrimSpace(entryType)
+	}
+}
+
 func removeMissingModelEntries(lines []string, existing map[string]ModelConfig, entries []ModelEntry, entryType string) ([]string, error) {
 	keep := make(map[string]bool)
 	for _, entry := range entries {
@@ -192,13 +264,10 @@ func replaceModelValue(line string, modelRe *regexp.Regexp, model string) string
 }
 
 func insertModelEntry(lines []string, entry ModelEntry) ([]string, error) {
-	section := `"agents"`
-	if entry.Type == "category" {
-		section = `"categories"`
-	}
+	entry.Type = normalizeModelEntryType(entry.Type)
 
 	for i, line := range lines {
-		if !strings.Contains(strings.TrimSpace(line), section) {
+		if !isObjectKeyLine(strings.TrimSpace(line), entry.Type) {
 			continue
 		}
 
@@ -254,15 +323,15 @@ func formatInlineComment(comment string) string {
 }
 
 func removeModelEntry(lines []string, key, entryType string) ([]string, bool, error) {
+	entryType = normalizeModelEntryType(entryType)
 	sectionStart, sectionEnd := findSectionRange(lines, entryType)
 	if sectionStart < 0 {
 		return nil, false, fmt.Errorf("未找到 %s section", entryType)
 	}
 
-	keyPattern := fmt.Sprintf(`"%s":`, key)
 	for i := sectionStart + 1; i < sectionEnd; i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if !strings.Contains(trimmed, keyPattern) || !strings.Contains(trimmed, "{") {
+		if !isObjectKeyLine(trimmed, key) {
 			continue
 		}
 
@@ -279,14 +348,29 @@ func removeModelEntry(lines []string, key, entryType string) ([]string, bool, er
 	return lines, false, nil
 }
 
-func findSectionRange(lines []string, entryType string) (int, int) {
-	section := `"agents"`
-	if entryType == "category" {
-		section = `"categories"`
+func removeModelType(lines []string, entryType string) ([]string, bool, error) {
+	entryType = normalizeModelEntryType(entryType)
+	if entryType == "" {
+		return nil, false, fmt.Errorf("类型名称不能为空")
+	}
+	sectionStart, sectionEnd := findSectionRange(lines, entryType)
+	if sectionStart < 0 {
+		return lines, false, nil
 	}
 
+	updated := append([]string{}, lines[:sectionStart]...)
+	updated = append(updated, lines[sectionEnd+1:]...)
+	rootEnd, err := findObjectBlockEnd(updated, 0)
+	if err != nil {
+		return nil, false, err
+	}
+	trimTrailingCommaBeforeSectionClose(updated, rootEnd)
+	return updated, true, nil
+}
+
+func findSectionRange(lines []string, entryType string) (int, int) {
 	for i, line := range lines {
-		if !strings.Contains(strings.TrimSpace(line), section) {
+		if !isObjectKeyLine(strings.TrimSpace(line), entryType) {
 			continue
 		}
 		depth := 0
@@ -306,6 +390,11 @@ func findSectionRange(lines []string, entryType string) (int, int) {
 		break
 	}
 	return -1, -1
+}
+
+func isObjectKeyLine(line, key string) bool {
+	pattern := fmt.Sprintf(`^"%s"\s*:\s*\{`, regexp.QuoteMeta(key))
+	return regexp.MustCompile(pattern).MatchString(strings.TrimSpace(line))
 }
 
 func findObjectBlockEnd(lines []string, start int) (int, error) {
@@ -347,6 +436,40 @@ func previousContentLine(lines []string, before int) int {
 
 func leadingWhitespace(line string) string {
 	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+}
+
+func insertModelType(lines []string, entryType string) ([]string, error) {
+	entryType = normalizeModelEntryType(entryType)
+	if strings.TrimSpace(entryType) == "" {
+		return nil, fmt.Errorf("类型名称不能为空")
+	}
+	if start, _ := findSectionRange(lines, entryType); start >= 0 {
+		return nil, fmt.Errorf("类型 %q 已存在", entryType)
+	}
+
+	rootEnd, err := findObjectBlockEnd(lines, 0)
+	if err != nil {
+		return nil, err
+	}
+	prevIndex := previousContentLine(lines, rootEnd)
+	if prevIndex >= 0 {
+		trimmed := strings.TrimSpace(lines[prevIndex])
+		if !strings.Contains(trimmed, "{") && !strings.HasSuffix(trimmed, ",") {
+			lines[prevIndex] += ","
+		}
+	}
+
+	indent := leadingWhitespace(lines[rootEnd]) + "  "
+	newSection := []string{
+		fmt.Sprintf(`%s%q: {`, indent, entryType),
+		fmt.Sprintf(`%s}`, indent),
+	}
+
+	updated := make([]string, 0, len(lines)+len(newSection))
+	updated = append(updated, lines[:rootEnd]...)
+	updated = append(updated, newSection...)
+	updated = append(updated, lines[rootEnd:]...)
+	return updated, nil
 }
 
 func writeConfigFile(path string, data []byte, perm os.FileMode) error {
@@ -417,9 +540,51 @@ func stripComments(text string) string {
 	return strings.Join(result, "\n")
 }
 
-// ========== 增删 Agent/Category ==========
+// ========== 增删模型类型与条目 ==========
+
+func addModelType(entryType string) error {
+	entryType = normalizeModelEntryType(entryType)
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
+
+	path := configPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(data), "\n")
+	lines, err = insertModelType(lines, entryType)
+	if err != nil {
+		return err
+	}
+
+	return writeConfigFile(path, []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func deleteModelType(entryType string) error {
+	entryType = normalizeModelEntryType(entryType)
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
+
+	path := configPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(data), "\n")
+	lines, removed, err := removeModelType(lines, entryType)
+	if err != nil {
+		return err
+	}
+	if !removed {
+		return fmt.Errorf("未找到 %s section", entryType)
+	}
+
+	return writeConfigFile(path, []byte(strings.Join(lines, "\n")), 0644)
+}
 
 func addConfigEntry(key, model, entryType string) error {
+	entryType = normalizeModelEntryType(entryType)
 	configWriteMu.Lock()
 	defer configWriteMu.Unlock()
 
@@ -438,6 +603,7 @@ func addConfigEntry(key, model, entryType string) error {
 }
 
 func deleteConfigEntry(key, entryType string) error {
+	entryType = normalizeModelEntryType(entryType)
 	configWriteMu.Lock()
 	defer configWriteMu.Unlock()
 
@@ -467,8 +633,8 @@ func loadConfigRaw() (*OpenAgentConfig, error) {
 		return nil, err
 	}
 	cleaned := stripComments(string(data))
-	var cfg OpenAgentConfig
-	if err := json.Unmarshal([]byte(cleaned), &cfg); err != nil {
+	cfg, err := parseModelConfigSections(cleaned)
+	if err != nil {
 		return nil, err
 	}
 	return &cfg, nil
@@ -492,29 +658,29 @@ func saveConfigRaw(cfg *OpenAgentConfig) error {
 // configToEntries 将 OpenAgentConfig 转为前端展示用的 ModelEntry 列表。
 func configToEntries(config *OpenAgentConfig, comments map[string]string) []ModelEntry {
 	entries := make([]ModelEntry, 0)
-
-	// Agents
-	for key, mc := range config.Agents {
-		comment := comments[key]
-		entries = append(entries, ModelEntry{
-			Key:     key,
-			Type:    "agent",
-			Model:   mc.Model,
-			Label:   deriveLabel(comment),
-			Comment: comment,
-		})
+	sectionNames := make([]string, 0, len(*config))
+	for section := range *config {
+		sectionNames = append(sectionNames, section)
 	}
+	sort.Strings(sectionNames)
 
-	// Categories
-	for key, mc := range config.Categories {
-		comment := comments[key]
-		entries = append(entries, ModelEntry{
-			Key:     key,
-			Type:    "category",
-			Model:   mc.Model,
-			Label:   deriveLabel(comment),
-			Comment: comment,
-		})
+	for _, section := range sectionNames {
+		keys := make([]string, 0, len((*config)[section]))
+		for key := range (*config)[section] {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			mc := (*config)[section][key]
+			comment := comments[key]
+			entries = append(entries, ModelEntry{
+				Key:     key,
+				Type:    section,
+				Model:   mc.Model,
+				Label:   deriveLabel(comment),
+				Comment: comment,
+			})
+		}
 	}
 
 	return entries
