@@ -295,6 +295,26 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class WebResult {
+	    running: boolean;
+	    success: boolean;
+	    port: number;
+	    url: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.running = source["running"];
+	        this.success = source["success"];
+	        this.port = source["port"];
+	        this.url = source["url"];
+	        this.error = source["error"];
+	    }
+	}
 
 }
 

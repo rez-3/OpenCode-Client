@@ -70,6 +70,14 @@ export function GetTargets() {
   return window['go']['main']['App']['GetTargets']();
 }
 
+export function GetWebStatus() {
+  return window['go']['main']['App']['GetWebStatus']();
+}
+
+export function LaunchWindowsTerminal(arg1, arg2) {
+  return window['go']['main']['App']['LaunchWindowsTerminal'](arg1, arg2);
+}
+
 export function OpenDir(arg1) {
   return window['go']['main']['App']['OpenDir'](arg1);
 }
@@ -86,14 +94,6 @@ export function RefreshAvailableModels() {
   return window['go']['main']['App']['RefreshAvailableModels']();
 }
 
-export function ResizeTerminal(arg1, arg2) {
-  return window['go']['main']['App']['ResizeTerminal'](arg1, arg2);
-}
-
-export function RunOpenCode(arg1, arg2) {
-  return window['go']['main']['App']['RunOpenCode'](arg1, arg2);
-}
-
 export function SaveFullConfig(arg1) {
   return window['go']['main']['App']['SaveFullConfig'](arg1);
 }
@@ -102,12 +102,12 @@ export function SaveProvider(arg1) {
   return window['go']['main']['App']['SaveProvider'](arg1);
 }
 
-export function StartTerminal() {
-  return window['go']['main']['App']['StartTerminal']();
+export function StartOpenCodeWeb(arg1) {
+  return window['go']['main']['App']['StartOpenCodeWeb'](arg1);
 }
 
-export function TerminalWrite(arg1) {
-  return window['go']['main']['App']['TerminalWrite'](arg1);
+export function StopOpenCodeWeb() {
+  return window['go']['main']['App']['StopOpenCodeWeb']();
 }
 
 export function ToggleAllSkills(arg1, arg2) {

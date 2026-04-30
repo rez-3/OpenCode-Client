@@ -36,6 +36,10 @@ export function GetStats():Promise<main.Stats>;
 
 export function GetTargets():Promise<Array<main.TargetInfo>>;
 
+export function GetWebStatus():Promise<main.WebResult>;
+
+export function LaunchWindowsTerminal(arg1:string,arg2:string):Promise<main.WebResult>;
+
 export function OpenDir(arg1:string):Promise<void>;
 
 export function OpenDirectoryDialog():Promise<string>;
@@ -44,17 +48,13 @@ export function Refresh():Promise<void>;
 
 export function RefreshAvailableModels():Promise<Array<string>>;
 
-export function ResizeTerminal(arg1:number,arg2:number):Promise<void>;
-
-export function RunOpenCode(arg1:string,arg2:boolean):Promise<void>;
-
 export function SaveFullConfig(arg1:string):Promise<main.SaveResult>;
 
 export function SaveProvider(arg1:main.ProviderSave):Promise<main.SaveResult>;
 
-export function StartTerminal():Promise<string>;
+export function StartOpenCodeWeb(arg1:number):Promise<main.WebResult>;
 
-export function TerminalWrite(arg1:string):Promise<void>;
+export function StopOpenCodeWeb():Promise<main.WebResult>;
 
 export function ToggleAllSkills(arg1:string,arg2:boolean):Promise<main.BatchResult>;
 

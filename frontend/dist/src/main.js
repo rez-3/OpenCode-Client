@@ -129,6 +129,27 @@ const api = (() => {
         { id: 'ses_def456', title: 'OpenCode 模型配置管理' },
     ],
     RunOpenCode: async (sid, cont) => { console.log('mock launch:', sid, cont); },
+        // web 管理
+        StartOpenCodeWeb: async (port) => {
+            webPort = port || 4096;
+            webRunning = true;
+            updateWebUI();
+            embedWebUI();
+            return { running: true, success: true, port: webPort, url: `http://127.0.0.1:${webPort}` };
+        },
+        StopOpenCodeWeb: async () => {
+            webRunning = false; webPort = 0;
+            updateWebUI(); clearWebUI();
+            return { success: true };
+        },
+        GetWebStatus: async () => {
+            return { running: webRunning, port: webPort, url: webPort ? `http://127.0.0.1:${webPort}` : '' };
+        },
+        LaunchWindowsTerminal: async (mode, url) => {
+            console.log('mock launch wt:', mode, url);
+            showToast('模拟启动 Windows Terminal', 'info');
+            return { success: true };
+        },
         // 模型配置
         GetModelConfig: async () => [
             { key: 'sisyphus', type: 'agent', model: 'deepseek/deepseek-v4-pro', label: '执行者', comment: '执行者：负责执行具体任务' },
@@ -214,16 +235,9 @@ function switchView(viewId) {
     } else if (viewId === 'view-commands') {
         loadCommands();
     } else if (viewId === 'view-opencode') {
-        // 初始化终端
-        if (!terminalInstance) setTimeout(initTerminal, 300);
-        scheduleTerminalFit();
+        // 检查 web 状态
+        checkWebStatus();
     }
-}
-
-async function syncTerminalSize() {
-    fitTerminalToContainer();
-    await new Promise(resolve => requestAnimationFrame(() => resolve()));
-    fitTerminalToContainer();
 }
 
 // 侧边栏点击事件（事件委托）
@@ -235,203 +249,120 @@ document.getElementById('sidebar').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// View 1: OpenCode (终端)
+// View 1: 工作区 (opencode web)
 // ============================================================
 
-// ============================================================
-// 嵌入式终端 (xterm.js)
-// ============================================================
-let terminalInstance = null;
-let terminalFitAddon = null;
-let terminalReady = false;
-let terminalResizeObserver = null;
-let lastTerminalSize = { cols: 0, rows: 0 };
-const TERMINAL_FONT_SIZE = 14;
-const TERMINAL_FONT_FAMILY = "'Cascadia Mono', 'Consolas', 'Courier New', monospace";
-const TERMINAL_LINE_HEIGHT = 1.15;
+let webPort = 0;
+let webRunning = false;
 
-function initTerminal() {
-    const container = document.getElementById('terminalContainer');
-    if (!container) return;
-    if (terminalInstance) return;
-
-    if (typeof Terminal === 'undefined') {
-        console.warn('xterm.js 未加载');
-        return;
-    }
-
+async function checkWebStatus() {
     try {
-        terminalInstance = new Terminal({
-        cursorBlink: true,
-        cursorStyle: 'block',
-        cols: 160,
-        rows: 40,
-        fontSize: TERMINAL_FONT_SIZE,
-        fontFamily: TERMINAL_FONT_FAMILY,
-        fontWeight: 'normal',
-        fontWeightBold: 'bold',
-        letterSpacing: 0,
-        lineHeight: TERMINAL_LINE_HEIGHT,
-        scrollback: 10000,
-        fastScrollModifier: 'alt',
-        fastScrollSensitivity: 8,
-        smoothScrollDuration: 80,
-        theme: {
-            background: '#1e1e1e',
-            foreground: '#cccccc',
-            cursor: '#007acc',
-            selectionBackground: '#264f78',
-        },
-        allowTransparency: false,
-        });
-    } catch (err) {
-        container.textContent = '终端初始化失败: ' + (err.message || err);
-        return;
-    }
-
-    terminalInstance.open(container);
-
-    if (typeof Unicode11Addon !== 'undefined') {
-        try {
-            const unicode11Addon = new Unicode11Addon.Unicode11Addon();
-            terminalInstance.loadAddon(unicode11Addon);
-            terminalInstance.unicode.activeVersion = '11';
-        } catch (err) {
-            console.warn('Unicode11Addon 加载失败，使用 xterm 默认宽度表', err);
-        }
-    }
-
-    // FitAddon 精确填充容器
-    if (typeof FitAddon !== 'undefined') {
-        terminalFitAddon = new FitAddon.FitAddon();
-        terminalInstance.loadAddon(terminalFitAddon);
-        scheduleTerminalFit();
-    }
-
-    setTimeout(() => terminalInstance.focus(), 300);
-    container.addEventListener('click', () => terminalInstance.focus());
-    container.addEventListener('wheel', (event) => {
-        if (!terminalInstance) return;
-        const lineDelta = Math.max(1, Math.ceil(Math.abs(event.deltaY) / 18));
-        terminalInstance.scrollLines(event.deltaY > 0 ? lineDelta : -lineDelta);
-        event.preventDefault();
-    }, { passive: false });
-
-    terminalInstance.writeln('\x1b[36mTerminal ready\x1b[0m');
-    terminalInstance.write('$ ');
-
-    // 自适应大小 + ConPTY 同步
-    const doFit = () => {
-        fitTerminalToContainer();
-    };
-
-    setTimeout(doFit, 200);
-    setTimeout(doFit, 600);
-    setTimeout(doFit, 1200);
-    if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(() => scheduleTerminalFit()).catch(() => {});
-    }
-    window.addEventListener('resize', doFit);
-    if (window.ResizeObserver && container) {
-        if (terminalResizeObserver) terminalResizeObserver.disconnect();
-        terminalResizeObserver = new ResizeObserver(() => scheduleTerminalFit());
-        terminalResizeObserver.observe(container);
-    }
-
-    // PTY 先绑事件再启动，避免启动瞬间输出丢失。
-    const startAndBind = async () => {
-        // Go → 前端输出。先绑定事件再启动 PTY，避免启动瞬间输出丢失。
-        if (window.runtime) {
-            window.runtime.EventsOn('terminal-output', (output) => {
-                if (terminalInstance && output) terminalInstance.write(output);
-            });
-            window.runtime.EventsOn('terminal-error', (errMsg) => {
-                if (terminalInstance && errMsg)
-                    terminalInstance.writeln('\r\n\x1b[31m[错误] ' + errMsg + '\x1b[0m');
-            });
-            window.runtime.EventsOn('terminal-closed', (msg) => {
-                terminalReady = false;
-                if (terminalInstance) {
-                    terminalInstance.writeln('\r\n\x1b[33m[' + (msg || '终端已退出，按任意键自动重启') + ']\x1b[0m');
-                    terminalInstance.write('\r\n$ ');
-                }
-            });
-        }
-
-        // 用户输入 → Go PTY。先绑定输入，即使 StartTerminal 失败，下一次输入也会尝试重启。
-        terminalInstance.onData(async data => {
-            if (api.TerminalWrite) {
-                try {
-                    if (!terminalReady && api.StartTerminal) {
-                        await api.StartTerminal();
-                        terminalReady = true;
-                        scheduleTerminalFit();
-                    }
-                    await api.TerminalWrite(data);
-                } catch (err) {
-                    terminalReady = false;
-                    terminalInstance.writeln('\r\n\x1b[31m[输入失败] ' + (err.message || err) + '\x1b[0m');
-                }
-            }
-        });
-
-        if (api.StartTerminal) {
-            try {
-                const result = await api.StartTerminal();
-                terminalReady = true;
-                scheduleTerminalFit();
-                terminalInstance.writeln('\r\n\x1b[33m[StartTerminal: ' + result + ']\x1b[0m');
-            } catch (err) {
-                terminalReady = false;
-                terminalInstance.writeln('\r\n\x1b[31m[StartTerminal failed] ' + (err.message || err) + '\x1b[0m');
-            }
-        } else {
-            terminalInstance.writeln('\r\n\x1b[31m[StartTerminal not found]\x1b[0m');
-        }
-    };
-
-    startAndBind();
-}
-
-function fitTerminalToContainer() {
-    if (!terminalFitAddon || !terminalInstance) return;
-    requestAnimationFrame(() => {
-        const proposed = typeof terminalFitAddon.proposeDimensions === 'function'
-            ? terminalFitAddon.proposeDimensions()
-            : null;
-        if (proposed && proposed.cols > 0 && proposed.rows > 0) {
-            terminalInstance.resize(proposed.cols, proposed.rows);
-        } else {
-            terminalFitAddon.fit();
-        }
-        const cols = terminalInstance.cols;
-        const rows = terminalInstance.rows;
-        if (cols > 0 && rows > 0 && api.ResizeTerminal) {
-            api.ResizeTerminal(cols, rows);
-        }
-        if (cols !== lastTerminalSize.cols || rows !== lastTerminalSize.rows) {
-            lastTerminalSize = { cols, rows };
-            console.info(`Terminal resized: ${cols}x${rows}`);
-        }
-    });
-}
-
-async function runOpenCodeInTerminal(sessionId = '', continueFlag = false) {
-    if (!terminalInstance) initTerminal();
-    await syncTerminalSize();
-    if (api.RunOpenCode) {
-        await api.RunOpenCode(sessionId, continueFlag);
-        setTimeout(fitTerminalToContainer, 120);
-        setTimeout(fitTerminalToContainer, 500);
+        const status = await api.GetWebStatus();
+        webRunning = status.running;
+        webPort = status.port;
+        updateWebUI();
+    } catch (e) {
+        console.warn('GetWebStatus failed:', e);
     }
 }
 
-function scheduleTerminalFit() {
-    requestAnimationFrame(() => fitTerminalToContainer());
-    setTimeout(fitTerminalToContainer, 80);
-    setTimeout(fitTerminalToContainer, 240);
-    setTimeout(fitTerminalToContainer, 600);
+async function startWeb() {
+    const btn = document.getElementById('btnStartWeb');
+    btn.disabled = true;
+    btn.textContent = '⏳ 启动中...';
+    try {
+        const result = await api.StartOpenCodeWeb(4096);
+        if (result.running) {
+            webRunning = true;
+            webPort = result.port;
+            updateWebUI();
+            embedWebUI();
+            showToast('OpenCode Web 已启动', 'success');
+        } else if (result.error) {
+            showToast('启动失败: ' + result.error, 'error');
+        }
+    } catch (e) {
+        showToast('启动失败: ' + (e.message || e), 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = '▶ 启动 Web';
 }
+
+async function stopWeb() {
+    const btn = document.getElementById('btnStopWeb');
+    btn.disabled = true;
+    btn.textContent = '⏳ 停止中...';
+    try {
+        await api.StopOpenCodeWeb();
+        webRunning = false;
+        webPort = 0;
+        updateWebUI();
+        clearWebUI();
+        showToast('已停止', 'info');
+    } catch (e) {
+        showToast('停止失败: ' + (e.message || e), 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = '■ 停止';
+}
+
+async function launchTerminal() {
+    try {
+        const url = webPort ? `http://127.0.0.1:${webPort}` : '';
+        const result = await api.LaunchWindowsTerminal('attach', url);
+        if (!result.success && result.error) {
+            showToast('启动失败: ' + result.error, 'error');
+        }
+    } catch (e) {
+        showToast('启动终端失败: ' + (e.message || e), 'error');
+    }
+}
+
+function embedWebUI() {
+    const container = document.getElementById('webContainer');
+    container.innerHTML = `<iframe
+        src="http://127.0.0.1:${webPort}"
+        id="ocIframe"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+    ></iframe>`;
+}
+
+function clearWebUI() {
+    const container = document.getElementById('webContainer');
+    container.innerHTML = `<div class="oc-web-placeholder">
+        <p>📂 点击"启动 Web"加载 OpenCode 界面</p>
+        <p class="empty-hint">启动后可通过下方 iframe 直接操作，或点击"在终端中打开"使用完整终端版</p>
+    </div>`;
+}
+
+function updateWebUI() {
+    const statusEl = document.getElementById('webStatus');
+    const btnStart = document.getElementById('btnStartWeb');
+    const btnStop = document.getElementById('btnStopWeb');
+    const btnWt = document.getElementById('btnWtOpen');
+
+    if (webRunning) {
+        statusEl.textContent = `运行中 :${webPort}`;
+        statusEl.className = 'oc-web-status running';
+        btnStart.disabled = true;
+        btnStop.disabled = false;
+        btnWt.disabled = false;
+        if (document.getElementById('webContainer') && !document.getElementById('ocIframe')) {
+            embedWebUI();
+        }
+    } else {
+        statusEl.textContent = '未启动';
+        statusEl.className = 'oc-web-status';
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+        btnWt.disabled = true;
+    }
+}
+
+// 事件绑定
+document.getElementById('btnStartWeb').addEventListener('click', startWeb);
+document.getElementById('btnStopWeb').addEventListener('click', stopWeb);
+document.getElementById('btnWtOpen').addEventListener('click', launchTerminal);
 
 // ============================================================
 // View 2: 模型配置
@@ -1220,7 +1151,7 @@ document.addEventListener('keydown', (e) => {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     loadSkillsData();
-    initTerminal();
+    checkWebStatus();
 });
 
 // ============================================================
@@ -1421,13 +1352,6 @@ document.querySelectorAll('.nav-item[data-view="view-providers"]').forEach(item 
 // Wails 就绪事件
 if (window.runtime) {
     window.runtime.EventsOn('wails:ready', () => {
-        loadOpenCodeOptions();
-        const opencodePanel = document.getElementById('view-opencode');
-        if (opencodePanel && opencodePanel.classList.contains('active') && !terminalInstance) {
-            setTimeout(initTerminal, 300);
-        }
-        if (opencodePanel && opencodePanel.classList.contains('active')) {
-            scheduleTerminalFit();
-        }
+        checkWebStatus();
     });
 }

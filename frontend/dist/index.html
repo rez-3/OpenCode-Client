@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🧩 OpenCode 管理中心</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -45,11 +44,23 @@
         <!-- 内容区域 -->
         <div class="content-area" id="contentArea">
 
-            <!-- ===== View 1: OpenCode ===== -->
+            <!-- ===== View 1: 工作区 ===== -->
             <div class="view-panel active" id="view-opencode">
-                <!-- 终端 -->
-                <div class="terminal-wrapper" id="terminalWrapper">
-                    <div class="terminal-container" id="terminalContainer"></div>
+                <!-- 控制栏 -->
+                <div class="oc-toolbar">
+                    <button class="btn btn-primary" id="btnStartWeb">▶ 启动 Web</button>
+                    <button class="btn btn-danger-outline" id="btnStopWeb" disabled>■ 停止</button>
+                    <span class="oc-web-status" id="webStatus">未启动</span>
+                    <div class="oc-toolbar-right">
+                        <button class="btn btn-config" id="btnWtOpen" disabled>🖥 在终端中打开</button>
+                    </div>
+                </div>
+                <!-- Web 容器 -->
+                <div class="oc-web-container" id="webContainer">
+                    <div class="oc-web-placeholder">
+                        <p>📂 点击"启动 Web"加载 OpenCode 界面</p>
+                        <p class="empty-hint">启动后可通过下方 iframe 直接操作，或点击"在终端中打开"使用完整终端版</p>
+                    </div>
                 </div>
             </div>
 
@@ -131,9 +142,6 @@
     <!-- Toast 通知 -->
     <div class="toast" id="toast"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11@0.6.0/lib/xterm-addon-unicode11.js"></script>
     <script src="/src/main.js"></script>
 </body>
 </html>
