@@ -122,6 +122,7 @@ const api = (() => {
         ToggleAllSkills: async (target, enable) => ({ target, enabled: enable, success: true, errors: [] }),
         Refresh: async () => {},
         OpenDir: async (path) => { console.log('mock open:', path); showToast(`模拟打开目录: ${path}`, 'info'); },
+        OpenDirectoryDialog: async () => workDir || 'E:\\data\\ai_test\\feishu\\skill-manager',
     StartTerminal: async () => { console.log('mock terminal start'); },
     TerminalWrite: async (data) => { console.log('mock term write:', data); },
     GetSessions: async () => [
@@ -134,12 +135,11 @@ const api = (() => {
             webPort = port || 4096;
             webRunning = true;
             updateWebUI();
-            embedWebUI();
             return { running: true, success: true, port: webPort, url: `http://127.0.0.1:${webPort}` };
         },
         StopOpenCodeWeb: async () => {
             webRunning = false; webPort = 0;
-            updateWebUI(); clearWebUI();
+            updateWebUI(); clearClientUI();
             return { success: true };
         },
         GetWebStatus: async () => {
@@ -150,6 +150,21 @@ const api = (() => {
             showToast('模拟启动终端' + (dir ? ' 目录:' + dir : ''), 'info');
             return { success: true };
         },
+        OpenCodeAPI: async (method, path, body) => {
+            if (method === 'POST' && path === '/session') return { success: true, status: 200, body: JSON.stringify({ id: 'ses_new_' + Date.now(), title: '新会话' }) };
+            if (path === '/session') return { success: true, status: 200, body: JSON.stringify([
+                { id: 'ses_abc123', title: '开发 Skill 桌面管理工具' },
+                { id: 'ses_def456', title: 'OpenCode 模型配置管理' },
+            ]) };
+            if (path.includes('/message')) return { success: true, status: 200, body: JSON.stringify([
+                { info: { role: 'user' }, parts: [{ text: '这是模拟消息' }] },
+                { info: { role: 'assistant' }, parts: [{ type: 'text', text: '这是模拟回复' }, { type: 'tool', tool: 'read', state: { status: 'completed' } }] },
+            ]) };
+            if (path.includes('/diff')) return { success: true, status: 200, body: JSON.stringify([{ path: 'main.go', hunks: [{ lines: ['+ mock diff'] }] }]) };
+            return { success: true, status: 200, body: '{}' };
+        },
+        StartOpenCodeEvents: async () => ({ success: true }),
+        StopOpenCodeEvents: async () => ({ success: true }),
         // 模型配置
         GetModelConfig: async () => [
             { key: 'sisyphus', type: 'agent', model: 'deepseek/deepseek-v4-pro', label: '执行者', comment: '执行者：负责执行具体任务' },
@@ -256,6 +271,13 @@ document.getElementById('sidebar').addEventListener('click', (e) => {
 let webPort = 0;
 let webRunning = false;
 let workDir = '';
+let currentSessionId = '';
+let sessions = [];
+let sessionStatuses = {};
+let sessionErrors = {};
+let refreshTimer = null;
+let mcpStatus = null;
+let lspStatus = null;
 
 async function pickDirectory() {
     try {
@@ -295,9 +317,665 @@ async function checkWebStatus() {
         webRunning = status.running;
         webPort = status.port;
         updateWebUI();
+        if (webRunning) {
+            startEventStream();
+            loadSessions();
+            loadServiceStatus();
+        }
     } catch (e) {
         console.warn('GetWebStatus failed:', e);
     }
+}
+
+async function ocApi(method, path, data) {
+    const result = await api.OpenCodeAPI(method, path, data ? JSON.stringify(data) : '');
+    if (!result.success) {
+        throw new Error(result.error || result.body || `HTTP ${result.status}`);
+    }
+    if (!result.body) return null;
+    return JSON.parse(result.body);
+}
+
+function safeText(value) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    return JSON.stringify(value, null, 2);
+}
+
+function extractPartText(part) {
+    if (!part) return '';
+    return part.text || part.content || part.message || part.value || safeText(part);
+}
+
+function parseEventPayload(raw) {
+    try { return JSON.parse(raw); } catch { return { type: 'raw', data: raw }; }
+}
+
+function startEventStream() {
+    if (window.runtime && !startEventStream.bound) {
+        window.runtime.EventsOn('oc-event', (raw) => handleOcEvent(parseEventPayload(raw)));
+        window.runtime.EventsOn('oc-event-error', (msg) => showToast('事件流异常: ' + msg, 'error'));
+        startEventStream.bound = true;
+    }
+    if (api.StartOpenCodeEvents) api.StartOpenCodeEvents();
+}
+
+function handleOcEvent(event) {
+    const type = event.type || event.name || '';
+    const props = event.properties || event.data || event;
+    const sid = props.sessionID || props.sessionId || currentSessionId;
+
+    if (type.includes('permission')) {
+        const permission = props.permission ? { ...props.permission, ...props } : props;
+        const kind = permission.permission || permission.type || 'tool';
+        showToast('权限请求: ' + escapeHtml(kind), 'warning');
+    }
+
+    if (type === 'session.error' && sid && props.error) {
+        sessionErrors[sid] = typeof props.error === 'string' ? props.error : (props.error.message || safeText(props.error));
+        if (sid === currentSessionId) loadMessages();
+        return;
+    }
+    if (type === 'session.idle' && sid) {
+        delete sessionErrors[sid];
+        if (sid === currentSessionId) loadMessages();
+        return;
+    }
+
+    if (type.includes('message') || type.includes('session') || type.includes('part')) {
+        if (currentSessionId) loadMessages();
+        loadDiff();
+    }
+}
+
+async function loadSessions() {
+    if (!webRunning) return;
+    const list = document.getElementById('ocSessionList');
+    list.innerHTML = '<div class="oc-empty">加载会话中...</div>';
+    try {
+        const [nextSessions, nextStatuses] = await Promise.all([
+            ocApi('GET', '/session'),
+            loadSessionStatuses(),
+        ]);
+        sessions = nextSessions || [];
+        sessionStatuses = nextStatuses || {};
+        renderSessions();
+        if (!currentSessionId && sessions.length > 0) {
+            await selectSession(sessions[0].id || sessions[0].ID);
+        }
+    } catch (e) {
+        list.innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
+    }
+}
+
+function renderSessions() {
+    const list = document.getElementById('ocSessionList');
+    if (!sessions.length) {
+        list.innerHTML = '<div class="oc-empty">暂无会话，发送 prompt 将创建新会话</div>';
+        return;
+    }
+    list.innerHTML = '';
+    sessions.forEach(session => {
+        const id = session.id || session.ID;
+        const item = document.createElement('button');
+        item.className = 'oc-session-item' + (id === currentSessionId ? ' active' : '');
+        item.textContent = session.title || session.name || id;
+        item.title = id;
+        item.addEventListener('click', () => selectSession(id));
+        list.appendChild(item);
+    });
+}
+
+async function loadSessionStatuses() {
+    try {
+        return await ocApi('GET', '/session/status') || {};
+    } catch {
+        return {};
+    }
+}
+
+async function selectSession(id) {
+    currentSessionId = id;
+    renderSessions();
+    const current = sessions.find(s => (s.id || s.ID) === id);
+    document.getElementById('ocChatTitle').textContent = current?.title || current?.name || id || '未选择会话';
+    await loadMessages();
+    await loadDiff();
+}
+
+async function createNewSession() {
+    if (!webRunning) return;
+    currentSessionId = '';
+    sessionStatuses = {};
+    sessionErrors = {};
+    document.getElementById('ocChatTitle').textContent = '新建会话';
+    document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">输入内容后 Enter 发送，会话将在首次发送时创建</div>';
+    document.getElementById('ocDiff').innerHTML = '<div class="oc-empty">选择会话后查看变更</div>';
+    document.getElementById('ocPrompt').value = '';
+    document.getElementById('ocPrompt').focus();
+    // 取消当前会话高亮
+    Array.from(document.querySelectorAll('.oc-session-item')).forEach(el => el.classList.remove('active'));
+}
+
+async function loadMessages() {
+    const box = document.getElementById('ocMessages');
+    if (!currentSessionId) {
+        box.innerHTML = '<div class="oc-empty">选择会话后查看消息，或输入内容创建新会话</div>';
+        return;
+    }
+    try {
+        const messages = await ocApi('GET', `/session/${encodeURIComponent(currentSessionId)}/message`);
+        renderMessages(messages || []);
+    } catch (e) {
+        box.innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
+    }
+}
+
+function renderMessages(items) {
+    const box = document.getElementById('ocMessages');
+    if (!items.length) {
+        box.innerHTML = '<div class="oc-empty">该会话暂无消息</div>';
+        return;
+    }
+    box.innerHTML = '';
+    items.forEach(item => {
+        const info = item.info || item;
+        const role = info.role || info.author || 'message';
+        const displayRole = role === 'user' ? '你' : (role === 'assistant' ? '助手' : role);
+        const parts = item.parts || info.parts || [];
+        const node = document.createElement('div');
+        node.className = `oc-message ${role}`;
+        node.innerHTML = `<div class="oc-message-role">${escapeHtml(displayRole)}</div>`;
+        const body = document.createElement('div');
+        body.className = 'oc-message-parts';
+        const partList = Array.isArray(parts) ? parts : [parts];
+        if (partList.length) {
+            partList.forEach(part => body.appendChild(renderPart(part)));
+        } else if (role === 'assistant') {
+            if (isSessionBusy(currentSessionId)) {
+                const pending = document.createElement('div');
+                pending.className = 'oc-part pending';
+                pending.textContent = '正在等待模型回复...';
+                body.appendChild(pending);
+            } else if (hasSessionError(currentSessionId)) {
+                const errEl = document.createElement('div');
+                errEl.className = 'oc-part error';
+                errEl.textContent = '模型调用失败：' + (sessionErrors[currentSessionId] || '未知错误，请检查 opencode 提供商配置');
+                body.appendChild(errEl);
+            } else {
+                const pre = document.createElement('pre');
+                pre.textContent = safeText(item);
+                body.appendChild(pre);
+            }
+        } else {
+            const pre = document.createElement('pre');
+            pre.textContent = safeText(item);
+            body.appendChild(pre);
+        }
+        node.appendChild(body);
+        box.appendChild(node);
+    });
+    box.scrollTop = box.scrollHeight;
+}
+
+function isSessionBusy(id) {
+    const status = sessionStatuses[id];
+    return status === 'busy' || status?.type === 'busy' || status?.status === 'busy';
+}
+
+function hasSessionError(id) {
+    return !!sessionErrors[id];
+}
+
+function renderPart(part) {
+    const type = part?.type || '';
+    switch (type) {
+        case 'step-start': return renderStepDivider(part, 'start');
+        case 'step-finish': return renderStepDivider(part, 'finish');
+        case 'reasoning': return renderReasoning(part);
+        case 'tool': return renderTool(part);
+        case 'text': return renderTextPart(part);
+        case 'file': return renderFilePart(part);
+        case 'patch': return renderPatchPart(part);
+        case 'agent':
+        case 'subtask': return renderAgentPart(part, type);
+        default: return renderFallback(part);
+    }
+}
+
+// ── 步骤分割线 ──
+function renderStepDivider(part, phase) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-step-divider';
+    if (phase === 'finish' && part.tokens) {
+        const t = part.tokens;
+        const total = t.total || (t.input || 0) + (t.output || 0) + (t.reasoning || 0);
+        el.innerHTML = `<span class="oc-step-label">步骤结束</span><span class="oc-step-cost">↥${t.input||0} ↧${t.output||0} 🧠${t.reasoning||0} ≈${total} tokens</span>`;
+    } else {
+        el.innerHTML = '<span class="oc-step-label">步骤开始</span>';
+    }
+    return el;
+}
+
+// ── 思考过程 ──
+function renderReasoning(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-reasoning';
+    const head = document.createElement('div');
+    head.className = 'oc-reasoning-head';
+    head.innerHTML = '<span class="oc-reasoning-icon">🧠</span> 思考过程 <span class="oc-reasoning-toggle">展开</span>';
+    const body = document.createElement('div');
+    body.className = 'oc-reasoning-body hidden';
+    body.innerHTML = `<pre>${escapeHtml(part.text || '')}</pre>`;
+    let expanded = false;
+    head.addEventListener('click', () => {
+        expanded = !expanded;
+        body.classList.toggle('hidden', !expanded);
+        head.querySelector('.oc-reasoning-toggle').textContent = expanded ? '收起' : '展开';
+    });
+    el.appendChild(head);
+    el.appendChild(body);
+    return el;
+}
+
+// ── 工具调用 ──
+function renderTool(part) {
+    const tool = part.tool || part.name || '';
+    const state = part.state || {};
+    const status = state.status || '';
+    const isCompleted = status === 'completed';
+    const isError = status === 'error';
+    const isRunning = status === 'running';
+
+    // 工具类型分类
+    const isShell = tool === 'bash' || tool === 'shell';
+    const isFileOp = /^(read|write|edit|glob|grep|look_at|ast_grep_search|ast_grep_replace)$/.test(tool);
+    const category = isShell ? 'shell' : (isFileOp ? 'file' : 'tool');
+
+    const el = document.createElement('div');
+    el.className = `oc-part oc-tool oc-tool-${category}` + (isCompleted ? ' done' : '') + (isError ? ' error' : '') + (isRunning ? ' running' : '');
+
+    const head = document.createElement('div');
+    head.className = 'oc-tool-head';
+
+    // 图标和标签
+    const iconMap = { shell: '💻', file: '📄', tool: '🔧' };
+    const labelMap = { shell: '指令执行', file: '文件操作', tool: '工具调用' };
+    const icon = iconMap[category];
+    const label = labelMap[category];
+
+    // 状态指示
+    let statusText = '';
+    let statusClass = '';
+    if (isCompleted) { statusText = '✓ 完成'; statusClass = 'ok'; }
+    else if (isError) { statusText = '✗ 失败'; statusClass = 'err'; }
+    else if (isRunning) { statusText = '⏳ 运行中'; statusClass = 'running'; }
+    else { statusText = status || '等待'; statusClass = 'pending'; }
+
+    const title = state.title || tool;
+    head.innerHTML = `<span class="oc-tool-icon">${icon}</span> ${label}: <strong>${escapeHtml(title)}</strong> <span class="oc-tool-status ${statusClass}">${statusText}</span>`;
+
+    const body = document.createElement('div');
+    body.className = 'oc-tool-body';
+
+    // 输入
+    if (state.input) {
+        const inputDiv = document.createElement('div');
+        inputDiv.className = 'oc-tool-io oc-tool-input';
+        if (isShell && state.input.command) {
+            inputDiv.innerHTML = `<div class="oc-tool-io-label">命令</div><pre><code>${escapeHtml(state.input.command)}</code></pre>`;
+        } else {
+            inputDiv.innerHTML = `<div class="oc-tool-io-label">输入</div><pre><code>${escapeHtml(safeText(state.input))}</code></pre>`;
+        }
+        body.appendChild(inputDiv);
+    }
+
+    // 输出
+    if (state.output) {
+        const outDiv = document.createElement('div');
+        outDiv.className = 'oc-tool-io oc-tool-output';
+        outDiv.innerHTML = `<div class="oc-tool-io-label">输出</div><pre><code>${escapeHtml(safeText(state.output))}</code></pre>`;
+        body.appendChild(outDiv);
+    }
+
+    // 错误
+    if (state.error) {
+        const errDiv = document.createElement('div');
+        errDiv.className = 'oc-tool-io oc-tool-error';
+        errDiv.innerHTML = `<div class="oc-tool-io-label">错误</div><pre><code>${escapeHtml(safeText(state.error))}</code></pre>`;
+        body.appendChild(errDiv);
+    }
+
+    // 无输入输出时显示原始数据
+    if (!state.input && !state.output && !state.error) {
+        body.innerHTML = `<div class="oc-tool-io"><pre><code>${escapeHtml(safeText(part))}</code></pre></div>`;
+    }
+
+    let expanded = isRunning; // 运行中默认展开
+    if (!expanded) body.classList.add('hidden');
+
+    head.addEventListener('click', () => {
+        expanded = !expanded;
+        body.classList.toggle('hidden', !expanded);
+    });
+
+    el.appendChild(head);
+    el.appendChild(body);
+    return el;
+}
+
+// ── 模型回复 ──
+function renderTextPart(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-text';
+    el.innerHTML = typeof marked !== 'undefined'
+        ? marked.parse(part.text || '', { breaks: true })
+        : `<pre>${escapeHtml(part.text || '')}</pre>`;
+    return el;
+}
+
+// ── 文件内容 ──
+function renderFilePart(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-file';
+    el.innerHTML = `<div class="oc-file-path">📄 ${escapeHtml(part.path || part.file || '')}</div><pre>${escapeHtml(part.content || safeText(part))}</pre>`;
+    return el;
+}
+
+// ── 代码补丁 ──
+function renderPatchPart(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-patch';
+    el.innerHTML = `<div class="oc-patch-path">📝 ${escapeHtml(part.path || part.file || '')}</div><pre><code>${escapeHtml(part.patch || safeText(part))}</code></pre>`;
+    return el;
+}
+
+// ── 代理/子任务 ──
+function renderAgentPart(part, type) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-agent';
+    const label = type === 'agent' ? '🤖 代理' : '📋 子任务';
+    el.innerHTML = `<div class="oc-agent-head">${label}: ${escapeHtml(part.name || part.agent || type)}</div><pre>${escapeHtml(safeText(part))}</pre>`;
+    return el;
+}
+
+// ── 回退渲染 ──
+function renderFallback(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-fallback';
+    const pre = document.createElement('pre');
+    pre.textContent = extractPartText(part) || safeText(part);
+    el.appendChild(pre);
+    return el;
+}
+
+async function loadDiff() {
+    const box = document.getElementById('ocDiff');
+    if (!currentSessionId || !webRunning) {
+        box.innerHTML = '<div class="oc-empty">选择会话后查看变更</div>';
+        return;
+    }
+    try {
+        const diff = await ocApi('GET', `/session/${encodeURIComponent(currentSessionId)}/diff`);
+        renderDiff(diff || []);
+    } catch (e) {
+        box.innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
+    }
+}
+
+function renderDiff(diff) {
+    const box = document.getElementById('ocDiff');
+    const files = Array.isArray(diff) ? diff : Object.values(diff || {});
+    if (!files.length) {
+        box.innerHTML = '<div class="oc-empty">暂无文件变更</div>';
+        return;
+    }
+    box.innerHTML = '';
+    const root = buildFileTree(files);
+    renderTreeNode(box, root, 0);
+}
+
+function buildFileTree(files) {
+    const root = { name: '', isDir: true, children: {} };
+    files.forEach(file => {
+        const path = (file.file || file.path || file.name || 'unknown').replace(/^\.\//, '');
+        const parts = path.split('/');
+        let node = root;
+        for (let i = 0; i < parts.length; i++) {
+            const name = parts[i];
+            const isLast = i === parts.length - 1;
+            if (!node.children[name]) {
+                node.children[name] = isLast
+                    ? { name, isDir: false, data: file }
+                    : { name, isDir: true, children: {} };
+            }
+            node = node.children[name];
+        }
+    });
+    return root;
+}
+
+function renderTreeNode(container, node, depth) {
+    const dirs = [];
+    const leafs = [];
+    for (const child of Object.values(node.children || {})) {
+        child.isDir ? dirs.push(child) : leafs.push(child);
+    }
+    // 目录在前，文件在后
+    [...dirs, ...leafs].forEach(child => {
+        const el = document.createElement('div');
+        el.className = 'oc-tree-node';
+        el.style.paddingLeft = (depth * 14) + 'px';
+
+        const head = document.createElement('div');
+        head.className = 'oc-tree-head';
+
+        if (child.isDir) {
+            head.classList.add('dir');
+            const icon = document.createElement('span');
+            icon.className = 'oc-tree-arrow expanded';
+            icon.textContent = '▼';
+            head.appendChild(icon);
+            head.appendChild(document.createTextNode(' 📁 ' + child.name));
+            const sub = document.createElement('div');
+            sub.className = 'oc-tree-children';
+            renderTreeNode(sub, child, depth + 1);
+            el.appendChild(head);
+            el.appendChild(sub);
+            head.addEventListener('click', () => {
+                icon.classList.toggle('expanded');
+                icon.classList.toggle('collapsed');
+                icon.textContent = icon.classList.contains('expanded') ? '▼' : '▶';
+                sub.classList.toggle('hidden');
+            });
+        } else {
+            head.classList.add('file');
+            const fileName = child.name;
+            const stats = child.data;
+            const adds = stats.additions || 0;
+            const dels = stats.deletions || 0;
+            head.innerHTML = `<span class="oc-tree-file-icon">📄</span> ${escapeHtml(fileName)} <span class="oc-tree-stats">+${adds} −${dels}</span>`;
+            const body = document.createElement('div');
+            body.className = 'oc-tree-body';
+            body.innerHTML = `<pre>${escapeHtml(safeText(stats))}</pre>`;
+            body.classList.add('hidden');
+            el.appendChild(head);
+            el.appendChild(body);
+            head.addEventListener('click', () => {
+                body.classList.toggle('hidden');
+                el.classList.toggle('expanded');
+            });
+        }
+        container.appendChild(el);
+    });
+}
+
+function renderPermissions() {
+    // 面板已改为服务状态，保留空实现避免引用报错
+}
+
+async function respondPermission(permission, reply) {
+    const id = permission.id || permission.permissionID || permission.permissionId;
+    const sessionID = permission.sessionID || permission.sessionId || currentSessionId;
+    if (!id) return;
+    try {
+        try {
+            await ocApi('POST', `/permission/${encodeURIComponent(id)}/reply`, { reply });
+        } catch {
+            if (!sessionID) throw new Error('缺少会话编号，无法兼容旧权限接口');
+            await ocApi('POST', `/session/${encodeURIComponent(sessionID)}/permissions/${encodeURIComponent(id)}`, { response: reply, remember: reply === 'always' });
+        }
+        showToast('权限已响应', 'success');
+    } catch (e) {
+        showToast('权限响应失败: ' + (e.message || e), 'error');
+    }
+}
+
+async function loadServiceStatus() {
+    if (!webRunning) return;
+    try {
+        const [mcp, lsp] = await Promise.all([
+            ocApi('GET', '/mcp').catch(() => null),
+            ocApi('GET', '/lsp').catch(() => null),
+        ]);
+        mcpStatus = mcp;
+        lspStatus = lsp;
+        renderServiceStatus();
+    } catch (e) {
+        document.getElementById('ocServices').innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
+    }
+}
+
+function renderServiceStatus() {
+    const box = document.getElementById('ocServices');
+    if (!mcpStatus && !lspStatus) {
+        box.innerHTML = '<div class="oc-empty">暂无服务数据</div>';
+        return;
+    }
+    box.innerHTML = '';
+
+    // MCP 服务
+    if (mcpStatus) {
+        const sec = document.createElement('div');
+        sec.className = 'oc-service-group';
+        sec.innerHTML = '<div class="oc-service-group-title">MCP 服务</div>';
+        const entries = typeof mcpStatus === 'object' ? Object.entries(mcpStatus) : [];
+        if (!entries.length) {
+            sec.innerHTML += '<div class="oc-service-item"><span class="oc-service-dot off"></span>无已配置的 MCP 服务</div>';
+        } else {
+            entries.forEach(([name, info]) => {
+                const running = info?.status === 'connected' || info?.connected || info?.running;
+                const div = document.createElement('div');
+                div.className = 'oc-service-item';
+                div.innerHTML = `<span class="oc-service-dot ${running ? 'on' : 'off'}"></span>${escapeHtml(name)} <span class="oc-service-state">${running ? '已连接' : '未连接'}</span>`;
+                sec.appendChild(div);
+            });
+        }
+        box.appendChild(sec);
+    }
+
+    // LSP 服务
+    if (lspStatus) {
+        const sec = document.createElement('div');
+        sec.className = 'oc-service-group';
+        sec.innerHTML = '<div class="oc-service-group-title">LSP 服务</div>';
+        const entries = Array.isArray(lspStatus) ? lspStatus : Object.values(lspStatus || {});
+        if (!entries.length) {
+            sec.innerHTML += '<div class="oc-service-item"><span class="oc-service-dot off"></span>无已配置的 LSP 服务</div>';
+        } else {
+            entries.forEach(info => {
+                const name = info?.name || info?.server || info?.language || '?';
+                const running = info?.status === 'running' || info?.running || info?.connected;
+                const div = document.createElement('div');
+                div.className = 'oc-service-item';
+                div.innerHTML = `<span class="oc-service-dot ${running ? 'on' : 'off'}"></span>${escapeHtml(name)} <span class="oc-service-state">${running ? '运行中' : '未启动'}</span>`;
+                sec.appendChild(div);
+            });
+        }
+        box.appendChild(sec);
+    }
+}
+
+async function sendPrompt() {
+    if (!webRunning) return;
+    const input = document.getElementById('ocPrompt');
+    const text = input.value.trim();
+    if (!text) return;
+    const btn = document.getElementById('btnSendPrompt');
+    btn.disabled = true;
+    const isNew = !currentSessionId;
+    try {
+        if (isNew) {
+            const session = await ocApi('POST', '/session');
+            currentSessionId = session.id || session.ID;
+            await loadSessions();
+        }
+        await ocApi('POST', `/session/${encodeURIComponent(currentSessionId)}/prompt_async`, {
+            parts: [{ type: 'text', text }]
+        });
+        if (isNew) {
+            const title = text.slice(0, 15) + (text.length > 15 ? '...' : '');
+            await ocApi('PATCH', `/session/${encodeURIComponent(currentSessionId)}`, { title })
+                .catch(() => {}); // 静默失败，不影响主流程
+            await loadSessions();
+        }
+        input.value = '';
+        await loadMessages();
+        scheduleRefresh();
+        // 发送后立即标记为 busy 并更新按钮
+        if (currentSessionId) sessionStatuses[currentSessionId] = 'busy';
+        updateSendButton();
+    } catch (e) {
+        showToast('发送失败: ' + (e.message || e), 'error');
+    }
+    btn.disabled = false;
+}
+
+function scheduleRefresh() {
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+        if (webRunning && currentSessionId) {
+            loadSessionStatuses().then(statuses => {
+                sessionStatuses = statuses || {};
+                updateSendButton();
+                loadMessages();
+            });
+            loadDiff();
+        }
+    }, 2500);
+}
+
+function updateSendButton() {
+    const btn = document.getElementById('btnSendPrompt');
+    if (!webRunning || !currentSessionId) {
+        btn.textContent = '发送';
+        btn.className = 'btn btn-primary';
+        return;
+    }
+    const busy = isSessionBusy(currentSessionId);
+    if (busy) {
+        btn.textContent = '⏹ 停止';
+        btn.className = 'btn btn-danger-outline';
+    } else {
+        btn.textContent = '发送';
+        btn.className = 'btn btn-primary';
+    }
+}
+
+async function abortSession() {
+    if (!webRunning || !currentSessionId) return;
+    const btn = document.getElementById('btnSendPrompt');
+    btn.disabled = true;
+    try {
+        await ocApi('POST', `/session/${encodeURIComponent(currentSessionId)}/abort`);
+        showToast('已停止', 'info');
+        sessionStatuses[currentSessionId] = 'idle';
+        updateSendButton();
+        loadMessages();
+    } catch (e) {
+        showToast('停止失败: ' + (e.message || e), 'error');
+    }
+    btn.disabled = false;
 }
 
 async function startWeb() {
@@ -310,16 +988,21 @@ async function startWeb() {
             webRunning = true;
             webPort = result.port;
             updateWebUI();
-            embedWebUI();
+            btn.textContent = '▶ 启动 opencode';
+            startEventStream();
+            await loadSessions();
+            loadServiceStatus();
             showToast('OpenCode Web 已启动', 'success');
         } else if (result.error) {
             showToast('启动失败: ' + result.error, 'error');
+            btn.disabled = false;
+            btn.textContent = '▶ 启动 opencode';
         }
     } catch (e) {
         showToast('启动失败: ' + (e.message || e), 'error');
+        btn.disabled = false;
+        btn.textContent = '▶ 启动 opencode';
     }
-    btn.disabled = false;
-    btn.textContent = '▶ 启动 Web';
 }
 
 async function stopWeb() {
@@ -328,16 +1011,25 @@ async function stopWeb() {
     btn.textContent = '⏳ 停止中...';
     try {
         await api.StopOpenCodeWeb();
+        if (api.StopOpenCodeEvents) await api.StopOpenCodeEvents();
         webRunning = false;
         webPort = 0;
+        currentSessionId = '';
+        sessions = [];
+        sessionStatuses = {};
+        sessionErrors = {};
+        mcpStatus = null;
+        lspStatus = null;
+        clearInterval(refreshTimer);
         updateWebUI();
-        clearWebUI();
+        btn.textContent = '■ 停止';
+        clearClientUI();
         showToast('已停止', 'info');
     } catch (e) {
         showToast('停止失败: ' + (e.message || e), 'error');
+        btn.disabled = false;
+        btn.textContent = '■ 停止';
     }
-    btn.disabled = false;
-    btn.textContent = '■ 停止';
 }
 
 async function launchTerminal() {
@@ -352,21 +1044,13 @@ async function launchTerminal() {
     }
 }
 
-function embedWebUI() {
-    const container = document.getElementById('webContainer');
-    container.innerHTML = `<iframe
-        src="http://127.0.0.1:${webPort}"
-        id="ocIframe"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-    ></iframe>`;
-}
-
-function clearWebUI() {
-    const container = document.getElementById('webContainer');
-    container.innerHTML = `<div class="oc-web-placeholder">
-        <p>📂 点击"启动 Web"加载 OpenCode 界面</p>
-        <p class="empty-hint">启动后可通过下方 iframe 直接操作，或点击"在终端中打开"使用完整终端版</p>
-    </div>`;
+function clearClientUI() {
+    document.getElementById('ocSessionList').innerHTML = '<div class="oc-empty">启动服务后加载会话</div>';
+    document.getElementById('ocChatTitle').textContent = '未选择会话';
+    document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">选择会话后查看消息，或输入内容创建新会话</div>';
+    document.getElementById('ocServices').innerHTML = '<div class="oc-empty">启动服务后查看</div>';
+    document.getElementById('ocDiff').innerHTML = '<div class="oc-empty">选择会话后查看变更</div>';
+    document.getElementById('ocPrompt').value = '';
 }
 
 function updateWebUI() {
@@ -375,6 +1059,12 @@ function updateWebUI() {
     const btnStop = document.getElementById('btnStopWeb');
     const btnWt = document.getElementById('btnWtOpen');
     const btnPick = document.getElementById('btnPickDir');
+    const btnRefresh = document.getElementById('btnRefreshSessions');
+    const btnNewSession = document.getElementById('btnNewSession');
+    const btnSend = document.getElementById('btnSendPrompt');
+    const btnDiff = document.getElementById('btnLoadDiff');
+    const btnRefreshStatus = document.getElementById('btnRefreshStatus');
+    const prompt = document.getElementById('ocPrompt');
 
     if (webRunning) {
         statusEl.textContent = `运行中 :${webPort}`;
@@ -383,9 +1073,12 @@ function updateWebUI() {
         btnStop.disabled = false;
         btnWt.disabled = false;
         btnPick.disabled = false;
-        if (document.getElementById('webContainer') && !document.getElementById('ocIframe')) {
-            embedWebUI();
-        }
+        btnRefresh.disabled = false;
+        btnNewSession.disabled = false;
+        btnSend.disabled = false;
+        btnDiff.disabled = false;
+        btnRefreshStatus.disabled = false;
+        prompt.disabled = false;
     } else {
         statusEl.textContent = '未启动';
         statusEl.className = 'oc-web-status';
@@ -393,7 +1086,29 @@ function updateWebUI() {
         btnStop.disabled = true;
         btnWt.disabled = true;
         btnPick.disabled = true;
+        btnRefresh.disabled = true;
+        btnNewSession.disabled = true;
+        btnSend.disabled = true;
+        btnDiff.disabled = true;
+        btnRefreshStatus.disabled = true;
+        prompt.disabled = true;
     }
+}
+
+function toggleSessions() {
+    const client = document.getElementById('webContainer');
+    const btn = document.getElementById('btnToggleSessions');
+    const hidden = client.classList.toggle('hide-left');
+    btn.textContent = hidden ? '▶' : '◀';
+    btn.title = hidden ? '显示会话栏' : '隐藏会话栏';
+}
+
+function toggleSidepanel() {
+    const client = document.getElementById('webContainer');
+    const btn = document.getElementById('btnToggleSidepanel');
+    const hidden = client.classList.toggle('hide-right');
+    btn.textContent = hidden ? '◀' : '▶';
+    btn.title = hidden ? '显示信息栏' : '隐藏信息栏';
 }
 
 // 事件绑定
@@ -401,6 +1116,27 @@ document.getElementById('btnStartWeb').addEventListener('click', startWeb);
 document.getElementById('btnStopWeb').addEventListener('click', stopWeb);
 document.getElementById('btnWtOpen').addEventListener('click', launchTerminal);
 document.getElementById('btnPickDir').addEventListener('click', pickDirectory);
+document.getElementById('btnRefreshSessions').addEventListener('click', loadSessions);
+document.getElementById('btnNewSession').addEventListener('click', createNewSession);
+document.getElementById('btnSendPrompt').addEventListener('click', () => {
+    if (isSessionBusy(currentSessionId)) {
+        abortSession();
+    } else {
+        sendPrompt();
+    }
+});
+
+// 输入框：回车发送，Ctrl+Enter 换行
+document.getElementById('ocPrompt').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        sendPrompt();
+    }
+});
+document.getElementById('btnLoadDiff').addEventListener('click', loadDiff);
+document.getElementById('btnRefreshStatus').addEventListener('click', loadServiceStatus);
+document.getElementById('btnToggleSessions').addEventListener('click', toggleSessions);
+document.getElementById('btnToggleSidepanel').addEventListener('click', toggleSidepanel);
 
 // ============================================================
 // View 2: 模型配置

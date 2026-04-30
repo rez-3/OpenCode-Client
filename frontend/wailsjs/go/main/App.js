@@ -82,6 +82,10 @@ export function LaunchWindowsTerminal(arg1, arg2, arg3) {
   return window['go']['main']['App']['LaunchWindowsTerminal'](arg1, arg2, arg3);
 }
 
+export function OpenCodeAPI(arg1, arg2, arg3) {
+  return window['go']['main']['App']['OpenCodeAPI'](arg1, arg2, arg3);
+}
+
 export function OpenDir(arg1) {
   return window['go']['main']['App']['OpenDir'](arg1);
 }
@@ -106,8 +110,16 @@ export function SaveProvider(arg1) {
   return window['go']['main']['App']['SaveProvider'](arg1);
 }
 
+export function StartOpenCodeEvents() {
+  return window['go']['main']['App']['StartOpenCodeEvents']();
+}
+
 export function StartOpenCodeWeb(arg1) {
   return window['go']['main']['App']['StartOpenCodeWeb'](arg1);
+}
+
+export function StopOpenCodeEvents() {
+  return window['go']['main']['App']['StopOpenCodeEvents']();
 }
 
 export function StopOpenCodeWeb() {

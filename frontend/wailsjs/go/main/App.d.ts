@@ -42,6 +42,8 @@ export function GetWorkDir():Promise<string>;
 
 export function LaunchWindowsTerminal(arg1:string,arg2:string,arg3:string):Promise<main.WebResult>;
 
+export function OpenCodeAPI(arg1:string,arg2:string,arg3:string):Promise<main.APIResult>;
+
 export function OpenDir(arg1:string):Promise<void>;
 
 export function OpenDirectoryDialog():Promise<string>;
@@ -54,7 +56,11 @@ export function SaveFullConfig(arg1:string):Promise<main.SaveResult>;
 
 export function SaveProvider(arg1:main.ProviderSave):Promise<main.SaveResult>;
 
+export function StartOpenCodeEvents():Promise<main.APIResult>;
+
 export function StartOpenCodeWeb(arg1:number):Promise<main.WebResult>;
+
+export function StopOpenCodeEvents():Promise<main.APIResult>;
 
 export function StopOpenCodeWeb():Promise<main.WebResult>;
 

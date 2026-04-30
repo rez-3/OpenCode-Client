@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -24,6 +28,8 @@ type webSession struct {
 var (
 	webSess   *webSession
 	webSessMu sync.Mutex
+	eventMu   sync.Mutex
+	eventStop context.CancelFunc
 )
 
 // WebResult 前端展示用的 web 状态。
@@ -35,10 +41,18 @@ type WebResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// APIResult 是 opencode serve API 的透传结果。
+type APIResult struct {
+	Success bool   `json:"success"`
+	Status  int    `json:"status"`
+	Body    string `json:"body"`
+	Error   string `json:"error,omitempty"`
+}
+
 // StartOpenCodeWeb 启动 opencode web 服务，等待端口就绪后返回。
 func (a *App) StartOpenCodeWeb(port int) WebResult {
 	webSessMu.Lock()
-	if webSess != nil && webSess.cmd != nil {
+	if webSess != nil {
 		p := webSess.port
 		webSessMu.Unlock()
 		return WebResult{Running: true, Success: true, Port: p, URL: fmt.Sprintf("http://127.0.0.1:%d", p)}
@@ -47,6 +61,13 @@ func (a *App) StartOpenCodeWeb(port int) WebResult {
 
 	if port <= 0 {
 		port = 4096
+	}
+
+	if isOpenCodeServerRunning(port) {
+		webSessMu.Lock()
+		webSess = &webSession{port: port}
+		webSessMu.Unlock()
+		return WebResult{Running: true, Success: true, Port: port, URL: fmt.Sprintf("http://127.0.0.1:%d", port)}
 	}
 
 	cmd := exec.Command("opencode", "serve",
@@ -119,6 +140,8 @@ func (a *App) StartOpenCodeWeb(port int) WebResult {
 
 // StopOpenCodeWeb 停止 opencode web 服务（含子进程 bun）。
 func (a *App) StopOpenCodeWeb() WebResult {
+	a.StopOpenCodeEvents()
+
 	webSessMu.Lock()
 	sess := webSess
 	webSess = nil
@@ -141,15 +164,129 @@ func (a *App) GetWorkDir() string {
 	dir, _ := os.Getwd()
 	return dir
 }
+
 // GetWebStatus 返回当前 web 服务状态。
 func (a *App) GetWebStatus() WebResult {
 	webSessMu.Lock()
-	defer webSessMu.Unlock()
-
 	if webSess != nil {
+		defer webSessMu.Unlock()
 		return WebResult{Running: true, Port: webSess.port, URL: fmt.Sprintf("http://127.0.0.1:%d", webSess.port)}
 	}
+	webSessMu.Unlock()
+
+	if isOpenCodeServerRunning(4096) {
+		webSessMu.Lock()
+		webSess = &webSession{port: 4096}
+		webSessMu.Unlock()
+		return WebResult{Running: true, Success: true, Port: 4096, URL: "http://127.0.0.1:4096"}
+	}
+
 	return WebResult{}
+}
+
+// OpenCodeAPI 代理访问本机 opencode serve API，避免前端跨域限制。
+func (a *App) OpenCodeAPI(method, path, body string) APIResult {
+	webSessMu.Lock()
+	sess := webSess
+	webSessMu.Unlock()
+	if sess == nil {
+		if isOpenCodeServerRunning(4096) {
+			sess = &webSession{port: 4096}
+			webSessMu.Lock()
+			webSess = sess
+			webSessMu.Unlock()
+		} else {
+			return APIResult{Error: "opencode 服务未启动"}
+		}
+	}
+
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	url := fmt.Sprintf("http://127.0.0.1:%d%s", sess.port, path)
+
+	var reader io.Reader
+	if body != "" {
+		reader = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, reader)
+	if err != nil {
+		return APIResult{Error: err.Error()}
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return APIResult{Error: err.Error()}
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return APIResult{Status: resp.StatusCode, Error: err.Error()}
+	}
+	return APIResult{Success: resp.StatusCode >= 200 && resp.StatusCode < 300, Status: resp.StatusCode, Body: string(data)}
+}
+
+// StartOpenCodeEvents 连接 opencode SSE，并通过 Wails 事件转发给前端。
+func (a *App) StartOpenCodeEvents() APIResult {
+	webSessMu.Lock()
+	sess := webSess
+	webSessMu.Unlock()
+	if sess == nil {
+		return APIResult{Error: "opencode 服务未启动"}
+	}
+
+	eventMu.Lock()
+	if eventStop != nil {
+		eventStop()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	eventStop = cancel
+	eventMu.Unlock()
+
+	url := fmt.Sprintf("http://127.0.0.1:%d/event", sess.port)
+	go func() {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			runtime.EventsEmit(a.ctx, "oc-event-error", err.Error())
+			return
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			runtime.EventsEmit(a.ctx, "oc-event-error", err.Error())
+			return
+		}
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(resp.Body)
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "data:") {
+				runtime.EventsEmit(a.ctx, "oc-event", strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+			}
+		}
+		if err := scanner.Err(); err != nil && ctx.Err() == nil {
+			runtime.EventsEmit(a.ctx, "oc-event-error", err.Error())
+		}
+	}()
+
+	return APIResult{Success: true, Status: 200}
+}
+
+// StopOpenCodeEvents 停止 SSE 转发。
+func (a *App) StopOpenCodeEvents() APIResult {
+	eventMu.Lock()
+	if eventStop != nil {
+		eventStop()
+		eventStop = nil
+	}
+	eventMu.Unlock()
+	return APIResult{Success: true, Status: 200}
 }
 
 // LaunchWindowsTerminal 在外部终端中打开 opencode。
@@ -215,6 +352,17 @@ func killProcTree(pid int) {
 	kill := exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(pid))
 	kill.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	kill.Run()
+}
+
+func isOpenCodeServerRunning(port int) bool {
+	client := http.Client{Timeout: 500 * time.Millisecond}
+	url := fmt.Sprintf("http://127.0.0.1:%d/global/health", port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode >= 200 && resp.StatusCode < 500
 }
 
 // ========== 保留的原有方法 ==========

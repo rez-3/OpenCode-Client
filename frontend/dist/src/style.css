@@ -211,6 +211,26 @@ html, body {
     font-size: 12px;
 }
 
+.btn-icon {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-icon:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
 .btn-open {
     background: var(--bg-input);
     color: var(--text-secondary);
@@ -412,26 +432,593 @@ html, body {
     color: var(--success);
     font-weight: 600;
 }
-.oc-web-container {
+.oc-client {
     flex: 1 1 0;
     min-height: 0;
-    overflow: hidden;
+    display: grid;
+    grid-template-columns: 240px 26px minmax(360px, 1fr) 26px 320px;
     background: var(--bg-primary);
+    overflow: hidden;
+    transition: grid-template-columns 0.2s ease;
 }
-.oc-web-container iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    display: block;
+.oc-client.hide-left {
+    grid-template-columns: 0px 26px minmax(360px, 1fr) 26px 320px;
 }
-.oc-web-placeholder {
+.oc-client.hide-right {
+    grid-template-columns: 240px 26px minmax(360px, 1fr) 26px 0px;
+}
+.oc-client.hide-left.hide-right {
+    grid-template-columns: 0px 26px minmax(360px, 1fr) 26px 0px;
+}
+.oc-sessions {
+    border-right: 1px solid var(--border);
+    background: var(--bg-secondary);
+    min-height: 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    transition: border 0.2s;
+}
+.hide-left .oc-sessions {
+    border-right: none;
+}
+
+/* 面板切换条 */
+.oc-toggle-bar {
+    display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    min-height: 0;
+    overflow: hidden;
+}
+.oc-toggle-btn {
+    width: 20px;
+    height: 48px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-secondary);
     color: var(--text-muted);
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.oc-toggle-btn:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.oc-panel-head,
+.oc-chat-head {
+    height: 42px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+.oc-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.oc-session-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+.oc-session-item {
+    width: 100%;
+    text-align: left;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.oc-session-item:hover,
+.oc-session-item.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+.oc-chat {
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.oc-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.oc-message {
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    max-width: 90%;
+    position: relative;
+}
+.oc-message.user {
+    align-self: flex-end;
+    background: var(--accent-ghost);
+    border: 1px solid var(--accent);
+    border-bottom-right-radius: 4px;
+    text-align: right;
+}
+.oc-message.assistant {
+    align-self: flex-start;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+}
+.oc-message-role {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.oc-message.user .oc-message-role { color: var(--accent); }
+.oc-message pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+}
+.oc-message-parts {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
+}
+.oc-part {
+    border-radius: var(--radius-sm);
+    margin-bottom: 2px;
+}
+.oc-part.pending {
+    color: var(--warning);
+    font-size: 13px;
+    padding: 4px 0;
+}
+.oc-part.error-msg {
+    color: var(--danger);
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+/* ── 步骤分割线 ── */
+.oc-step-divider {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-top: 1px dashed var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.oc-step-label { font-weight: 600; }
+.oc-step-cost { font-family: "Cascadia Code", monospace; font-size: 10px; }
+
+/* ── 思考过程 ── */
+.oc-reasoning {
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+.oc-reasoning-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    user-select: none;
+}
+.oc-reasoning-head:hover { background: var(--bg-card-hover); }
+.oc-reasoning-icon { font-size: 13px; }
+.oc-reasoning-toggle { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+.oc-reasoning-body { padding: 8px 12px; border-top: 1px solid var(--border); }
+.oc-reasoning-body pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ── 工具调用（通用） ── */
+.oc-tool {
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+.oc-tool.done { border-left: 3px solid var(--success); }
+.oc-tool.error { border-left: 3px solid var(--danger); }
+.oc-tool.running { border-left: 3px solid var(--warning); }
+.oc-tool-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    user-select: none;
+}
+.oc-tool-head:hover { background: var(--bg-card-hover); }
+.oc-tool-icon { font-size: 13px; flex-shrink: 0; }
+.oc-tool-head strong { color: var(--text-primary); font-weight: 600; }
+.oc-tool-status { margin-left: auto; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.oc-tool-status.ok { color: var(--success); }
+.oc-tool-status.err { color: var(--danger); }
+.oc-tool-status.running { color: var(--warning); }
+.oc-tool-status.pending { color: var(--text-muted); }
+.oc-tool-body { border-top: 1px solid var(--border); }
+.oc-tool-io { padding: 6px 10px; }
+.oc-tool-io + .oc-tool-io { border-top: 1px solid var(--border); }
+.oc-tool-io-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.oc-tool-io pre, .oc-tool-io code {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    background: var(--bg-card);
+    padding: 6px 8px;
+    border-radius: 3px;
+    display: block;
+}
+.oc-tool-error .oc-tool-io-label { color: var(--danger); }
+
+/* ── 模型回复 ── */
+.oc-text {
+    line-height: 1.7;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+.oc-text h1, .oc-text h2, .oc-text h3, .oc-text h4, .oc-text h5, .oc-text h6 {
+    margin: 12px 0 6px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.oc-text h1 { font-size: 1.4em; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.oc-text h2 { font-size: 1.25em; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+.oc-text h3 { font-size: 1.1em; }
+.oc-text p { margin: 4px 0; }
+.oc-text ul, .oc-text ol { padding-left: 20px; margin: 4px 0; }
+.oc-text li { margin: 2px 0; }
+.oc-text code {
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 0.9em;
+    background: var(--bg-secondary);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent);
+}
+.oc-text pre {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+}
+.oc-text pre code {
+    background: none;
+    padding: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+.oc-text blockquote {
+    margin: 6px 0;
+    padding: 6px 12px;
+    border-left: 3px solid var(--accent);
+    background: var(--bg-secondary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text-secondary);
+}
+.oc-text table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 12px;
+}
+.oc-text th, .oc-text td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+}
+.oc-text th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+}
+.oc-text tr:nth-child(even) { background: var(--bg-secondary); }
+.oc-text a { color: var(--accent); text-decoration: none; }
+.oc-text a:hover { text-decoration: underline; }
+.oc-text hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 12px 0;
+}
+.oc-text strong { font-weight: 600; }
+.oc-text em { font-style: italic; }
+.oc-text img { max-width: 100%; border-radius: var(--radius-sm); }
+.oc-text input[type="checkbox"] { margin-right: 6px; }
+
+/* ── 文件/补丁/代理 ── */
+.oc-file, .oc-patch, .oc-agent, .oc-fallback {
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.oc-file-path, .oc-patch-path, .oc-agent-head {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.oc-file pre, .oc-patch pre, .oc-agent pre, .oc-fallback pre {
+    margin: 0;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: "Cascadia Code", monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.hidden { display: none !important; }
+.oc-sidepanel {
+    min-width: 0;
+    min-height: 0;
+    border-left: 1px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: border 0.2s;
+}
+.hide-right .oc-sidepanel {
+    border-left: none;
+}
+.oc-panel-section {
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--border);
+}
+.oc-panel-section.grow {
+    flex: 1;
+    min-height: 0;
+    border-bottom: none;
+}
+.oc-services {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
+
+.oc-service-group {
+    margin-bottom: 12px;
+}
+.oc-service-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+}
+.oc-service-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+}
+.oc-service-item:hover {
+    background: var(--bg-card-hover);
+}
+.oc-service-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.oc-service-dot.on {
+    background: var(--success);
+    box-shadow: 0 0 4px var(--success-glow);
+}
+.oc-service-dot.off {
+    background: var(--text-muted);
+}
+.oc-service-state {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.oc-diff {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
+.oc-permission {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+.oc-permission-title {
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    word-break: break-all;
+}
+.oc-permission pre {
+    margin: 0;
+    padding: 8px 9px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-secondary);
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 11px;
+    user-select: text;
+    -webkit-user-select: text;
+}
+.oc-permission-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 9px;
+    border-top: 1px solid var(--border);
+}
+
+/* 文件树 */
+.oc-tree-node {
+    user-select: none;
+    -webkit-user-select: none;
+}
+.oc-tree-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.oc-tree-head:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+.oc-tree-head.dir {
+    color: var(--accent);
+    font-weight: 500;
+}
+.oc-tree-head.file {
+    color: var(--text-primary);
+}
+.oc-tree-arrow {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.oc-tree-file-icon {
+    flex-shrink: 0;
+}
+.oc-tree-stats {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    flex-shrink: 0;
+}
+.oc-tree-children.hidden,
+.oc-tree-body.hidden {
+    display: none;
+}
+.oc-tree-body {
+    padding: 4px 0 4px 28px;
+}
+.oc-tree-body pre {
+    margin: 0;
+    padding: 6px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-secondary);
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 11px;
+    user-select: text;
+    -webkit-user-select: text;
+    max-height: 200px;
+    overflow: auto;
+}
+.oc-tree-node.expanded > .oc-tree-head.file {
+    color: var(--accent);
+}
+.oc-input-bar {
+    border-top: 1px solid var(--border);
+    padding: 10px;
+    display: flex;
+    gap: 10px;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+.oc-input-bar textarea {
+    flex: 1;
+    min-height: 52px;
+    max-height: 120px;
+    resize: vertical;
+    padding: 8px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    outline: none;
+}
+.oc-empty {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 16px;
+    text-align: center;
+}
+.oc-empty.error {
+    color: var(--danger);
 }
 .oc-dir-input {
     font-size: 12px;

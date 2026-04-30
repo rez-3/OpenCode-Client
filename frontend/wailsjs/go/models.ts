@@ -1,5 +1,23 @@
 export namespace main {
 	
+	export class APIResult {
+	    success: boolean;
+	    status: number;
+	    body: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new APIResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.status = source["status"];
+	        this.body = source["body"];
+	        this.error = source["error"];
+	    }
+	}
 	export class BatchResult {
 	    target: string;
 	    enabled: boolean;
