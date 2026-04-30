@@ -563,7 +563,6 @@ html, body {
     background: var(--accent-ghost);
     border: 1px solid var(--accent);
     border-bottom-right-radius: 4px;
-    text-align: right;
 }
 .oc-message.assistant {
     align-self: flex-start;
@@ -578,7 +577,7 @@ html, body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-.oc-message.user .oc-message-role { color: var(--accent); }
+.oc-message.user .oc-message-role { color: var(--accent); text-align: right; }
 .oc-message pre {
     white-space: pre-wrap;
     word-break: break-word;
