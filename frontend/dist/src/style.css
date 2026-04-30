@@ -816,6 +816,31 @@ html, body {
 .hide-right .oc-sidepanel {
     border-left: none;
 }
+
+/* 目录栏 */
+.oc-dir-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.oc-dir-bar-icon {
+    flex-shrink: 0;
+    font-size: 12px;
+}
+.oc-dir-bar-path {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    cursor: default;
+}
+
 .oc-panel-section {
     min-height: 160px;
     display: flex;

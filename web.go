@@ -147,16 +147,44 @@ func (a *App) StopOpenCodeWeb() WebResult {
 	webSess = nil
 	webSessMu.Unlock()
 
-	if sess == nil || sess.cmd == nil || sess.cmd.Process == nil {
+	if sess != nil && sess.cmd != nil && sess.cmd.Process != nil {
+		pid := sess.cmd.Process.Pid
+		// taskkill /T 终止进程树（opencode + 子进程 bun）
+		kill := exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(pid))
+		kill.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		kill.Run()
 		return WebResult{}
 	}
 
-	pid := sess.cmd.Process.Pid
-	// taskkill /T 终止进程树（opencode + 子进程 bun）
-	kill := exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(pid))
-	kill.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	kill.Run()
+	// 无 cmd 但有端口 → 通过端口反查 PID 并终止
+	if sess != nil && sess.port > 0 {
+		killByPort(sess.port)
+		return WebResult{}
+	}
+
+	// 兜底：尝试终止 4096 端口上的 opencode
+	killByPort(4096)
 	return WebResult{}
+}
+
+func killByPort(port int) {
+	// netstat -ano | findstr :<port> 找到 LISTENING 行的 PID
+	find := exec.Command("cmd", "/c",
+		fmt.Sprintf("netstat -ano | findstr :%d | findstr LISTENING", port))
+	find.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := find.Output()
+	if err != nil {
+		return
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) < 5 {
+		return
+	}
+	pid, err := strconv.Atoi(fields[len(fields)-1])
+	if err != nil || pid <= 0 {
+		return
+	}
+	killProcTree(pid)
 }
 
 // GetWorkDir 返回当前工作目录。

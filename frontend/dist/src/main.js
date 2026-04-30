@@ -278,6 +278,9 @@ let sessionErrors = {};
 let refreshTimer = null;
 let mcpStatus = null;
 let lspStatus = null;
+let expandedParts = {};      // 记录展开状态
+let markdownCache = {};      // markdown 渲染缓存（key: part id）
+let lastMessageCount = 0;    // 上次消息数量
 
 async function pickDirectory() {
     try {
@@ -296,6 +299,11 @@ function updateDirDisplay() {
     if (el) {
         el.value = workDir || '';
         el.className = 'oc-dir-input' + (workDir ? ' set' : '');
+    }
+    const sideEl = document.getElementById('ocSideDirPath');
+    if (sideEl) {
+        sideEl.textContent = workDir || '--';
+        sideEl.title = workDir || '';
     }
 }
 
@@ -436,10 +444,21 @@ async function loadSessionStatuses() {
 
 async function selectSession(id) {
     currentSessionId = id;
+    expandedParts = {};
+    markdownCache = {};
+    lastMessageCount = 0;
     renderSessions();
     const current = sessions.find(s => (s.id || s.ID) === id);
     document.getElementById('ocChatTitle').textContent = current?.title || current?.name || id || '未选择会话';
+    // 显示会话工作目录
+    const dirEl = document.getElementById('ocSideDirPath');
+    if (dirEl) {
+        const dir = current?.directory || '';
+        dirEl.textContent = dir || '--';
+        dirEl.title = dir || '';
+    }
     await loadMessages();
+    smartScroll(document.getElementById('ocMessages'), true);
     await loadDiff();
 }
 
@@ -475,8 +494,39 @@ function renderMessages(items) {
     const box = document.getElementById('ocMessages');
     if (!items.length) {
         box.innerHTML = '<div class="oc-empty">该会话暂无消息</div>';
+        lastMessageCount = 0;
         return;
     }
+
+    const sameCount = items.length === lastMessageCount;
+    lastMessageCount = items.length;
+
+    // 消息数没变时做增量更新（只更新最后一条 assistant 消息的 parts）
+    if (sameCount && items.length > 0 && webRunning && isSessionBusy(currentSessionId)) {
+        const last = items[items.length - 1];
+        const lastRole = (last.info || last).role;
+        if (lastRole === 'assistant') {
+            const lastMsg = box.lastElementChild;
+            if (lastMsg && lastMsg.classList.contains('assistant')) {
+                const body = lastMsg.querySelector('.oc-message-parts');
+                if (body) {
+                    const partList = Array.isArray(last.parts) ? last.parts : [last.parts];
+                    const newIds = partList.map(p => p.id || '');
+                    const existingIds = Array.from(body.children).map(c => c.dataset.partId || '');
+                    // 只追加新 parts
+                    for (let i = existingIds.length; i < newIds.length; i++) {
+                        const partEl = renderPart(partList[i]);
+                        if (partList[i].id) partEl.dataset.partId = partList[i].id;
+                        body.appendChild(partEl);
+                    }
+                    smartScroll(box, false);
+                    return;
+                }
+            }
+        }
+    }
+
+    // 全量重建
     box.innerHTML = '';
     items.forEach(item => {
         const info = item.info || item;
@@ -499,7 +549,7 @@ function renderMessages(items) {
                 body.appendChild(pending);
             } else if (hasSessionError(currentSessionId)) {
                 const errEl = document.createElement('div');
-                errEl.className = 'oc-part error';
+                errEl.className = 'oc-part error-msg';
                 errEl.textContent = '模型调用失败：' + (sessionErrors[currentSessionId] || '未知错误，请检查 opencode 提供商配置');
                 body.appendChild(errEl);
             } else {
@@ -515,7 +565,15 @@ function renderMessages(items) {
         node.appendChild(body);
         box.appendChild(node);
     });
-    box.scrollTop = box.scrollHeight;
+
+    smartScroll(box, false);
+}
+
+function smartScroll(box, force) {
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    if (force || nearBottom) {
+        box.scrollTop = box.scrollHeight;
+    }
 }
 
 function isSessionBusy(id) {
@@ -529,18 +587,22 @@ function hasSessionError(id) {
 
 function renderPart(part) {
     const type = part?.type || '';
+    const id = part?.id || '';
+    let el;
     switch (type) {
-        case 'step-start': return renderStepDivider(part, 'start');
-        case 'step-finish': return renderStepDivider(part, 'finish');
-        case 'reasoning': return renderReasoning(part);
-        case 'tool': return renderTool(part);
-        case 'text': return renderTextPart(part);
-        case 'file': return renderFilePart(part);
-        case 'patch': return renderPatchPart(part);
+        case 'step-start': el = renderStepDivider(part, 'start'); break;
+        case 'step-finish': el = renderStepDivider(part, 'finish'); break;
+        case 'reasoning': el = renderReasoning(part); break;
+        case 'tool': el = renderTool(part); break;
+        case 'text': el = renderTextPart(part); break;
+        case 'file': el = renderFilePart(part); break;
+        case 'patch': el = renderPatchPart(part); break;
         case 'agent':
-        case 'subtask': return renderAgentPart(part, type);
-        default: return renderFallback(part);
+        case 'subtask': el = renderAgentPart(part, type); break;
+        default: el = renderFallback(part); break;
     }
+    if (id) el.dataset.partId = id;
+    return el;
 }
 
 // ── 步骤分割线 ──
@@ -921,6 +983,7 @@ async function sendPrompt() {
         }
         input.value = '';
         await loadMessages();
+        smartScroll(document.getElementById('ocMessages'), true);
         scheduleRefresh();
         // 发送后立即标记为 busy 并更新按钮
         if (currentSessionId) sessionStatuses[currentSessionId] = 'busy';
@@ -942,7 +1005,7 @@ function scheduleRefresh() {
             });
             loadDiff();
         }
-    }, 2500);
+    }, 4000);
 }
 
 function updateSendButton() {
@@ -1018,6 +1081,9 @@ async function stopWeb() {
         sessions = [];
         sessionStatuses = {};
         sessionErrors = {};
+        expandedParts = {};
+        markdownCache = {};
+        lastMessageCount = 0;
         mcpStatus = null;
         lspStatus = null;
         clearInterval(refreshTimer);
