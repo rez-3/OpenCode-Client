@@ -281,6 +281,7 @@ let lspStatus = null;
 let expandedParts = {};      // 记录展开状态
 let markdownCache = {};      // markdown 渲染缓存（key: part id）
 let lastMessageCount = 0;    // 上次消息数量
+let messageLoadSeq = 0;      // 消息加载序号，避免旧请求覆盖新内容
 
 async function pickDirectory() {
     try {
@@ -478,23 +479,28 @@ async function createNewSession() {
 
 async function loadMessages() {
     const box = document.getElementById('ocMessages');
+    const seq = ++messageLoadSeq;
     if (!currentSessionId) {
         box.innerHTML = '<div class="oc-empty">选择会话后查看消息，或输入内容创建新会话</div>';
         return;
     }
     try {
         const messages = await ocApi('GET', `/session/${encodeURIComponent(currentSessionId)}/message`);
+        if (seq !== messageLoadSeq) return;
         renderMessages(messages || []);
     } catch (e) {
+        if (seq !== messageLoadSeq) return;
         box.innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
     }
 }
 
 function renderMessages(items) {
     const box = document.getElementById('ocMessages');
+    const scrollState = captureScrollState(box);
     if (!items.length) {
         box.innerHTML = '<div class="oc-empty">该会话暂无消息</div>';
         lastMessageCount = 0;
+        updateModelInfo(null);
         return;
     }
 
@@ -513,13 +519,18 @@ function renderMessages(items) {
                     const partList = Array.isArray(last.parts) ? last.parts : [last.parts];
                     const newIds = partList.map(p => p.id || '');
                     const existingIds = Array.from(body.children).map(c => c.dataset.partId || '');
-                    // 只追加新 parts
-                    for (let i = existingIds.length; i < newIds.length; i++) {
-                        const partEl = renderPart(partList[i]);
-                        if (partList[i].id) partEl.dataset.partId = partList[i].id;
-                        body.appendChild(partEl);
+                    if (newIds.length > existingIds.length && existingIds.every((id, index) => id === newIds[index])) {
+                        // 只追加新增片段，避免正在滚动时整块内容闪动
+                        for (let i = existingIds.length; i < newIds.length; i++) {
+                            const partEl = renderPart(partList[i]);
+                            if (partList[i].id) partEl.dataset.partId = partList[i].id;
+                            body.appendChild(partEl);
+                        }
+                    } else {
+                        // 片段数量不变时也可能是流式文本在增长，需要刷新最后一条消息内容
+                        body.replaceChildren(...partList.map(part => renderPart(part)));
                     }
-                    smartScroll(box, false);
+                    restoreScroll(box, scrollState, false);
                     return;
                 }
             }
@@ -566,14 +577,53 @@ function renderMessages(items) {
         box.appendChild(node);
     });
 
-    smartScroll(box, false);
+    updateModelInfo(items);
+    restoreScroll(box, scrollState, false);
+}
+
+function updateModelInfo(items) {
+    const agentEl = document.getElementById('ocAgentTag');
+    const modelEl = document.getElementById('ocModelTag');
+    // 从消息列表中提取最后一条 assistant 消息的 agent/model
+    const list = items || [];
+    let agent = '';
+    let model = '';
+    for (let i = list.length - 1; i >= 0; i--) {
+        const info = list[i].info || list[i];
+        if (info.role === 'assistant') {
+            agent = info.agent || '';
+            model = info.modelID || (info.model && info.model.modelID) || '';
+            if (info.providerID) model = info.providerID + '/' + model;
+            break;
+        }
+    }
+    agentEl.textContent = agent ? '🤖 ' + agent : '--';
+    agentEl.title = agent || '';
+    modelEl.textContent = model ? '🧠 ' + model : '--';
+    modelEl.title = model || '';
 }
 
 function smartScroll(box, force) {
-    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-    if (force || nearBottom) {
+    const scrollState = captureScrollState(box);
+    restoreScroll(box, scrollState, force);
+}
+
+function captureScrollState(box) {
+    const distanceToBottom = box.scrollHeight - box.scrollTop - box.clientHeight;
+    return {
+        top: box.scrollTop,
+        height: box.scrollHeight,
+        nearBottom: distanceToBottom < 120,
+    };
+}
+
+function restoreScroll(box, state, force) {
+    if (force || state.nearBottom) {
         box.scrollTop = box.scrollHeight;
+        return;
     }
+    const heightDelta = box.scrollHeight - state.height;
+    box.scrollTop = Math.max(0, state.top + Math.min(0, heightDelta));
 }
 
 function isSessionBusy(id) {
@@ -1117,6 +1167,7 @@ function clearClientUI() {
     document.getElementById('ocServices').innerHTML = '<div class="oc-empty">启动服务后查看</div>';
     document.getElementById('ocDiff').innerHTML = '<div class="oc-empty">选择会话后查看变更</div>';
     document.getElementById('ocPrompt').value = '';
+    updateModelInfo(null);
 }
 
 function updateWebUI() {
