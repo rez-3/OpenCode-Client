@@ -58,7 +58,7 @@ export function SaveProvider(arg1:main.ProviderSave):Promise<main.SaveResult>;
 
 export function StartOpenCodeEvents():Promise<main.APIResult>;
 
-export function StartOpenCodeWeb(arg1:number):Promise<main.WebResult>;
+export function StartOpenCodeWeb(arg1:number,arg2:string,arg3:main.ProxyConfig):Promise<main.WebResult>;
 
 export function StopOpenCodeEvents():Promise<main.APIResult>;
 

@@ -49,6 +49,7 @@
             <div class="view-panel active" id="view-opencode">
                 <!-- 控制栏 -->
                 <div class="oc-toolbar">
+                    <button class="btn btn-proxy" id="btnProxySettings" title="网络设置">🌐 网络</button>
                     <button class="btn btn-primary" id="btnStartWeb">▶ 启动 OpenCode</button>
                     <button class="btn btn-danger-outline" id="btnStopWeb" disabled>■ 停止</button>
                     <span class="oc-web-status" id="webStatus">未启动</span>
@@ -199,6 +200,44 @@
 
     <!-- Toast 通知 -->
     <div class="toast" id="toast"></div>
+
+    <!-- 网络设置弹窗 -->
+    <div class="modal-overlay" id="proxyModal" style="display:none">
+        <div class="modal proxy-modal">
+            <h3>网络设置</h3>
+            <div class="oc-service-group-title" style="margin-bottom:10px">OpenCode 服务地址</div>
+            <div class="modal-field">
+                <label for="serviceHost">服务地址</label>
+                <input id="serviceHost" placeholder="127.0.0.1" />
+            </div>
+            <div class="modal-field">
+                <label for="servicePort">服务端口</label>
+                <input id="servicePort" inputmode="numeric" placeholder="4096" />
+            </div>
+            <hr class="proxy-separator" />
+            <div class="oc-service-group-title" style="margin-bottom:10px">代理设置</div>
+            <label class="proxy-switch-row">
+                <span>
+                    <strong>启用代理</strong>
+                    <small>启动 OpenCode 前注入代理环境变量</small>
+                </span>
+                <input type="checkbox" id="proxyEnabled" />
+            </label>
+            <div class="modal-field">
+                <label for="proxyHost">代理地址</label>
+                <input id="proxyHost" placeholder="127.0.0.1" />
+            </div>
+            <div class="modal-field">
+                <label for="proxyPort">代理端口</label>
+                <input id="proxyPort" inputmode="numeric" placeholder="7897" />
+            </div>
+            <div class="proxy-preview" id="proxyPreview"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="btnCancelProxy">取消</button>
+                <button class="btn btn-primary" id="btnSaveProxy">保存</button>
+            </div>
+        </div>
+    </div>
 
     <input type="file" id="ocFileInput" multiple hidden />
     <script src="/src/main.js"></script>

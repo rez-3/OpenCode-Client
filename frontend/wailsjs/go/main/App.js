@@ -114,8 +114,8 @@ export function StartOpenCodeEvents() {
   return window['go']['main']['App']['StartOpenCodeEvents']();
 }
 
-export function StartOpenCodeWeb(arg1) {
-  return window['go']['main']['App']['StartOpenCodeWeb'](arg1);
+export function StartOpenCodeWeb(arg1, arg2, arg3) {
+  return window['go']['main']['App']['StartOpenCodeWeb'](arg1, arg2, arg3);
 }
 
 export function StopOpenCodeEvents() {

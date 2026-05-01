@@ -217,6 +217,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ProxyConfig {
+	    proxyEnabled: boolean;
+	    proxyHost: string;
+	    proxyPort: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.proxyEnabled = source["proxyEnabled"];
+	        this.proxyHost = source["proxyHost"];
+	        this.proxyPort = source["proxyPort"];
+	    }
+	}
 	export class SaveResult {
 	    success: boolean;
 	    error?: string;
@@ -316,7 +332,6 @@ export namespace main {
 	export class WebResult {
 	    running: boolean;
 	    success: boolean;
-	    port: number;
 	    url: string;
 	    error?: string;
 	
@@ -328,7 +343,6 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.running = source["running"];
 	        this.success = source["success"];
-	        this.port = source["port"];
 	        this.url = source["url"];
 	        this.error = source["error"];
 	    }

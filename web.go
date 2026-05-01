@@ -21,9 +21,15 @@ import (
 
 // webSession 管理 opencode web 进程生命周期。
 type webSession struct {
-	cmd  *exec.Cmd
-	port int
+	cmd      *exec.Cmd
+	port     int
+	hostname string
 }
+
+const (
+	defaultHostname = "127.0.0.1"
+	defaultPort     = 4096
+)
 
 var (
 	webSess   *webSession
@@ -36,7 +42,6 @@ var (
 type WebResult struct {
 	Running bool   `json:"running"`
 	Success bool   `json:"success"`
-	Port    int    `json:"port"`
 	URL     string `json:"url"`
 	Error   string `json:"error,omitempty"`
 }
@@ -49,31 +54,58 @@ type APIResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// ProxyConfig 是启动 opencode serve 时注入的代理配置。
+type ProxyConfig struct {
+	ProxyEnabled bool   `json:"proxyEnabled"`
+	ProxyHost    string `json:"proxyHost"`
+	ProxyPort    string `json:"proxyPort"`
+}
+
 // StartOpenCodeWeb 启动 opencode web 服务，等待端口就绪后返回。
-func (a *App) StartOpenCodeWeb(port int) WebResult {
+func (a *App) StartOpenCodeWeb(port int, hostname string, proxy ProxyConfig) WebResult {
+	if hostname == "" {
+		hostname = defaultHostname
+	}
+	if port <= 0 {
+		port = defaultPort
+	}
+
 	webSessMu.Lock()
 	if webSess != nil {
 		p := webSess.port
 		webSessMu.Unlock()
-		return WebResult{Running: true, Success: true, Port: p, URL: fmt.Sprintf("http://127.0.0.1:%d", p)}
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, p)}
 	}
 	webSessMu.Unlock()
 
-	if port <= 0 {
-		port = 4096
-	}
-
-	if isOpenCodeServerRunning(port) {
+	if isOpenCodeServerRunning(hostname, port) {
 		webSessMu.Lock()
-		webSess = &webSession{port: port}
+		webSess = &webSession{port: port, hostname: hostname}
 		webSessMu.Unlock()
-		return WebResult{Running: true, Success: true, Port: port, URL: fmt.Sprintf("http://127.0.0.1:%d", port)}
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port)}
 	}
 
 	cmd := exec.Command("opencode", "serve",
 		"--port", strconv.Itoa(port),
-		"--hostname", "127.0.0.1",
+		"--hostname", hostname,
 	)
+	if proxy.ProxyEnabled {
+		host := strings.TrimSpace(proxy.ProxyHost)
+		proxyPort := strings.TrimSpace(proxy.ProxyPort)
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		if proxyPort == "" {
+			proxyPort = "7897"
+		}
+		proxyURL := fmt.Sprintf("http://%s:%s", host, proxyPort)
+		cmd.Env = append(os.Environ(),
+			"HTTP_PROXY="+proxyURL,
+			"HTTPS_PROXY="+proxyURL,
+			"ALL_PROXY="+proxyURL,
+			"NO_PROXY=localhost,127.0.0.1",
+		)
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
 	// 捕获 stderr 以便诊断启动失败
@@ -84,7 +116,7 @@ func (a *App) StartOpenCodeWeb(port int) WebResult {
 	}
 
 	// 轮询等待端口就绪（最多 10 秒）
-	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+	addr := net.JoinHostPort(hostname, strconv.Itoa(port))
 	ready := make(chan error, 1)
 	go func() {
 		for i := 0; i < 40; i++ {
@@ -119,7 +151,7 @@ func (a *App) StartOpenCodeWeb(port int) WebResult {
 		return WebResult{Error: "启动超时（超过 12 秒）"}
 	}
 
-	sess := &webSession{cmd: cmd, port: port}
+	sess := &webSession{cmd: cmd, port: port, hostname: hostname}
 
 	webSessMu.Lock()
 	webSess = sess
@@ -135,7 +167,7 @@ func (a *App) StartOpenCodeWeb(port int) WebResult {
 		webSessMu.Unlock()
 	}()
 
-	return WebResult{Running: true, Success: true, Port: port, URL: fmt.Sprintf("http://127.0.0.1:%d", port)}
+	return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port)}
 }
 
 // StopOpenCodeWeb 停止 opencode web 服务（含子进程 bun）。
@@ -159,11 +191,7 @@ func (a *App) StopOpenCodeWeb() WebResult {
 	// 无 cmd 但有端口 → 通过端口反查 PID 并终止
 	if sess != nil && sess.port > 0 {
 		killByPort(sess.port)
-		return WebResult{}
 	}
-
-	// 兜底：尝试终止 4096 端口上的 opencode
-	killByPort(4096)
 	return WebResult{}
 }
 
@@ -198,15 +226,15 @@ func (a *App) GetWebStatus() WebResult {
 	webSessMu.Lock()
 	if webSess != nil {
 		defer webSessMu.Unlock()
-		return WebResult{Running: true, Port: webSess.port, URL: fmt.Sprintf("http://127.0.0.1:%d", webSess.port)}
+		return WebResult{Running: true, URL: fmt.Sprintf("http://%s:%d", webSess.hostname, webSess.port)}
 	}
 	webSessMu.Unlock()
 
-	if isOpenCodeServerRunning(4096) {
+	if isOpenCodeServerRunning(defaultHostname, defaultPort) {
 		webSessMu.Lock()
-		webSess = &webSession{port: 4096}
+		webSess = &webSession{port: defaultPort, hostname: defaultHostname}
 		webSessMu.Unlock()
-		return WebResult{Running: true, Success: true, Port: 4096, URL: "http://127.0.0.1:4096"}
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", defaultHostname, defaultPort)}
 	}
 
 	return WebResult{}
@@ -218,8 +246,8 @@ func (a *App) OpenCodeAPI(method, path, body string) APIResult {
 	sess := webSess
 	webSessMu.Unlock()
 	if sess == nil {
-		if isOpenCodeServerRunning(4096) {
-			sess = &webSession{port: 4096}
+		if isOpenCodeServerRunning(defaultHostname, defaultPort) {
+			sess = &webSession{port: defaultPort, hostname: defaultHostname}
 			webSessMu.Lock()
 			webSess = sess
 			webSessMu.Unlock()
@@ -231,7 +259,7 @@ func (a *App) OpenCodeAPI(method, path, body string) APIResult {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	url := fmt.Sprintf("http://127.0.0.1:%d%s", sess.port, path)
+	url := fmt.Sprintf("http://%s:%d%s", sess.hostname, sess.port, path)
 
 	var reader io.Reader
 	if body != "" {
@@ -275,7 +303,7 @@ func (a *App) StartOpenCodeEvents() APIResult {
 	eventStop = cancel
 	eventMu.Unlock()
 
-	url := fmt.Sprintf("http://127.0.0.1:%d/global/event", sess.port)
+	url := fmt.Sprintf("http://%s:%d/global/event", sess.hostname, sess.port)
 	go func() {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -382,9 +410,9 @@ func killProcTree(pid int) {
 	kill.Run()
 }
 
-func isOpenCodeServerRunning(port int) bool {
+func isOpenCodeServerRunning(hostname string, port int) bool {
 	client := http.Client{Timeout: 500 * time.Millisecond}
-	url := fmt.Sprintf("http://127.0.0.1:%d/global/health", port)
+	url := fmt.Sprintf("http://%s:%d/global/health", hostname, port)
 	resp, err := client.Get(url)
 	if err != nil {
 		return false

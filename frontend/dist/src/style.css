@@ -274,6 +274,23 @@ html, body {
     color: white;
 }
 
+.btn-proxy {
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    font-weight: 600;
+}
+.btn-proxy:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.btn-proxy.active {
+    background: var(--success-bg);
+    color: var(--success);
+    border-color: var(--success);
+    box-shadow: 0 0 12px var(--success-glow);
+}
+
 .btn-launch {
     padding: 10px 32px;
     font-size: 15px;
@@ -885,6 +902,16 @@ html, body {
     font-size: 11px;
     color: var(--text-secondary);
 }
+.oc-patch-hash {
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.oc-patch-hash code {
+    font-family: "Cascadia Code", monospace;
+    font-size: 11px;
+    color: var(--accent);
+}
 
 .hidden { display: none !important; }
 .oc-sidepanel {
@@ -1308,6 +1335,57 @@ html, body {
     gap: 8px;
     justify-content: flex-end;
     margin-top: 16px;
+}
+.proxy-modal {
+    width: 460px;
+}
+.proxy-separator {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 18px 0 14px;
+}
+.proxy-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px;
+    margin-bottom: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+.proxy-switch-row span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.proxy-switch-row strong {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+.proxy-switch-row small {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.proxy-switch-row input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--success);
+    cursor: pointer;
+}
+.proxy-preview {
+    min-height: 32px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    user-select: text;
+    -webkit-user-select: text;
 }
 .btn-cancel {
     background: var(--bg-input);

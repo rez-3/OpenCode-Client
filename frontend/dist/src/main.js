@@ -6,6 +6,7 @@
 // 主题切换
 // ============================================================
 const THEME_KEY = 'oc-manager-theme';
+const NETWORK_CONFIG_KEY = 'oc-manager-proxy-config';
 
 function getTheme() {
     return localStorage.getItem(THEME_KEY) || 'dark';
@@ -131,19 +132,20 @@ const api = (() => {
     ],
     RunOpenCode: async (sid, cont) => { console.log('mock launch:', sid, cont); },
         // web 管理
-        StartOpenCodeWeb: async (port) => {
-            webPort = port || 4096;
+        StartOpenCodeWeb: async (port, hostname, proxy) => {
+            webURL = `http://${hostname || '127.0.0.1'}:${port || 4096}`;
             webRunning = true;
             updateWebUI();
-            return { running: true, success: true, port: webPort, url: `http://127.0.0.1:${webPort}` };
+            console.log('mock network:', { port, hostname, proxy });
+            return { running: true, success: true, port: port || 4096, url: webURL };
         },
         StopOpenCodeWeb: async () => {
-            webRunning = false; webPort = 0;
+            webRunning = false; webURL = '';
             updateWebUI(); clearClientUI();
             return { success: true };
         },
         GetWebStatus: async () => {
-            return { running: webRunning, port: webPort, url: webPort ? `http://127.0.0.1:${webPort}` : '' };
+            return { running: webRunning, port: 0, url: webURL || '' };
         },
         LaunchWindowsTerminal: async (mode, url, dir) => {
             console.log('mock launch wt:', mode, url, dir);
@@ -268,7 +270,7 @@ document.getElementById('sidebar').addEventListener('click', (e) => {
 // View 1: 工作区 (opencode web)
 // ============================================================
 
-let webPort = 0;
+let webURL = '';
 let webRunning = false;
 let workDir = '';
 let currentSessionId = '';
@@ -285,6 +287,128 @@ let messageLoadSeq = 0;      // 消息加载序号，避免旧请求覆盖新内
 let messageCache = {};       // 会话消息缓存，用于 SSE 流式增量渲染
 
 let attachedFiles = [];    // 待发送的附件列表 [{data, filename, mime, size}]
+
+function getNetworkConfig() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(NETWORK_CONFIG_KEY) || '{}');
+        return {
+            serviceHost: (saved.serviceHost || '127.0.0.1').trim(),
+            servicePort: (saved.servicePort || '4096').toString().trim(),
+            proxyEnabled: !!saved.proxyEnabled,
+            proxyHost: (saved.proxyHost || '127.0.0.1').trim(),
+            proxyPort: (saved.proxyPort || '7897').toString().trim(),
+        };
+    } catch (_) {
+        return { serviceHost: '127.0.0.1', servicePort: '4096', proxyEnabled: false, proxyHost: '127.0.0.1', proxyPort: '7897' };
+    }
+}
+
+function saveNetworkConfig(config) {
+    const next = {
+        serviceHost: (config.serviceHost || '127.0.0.1').trim(),
+        servicePort: (config.servicePort || '4096').toString().trim(),
+        proxyEnabled: !!config.proxyEnabled,
+        proxyHost: (config.proxyHost || '127.0.0.1').trim(),
+        proxyPort: (config.proxyPort || '7897').toString().trim(),
+    };
+    localStorage.setItem(NETWORK_CONFIG_KEY, JSON.stringify(next));
+    updateProxyButton();
+    return next;
+}
+
+function proxyUrl(config = getNetworkConfig()) {
+    if (!config.proxyHost || !config.proxyPort) return '';
+    return `http://${config.proxyHost}:${config.proxyPort}`;
+}
+
+function updateProxyPreview() {
+    const proxyEnabled = document.getElementById('proxyEnabled')?.checked;
+    const proxyHost = document.getElementById('proxyHost')?.value.trim() || '127.0.0.1';
+    const proxyPort = document.getElementById('proxyPort')?.value.trim() || '7897';
+    const serviceHost = document.getElementById('serviceHost')?.value.trim() || '127.0.0.1';
+    const servicePort = document.getElementById('servicePort')?.value.trim() || '4096';
+    const preview = document.getElementById('proxyPreview');
+    if (!preview) return;
+    const parts = [];
+    parts.push(`服务地址: ${serviceHost}:${servicePort}`);
+    if (proxyEnabled) {
+        const url = `http://${proxyHost}:${proxyPort}`;
+        parts.push(`代理: HTTP_PROXY、HTTPS_PROXY、ALL_PROXY = ${url}；NO_PROXY = localhost,127.0.0.1`);
+    } else {
+        parts.push('代理未启用');
+    }
+    preview.textContent = parts.join('\n');
+}
+
+function updateProxyButton() {
+    const btn = document.getElementById('btnProxySettings');
+    if (!btn) return;
+    const config = getNetworkConfig();
+    btn.classList.toggle('active', config.proxyEnabled);
+    btn.title = webRunning ? '网络设置（服务运行期间仅可查看）' : (config.proxyEnabled ? `代理已启用: ${proxyUrl(config)}` : '网络设置');
+}
+
+function showProxyModal() {
+    const config = getNetworkConfig();
+    const serviceHostEl = document.getElementById('serviceHost');
+    const servicePortEl = document.getElementById('servicePort');
+    const proxyEnabledEl = document.getElementById('proxyEnabled');
+    const proxyHostEl = document.getElementById('proxyHost');
+    const proxyPortEl = document.getElementById('proxyPort');
+    const saveBtn = document.getElementById('btnSaveProxy');
+    const cancelBtn = document.getElementById('btnCancelProxy');
+    serviceHostEl.value = config.serviceHost;
+    servicePortEl.value = config.servicePort;
+    proxyEnabledEl.checked = config.proxyEnabled;
+    proxyHostEl.value = config.proxyHost;
+    proxyPortEl.value = config.proxyPort;
+    // 运行时只读，仅保留关闭按钮
+    const readonly = webRunning;
+    serviceHostEl.readOnly = readonly;
+    servicePortEl.readOnly = readonly;
+    proxyEnabledEl.disabled = readonly;
+    proxyHostEl.readOnly = readonly;
+    proxyPortEl.readOnly = readonly;
+    saveBtn.style.display = readonly ? 'none' : '';
+    cancelBtn.textContent = readonly ? '关闭' : '取消';
+    if (readonly) {
+        serviceHostEl.style.opacity = '0.6';
+        servicePortEl.style.opacity = '0.6';
+        proxyHostEl.style.opacity = '0.6';
+        proxyPortEl.style.opacity = '0.6';
+    } else {
+        serviceHostEl.style.opacity = '';
+        servicePortEl.style.opacity = '';
+        proxyHostEl.style.opacity = '';
+        proxyPortEl.style.opacity = '';
+    }
+    updateProxyPreview();
+    document.getElementById('proxyModal').style.display = 'flex';
+}
+
+function hideProxyModal() {
+    document.getElementById('proxyModal').style.display = 'none';
+}
+
+function applyProxyConfig() {
+    const serviceHost = document.getElementById('serviceHost').value.trim() || '127.0.0.1';
+    const servicePort = document.getElementById('servicePort').value.trim() || '4096';
+    const proxyEnabled = document.getElementById('proxyEnabled').checked;
+    const proxyHost = document.getElementById('proxyHost').value.trim() || '127.0.0.1';
+    const proxyPort = document.getElementById('proxyPort').value.trim() || '7897';
+    if (!/^\d{1,5}$/.test(servicePort)) {
+        showToast('服务端口必须是数字', 'error');
+        return;
+    }
+    if (proxyEnabled && !/^\d{1,5}$/.test(proxyPort)) {
+        showToast('代理端口必须是数字', 'error');
+        return;
+    }
+    saveNetworkConfig({ serviceHost, servicePort, proxyEnabled, proxyHost, proxyPort });
+    hideProxyModal();
+    const msg = proxyEnabled ? `代理已启用: http://${proxyHost}:${proxyPort}` : '代理已关闭';
+    showToast(msg, 'success');
+}
 
 async function pickDirectory() {
     try {
@@ -327,7 +451,7 @@ async function checkWebStatus() {
     try {
         const status = await api.GetWebStatus();
         webRunning = status.running;
-        webPort = status.port;
+        webURL = status.url || '';
         updateWebUI();
         if (webRunning) {
             startEventStream();
@@ -832,8 +956,10 @@ function updateModelInfo(items) {
     }
     agentEl.textContent = agent ? '🤖 ' + agent : '--';
     agentEl.title = agent || '';
+    agentEl.onclick = null;
     modelEl.textContent = model ? '🧠 ' + model : '--';
     modelEl.title = model || '';
+    modelEl.onclick = null;
 }
 
 function smartScroll(box, force) {
@@ -1085,7 +1211,27 @@ function renderFilePart(part) {
 function renderPatchPart(part) {
     const el = document.createElement('div');
     el.className = 'oc-part oc-patch';
-    el.innerHTML = `<div class="oc-patch-path">📝 ${escapeHtml(part.path || part.file || '')}</div><pre><code>${escapeHtml(part.patch || safeText(part))}</code></pre>`;
+
+    // 文件路径：兼容 part.files 数组 和 老格式 part.path / part.file
+    let fileInfo = '';
+    if (Array.isArray(part.files) && part.files.length) {
+        const first = part.files[0];
+        const rest = part.files.length > 1 ? ` 等 ${part.files.length} 个文件` : '';
+        fileInfo = escapeHtml(first) + rest;
+    } else {
+        fileInfo = escapeHtml(part.path || part.file || '');
+    }
+    const pathHtml = fileInfo ? `<div class="oc-patch-path">📝 ${fileInfo}</div>` : '';
+
+    // 补丁内容：优先 part.patch（diff 文本），其次 part.hash（提交引用），都没有就不显示代码块
+    let codeHtml = '';
+    if (part.patch) {
+        codeHtml = `<pre><code>${escapeHtml(part.patch)}</code></pre>`;
+    } else if (part.hash) {
+        codeHtml = `<div class="oc-patch-hash">变更: <code>${escapeHtml(part.hash)}</code></div>`;
+    }
+
+    el.innerHTML = pathHtml + codeHtml;
     return el;
 }
 
@@ -1280,14 +1426,17 @@ function renderServiceStatus() {
         sec.innerHTML = '<div class="oc-service-group-title">LSP 服务</div>';
         const entries = Array.isArray(lspStatus) ? lspStatus : Object.values(lspStatus || {});
         if (!entries.length) {
-            sec.innerHTML += '<div class="oc-service-item"><span class="oc-service-dot off"></span>无已配置的 LSP 服务</div>';
+            sec.innerHTML += '<div class="oc-service-item"><span class="oc-service-dot off"></span>已从文件类型自动检测 LSP，打开代码文件后会启动匹配的服务</div>';
         } else {
             entries.forEach(info => {
                 const name = info?.name || info?.server || info?.language || '?';
-                const running = info?.status === 'running' || info?.running || info?.connected;
+                const status = info?.status || '';
+                const running = status === 'connected' || status === 'running' || info?.running || info?.connected;
+                const failed = status === 'error';
+                const stateText = failed ? '异常' : (running ? '已连接' : '未启动');
                 const div = document.createElement('div');
                 div.className = 'oc-service-item';
-                div.innerHTML = `<span class="oc-service-dot ${running ? 'on' : 'off'}"></span>${escapeHtml(name)} <span class="oc-service-state">${running ? '运行中' : '未启动'}</span>`;
+                div.innerHTML = `<span class="oc-service-dot ${running ? 'on' : 'off'}"></span>${escapeHtml(name)} <span class="oc-service-state">${stateText}</span>`;
                 sec.appendChild(div);
             });
         }
@@ -1459,14 +1608,17 @@ async function abortSession() {
 }
 
 async function startWeb() {
+    const config = getNetworkConfig();
+    const port = parseInt(config.servicePort) || 4096;
+    const hostname = config.serviceHost || '127.0.0.1';
     const btn = document.getElementById('btnStartWeb');
     btn.disabled = true;
     btn.textContent = '⏳ 启动中...';
     try {
-        const result = await api.StartOpenCodeWeb(4096);
+        const result = await api.StartOpenCodeWeb(port, hostname, getNetworkConfig());
         if (result.running) {
             webRunning = true;
-            webPort = result.port;
+            webURL = result.url || `http://${hostname}:${port}`;
             updateWebUI();
             btn.textContent = '▶ 启动 opencode';
             startEventStream();
@@ -1493,7 +1645,7 @@ async function stopWeb() {
         await api.StopOpenCodeWeb();
         if (api.StopOpenCodeEvents) await api.StopOpenCodeEvents();
         webRunning = false;
-        webPort = 0;
+        webURL = '';
         currentSessionId = '';
         sessions = [];
         sessionStatuses = {};
@@ -1518,8 +1670,7 @@ async function stopWeb() {
 
 async function launchTerminal() {
     try {
-        const url = webPort ? `http://127.0.0.1:${webPort}` : '';
-        const result = await api.LaunchWindowsTerminal('attach', url, workDir);
+        const result = await api.LaunchWindowsTerminal('attach', webURL, workDir);
         if (!result.success && result.error) {
             showToast('启动失败: ' + result.error, 'error');
         }
@@ -1542,6 +1693,7 @@ function updateWebUI() {
     const statusEl = document.getElementById('webStatus');
     const btnStart = document.getElementById('btnStartWeb');
     const btnStop = document.getElementById('btnStopWeb');
+    const btnProxy = document.getElementById('btnProxySettings');
     const btnWt = document.getElementById('btnWtOpen');
     const btnPick = document.getElementById('btnPickDir');
     const btnRefresh = document.getElementById('btnRefreshSessions');
@@ -1553,7 +1705,7 @@ function updateWebUI() {
     const btnAttach = document.getElementById('btnAttachFile');
 
     if (webRunning) {
-        statusEl.textContent = `运行中 :${webPort}`;
+        statusEl.textContent = `运行中 ${webURL}`;
         statusEl.className = 'oc-web-status running';
         btnStart.disabled = true;
         btnStop.disabled = false;
@@ -1601,6 +1753,7 @@ function toggleSidepanel() {
 
 // 事件绑定
 document.getElementById('btnStartWeb').addEventListener('click', startWeb);
+document.getElementById('btnProxySettings').addEventListener('click', showProxyModal);
 document.getElementById('btnStopWeb').addEventListener('click', stopWeb);
 document.getElementById('btnWtOpen').addEventListener('click', launchTerminal);
 document.getElementById('btnPickDir').addEventListener('click', pickDirectory);
@@ -1641,6 +1794,17 @@ document.getElementById('ocPrompt').addEventListener('paste', (e) => {
         Array.from(files).forEach(file => addAttachment(file));
     }
 });
+document.getElementById('proxyModal').addEventListener('click', (e) => {
+    if (e.target.id === 'proxyModal') hideProxyModal();
+});
+document.getElementById('btnCancelProxy').addEventListener('click', hideProxyModal);
+document.getElementById('btnSaveProxy').addEventListener('click', applyProxyConfig);
+document.getElementById('proxyEnabled').addEventListener('change', updateProxyPreview);
+document.getElementById('proxyHost').addEventListener('input', updateProxyPreview);
+document.getElementById('proxyPort').addEventListener('input', updateProxyPreview);
+document.getElementById('serviceHost').addEventListener('input', updateProxyPreview);
+document.getElementById('servicePort').addEventListener('input', updateProxyPreview);
+updateProxyButton();
 
 // ============================================================
 // View 2: 模型配置
