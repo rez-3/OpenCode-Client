@@ -284,6 +284,8 @@ let lastMessageCount = 0;    // 上次消息数量
 let messageLoadSeq = 0;      // 消息加载序号，避免旧请求覆盖新内容
 let messageCache = {};       // 会话消息缓存，用于 SSE 流式增量渲染
 
+let attachedFiles = [];    // 待发送的附件列表 [{data, filename, mime, size}]
+
 async function pickDirectory() {
     try {
         const dir = await api.OpenDirectoryDialog();
@@ -942,7 +944,9 @@ function renderReasoning(part) {
     const body = document.createElement('div');
     const expanded = !!expandedParts[key];
     body.className = 'oc-reasoning-body' + (expanded ? '' : ' hidden');
-    body.innerHTML = `<pre>${escapeHtml(part.text || '')}</pre>`;
+    body.innerHTML = typeof marked !== 'undefined'
+        ? marked.parse(part.text || '', { breaks: true })
+        : `<pre>${escapeHtml(part.text || '')}</pre>`;
     head.querySelector('.oc-reasoning-toggle').textContent = expanded ? '收起' : '展开';
     head.addEventListener('click', () => {
         expandedParts[key] = !expandedParts[key];
@@ -1291,11 +1295,76 @@ function renderServiceStatus() {
     }
 }
 
+// ── 附件管理 ──
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('读取文件失败'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function addAttachment(file) {
+    const size = file.size;
+    if (size > 20 * 1024 * 1024) {
+        showToast('附件过大，请选择 20MB 以内的文件', 'error');
+        return;
+    }
+    const filename = file.name;
+    if (attachedFiles.some(f => f.filename === filename && f.size === size)) {
+        showToast('文件已添加: ' + filename, 'info');
+        return;
+    }
+    readFileAsDataURL(file).then(data => {
+        attachedFiles.push({ data, filename, mime: file.type || 'application/octet-stream', size });
+        renderAttachedFiles();
+    }).catch(e => {
+        showToast('读取附件失败: ' + e.message, 'error');
+    });
+}
+
+function removeAttachment(index) {
+    attachedFiles.splice(index, 1);
+    renderAttachedFiles();
+}
+
+function renderAttachedFiles() {
+    const list = document.getElementById('ocAttachList');
+    if (!list) return;
+    if (!attachedFiles.length) {
+        list.innerHTML = '';
+        return;
+    }
+    list.innerHTML = attachedFiles.map((f, i) =>
+        `<span class="oc-attach-chip"><span class="oc-attach-chip-name">📎 ${escapeHtml(f.filename)}</span><span class="oc-attach-chip-remove" data-index="${i}">✕</span></span>`
+    ).join('');
+    list.querySelectorAll('.oc-attach-chip-remove').forEach(el => {
+        el.addEventListener('click', () => removeAttachment(parseInt(el.dataset.index)));
+    });
+}
+
+function clearAttachments() {
+    attachedFiles = [];
+    renderAttachedFiles();
+}
+
+function buildParts(text) {
+    const parts = [];
+    if (text.trim()) {
+        parts.push({ type: 'text', text });
+    }
+    attachedFiles.forEach(f => {
+        parts.push({ type: 'file', mime: f.mime, filename: f.filename, url: f.data });
+    });
+    return parts;
+}
+
 async function sendPrompt() {
     if (!webRunning) return;
     const input = document.getElementById('ocPrompt');
     const text = input.value.trim();
-    if (!text) return;
+    if (!text.trim() && !attachedFiles.length) return;
     const btn = document.getElementById('btnSendPrompt');
     btn.disabled = true;
     const isNew = !currentSessionId;
@@ -1313,7 +1382,7 @@ async function sendPrompt() {
             updateSendButton();
         }
         await ocApi('POST', `/session/${encodeURIComponent(currentSessionId)}/prompt_async`, {
-            parts: [{ type: 'text', text }]
+            parts: buildParts(text)
         });
         if (isNew) {
             const title = text.slice(0, 15) + (text.length > 15 ? '...' : '');
@@ -1322,6 +1391,7 @@ async function sendPrompt() {
             await loadSessions();
         }
         input.value = '';
+        clearAttachments();
         await loadMessages();
         smartScroll(document.getElementById('ocMessages'), true);
         scheduleRefresh();
@@ -1480,6 +1550,7 @@ function updateWebUI() {
     const btnDiff = document.getElementById('btnLoadDiff');
     const btnRefreshStatus = document.getElementById('btnRefreshStatus');
     const prompt = document.getElementById('ocPrompt');
+    const btnAttach = document.getElementById('btnAttachFile');
 
     if (webRunning) {
         statusEl.textContent = `运行中 :${webPort}`;
@@ -1494,6 +1565,7 @@ function updateWebUI() {
         btnDiff.disabled = false;
         btnRefreshStatus.disabled = false;
         prompt.disabled = false;
+        btnAttach.disabled = false;
     } else {
         statusEl.textContent = '未启动';
         statusEl.className = 'oc-web-status';
@@ -1507,6 +1579,7 @@ function updateWebUI() {
         btnDiff.disabled = true;
         btnRefreshStatus.disabled = true;
         prompt.disabled = true;
+        btnAttach.disabled = true;
     }
 }
 
@@ -1554,6 +1627,20 @@ document.getElementById('btnToggleSessions').addEventListener('click', toggleSes
 document.getElementById('btnToggleSidepanel').addEventListener('click', toggleSidepanel);
 document.getElementById('btnScrollBottom').addEventListener('click', scrollMessagesToBottom);
 document.getElementById('ocMessages').addEventListener('scroll', updateScrollBottomButton);
+document.getElementById('btnAttachFile').addEventListener('click', () => {
+    document.getElementById('ocFileInput').click();
+});
+document.getElementById('ocFileInput').addEventListener('change', (e) => {
+    Array.from(e.target.files).forEach(file => addAttachment(file));
+    e.target.value = '';
+});
+// 粘贴图片/文件
+document.getElementById('ocPrompt').addEventListener('paste', (e) => {
+    const files = e.clipboardData?.files;
+    if (files && files.length) {
+        Array.from(files).forEach(file => addAttachment(file));
+    }
+});
 
 // ============================================================
 // View 2: 模型配置

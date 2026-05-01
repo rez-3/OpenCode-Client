@@ -85,8 +85,10 @@
                             <span class="oc-model-tag" id="ocAgentTag">--</span>
                             <span class="oc-model-tag" id="ocModelTag">--</span>
                         </div>
+                        <div class="oc-attach-list" id="ocAttachList"></div>
                         <div class="oc-input-bar">
                             <textarea id="ocPrompt" placeholder="输入内容，Enter 发送，Ctrl+Enter 换行" disabled></textarea>
+                            <button class="oc-attach-btn" id="btnAttachFile" disabled title="附件">📎</button>
                             <button class="btn btn-primary" id="btnSendPrompt" disabled>发送</button>
                         </div>
                     </main>
@@ -198,6 +200,7 @@
     <!-- Toast 通知 -->
     <div class="toast" id="toast"></div>
 
+    <input type="file" id="ocFileInput" multiple hidden />
     <script src="/src/main.js"></script>
 </body>
 </html>
