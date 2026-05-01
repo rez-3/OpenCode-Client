@@ -49,7 +49,7 @@
             <div class="view-panel active" id="view-opencode">
                 <!-- 控制栏 -->
                 <div class="oc-toolbar">
-                    <button class="btn btn-proxy" id="btnProxySettings" title="网络设置">🌐 网络</button>
+                    <button class="btn btn-proxy" id="btnProxySettings" title="配置">⚙ 配置</button>
                     <button class="btn btn-primary" id="btnStartWeb">▶ 启动 OpenCode</button>
                     <button class="btn btn-danger-outline" id="btnStopWeb" disabled>■ 停止</button>
                     <span class="oc-web-status" id="webStatus">未启动</span>
@@ -201,10 +201,19 @@
     <!-- Toast 通知 -->
     <div class="toast" id="toast"></div>
 
-    <!-- 网络设置弹窗 -->
+    <!-- 配置弹窗 -->
     <div class="modal-overlay" id="proxyModal" style="display:none">
         <div class="modal proxy-modal">
-            <h3>网络设置</h3>
+            <h3>配置</h3>
+            <div class="oc-service-group-title" style="margin-bottom:10px">工作目录</div>
+            <div class="modal-field">
+                <label for="serviceWorkDir">工作目录（启动前 cd 到此目录）</label>
+                <div style="display:flex;gap:6px">
+                    <input id="serviceWorkDir" placeholder="当前目录" style="flex:1" />
+                    <button class="btn btn-sm btn-open" id="btnPickWorkDir" title="选择目录">📁</button>
+                </div>
+            </div>
+            <hr class="proxy-separator" />
             <div class="oc-service-group-title" style="margin-bottom:10px">OpenCode 服务地址</div>
             <div class="modal-field">
                 <label for="serviceHost">服务地址</label>

@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +26,7 @@ type webSession struct {
 	cmd      *exec.Cmd
 	port     int
 	hostname string
+	workDir  string
 }
 
 const (
@@ -62,27 +65,49 @@ type ProxyConfig struct {
 }
 
 // StartOpenCodeWeb 启动 opencode web 服务，等待端口就绪后返回。
-func (a *App) StartOpenCodeWeb(port int, hostname string, proxy ProxyConfig) WebResult {
+func (a *App) StartOpenCodeWeb(port int, hostname string, workDir string, proxy ProxyConfig) WebResult {
 	if hostname == "" {
 		hostname = defaultHostname
 	}
 	if port <= 0 {
 		port = defaultPort
 	}
+	workDir = strings.TrimSpace(workDir)
+	if workDir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return WebResult{Error: fmt.Sprintf("获取当前工作目录失败: %v", err)}
+		}
+		workDir = cwd
+	}
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		return WebResult{Error: fmt.Sprintf("工作目录无效: %v", err)}
+	}
+	info, err := os.Stat(absWorkDir)
+	if err != nil {
+		return WebResult{Error: fmt.Sprintf("工作目录不存在: %s", absWorkDir)}
+	}
+	if !info.IsDir() {
+		return WebResult{Error: fmt.Sprintf("工作目录不是文件夹: %s", absWorkDir)}
+	}
+	workDir = absWorkDir
 
 	webSessMu.Lock()
 	if webSess != nil {
 		p := webSess.port
+		existingHost := webSess.hostname
+		existingDir := webSess.workDir
 		webSessMu.Unlock()
-		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, p)}
+		if p != port || existingHost != hostname || !samePath(existingDir, workDir) {
+			return WebResult{Error: "OpenCode 服务已启动；修改工作目录、地址或端口前请先停止服务"}
+		}
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", existingHost, p)}
 	}
 	webSessMu.Unlock()
 
 	if isOpenCodeServerRunning(hostname, port) {
-		webSessMu.Lock()
-		webSess = &webSession{port: port, hostname: hostname}
-		webSessMu.Unlock()
-		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port)}
+		return WebResult{Error: fmt.Sprintf("%s:%d 已有 OpenCode 服务运行；无法应用新的工作目录，请先停止该服务", hostname, port)}
 	}
 
 	cmd := exec.Command("opencode", "serve",
@@ -151,7 +176,7 @@ func (a *App) StartOpenCodeWeb(port int, hostname string, proxy ProxyConfig) Web
 		return WebResult{Error: "启动超时（超过 12 秒）"}
 	}
 
-	sess := &webSession{cmd: cmd, port: port, hostname: hostname}
+	sess := &webSession{cmd: cmd, port: port, hostname: hostname, workDir: workDir}
 
 	webSessMu.Lock()
 	webSess = sess
@@ -215,6 +240,21 @@ func killByPort(port int) {
 	killProcTree(pid)
 }
 
+func samePath(a, b string) bool {
+	if a == "" || b == "" {
+		return a == b
+	}
+	aa, errA := filepath.Abs(a)
+	bb, errB := filepath.Abs(b)
+	if errA == nil {
+		a = aa
+	}
+	if errB == nil {
+		b = bb
+	}
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
 // GetWorkDir 返回当前工作目录。
 func (a *App) GetWorkDir() string {
 	dir, _ := os.Getwd()
@@ -272,6 +312,7 @@ func (a *App) OpenCodeAPI(method, path, body string) APIResult {
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	addCreateSessionDirHeader(req, sess)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -283,7 +324,39 @@ func (a *App) OpenCodeAPI(method, path, body string) APIResult {
 	if err != nil {
 		return APIResult{Status: resp.StatusCode, Error: err.Error()}
 	}
-	return APIResult{Success: resp.StatusCode >= 200 && resp.StatusCode < 300, Status: resp.StatusCode, Body: string(data)}
+	result := APIResult{Success: resp.StatusCode >= 200 && resp.StatusCode < 300, Status: resp.StatusCode, Body: string(data)}
+
+	if strings.EqualFold(method, "POST") {
+		p := path
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p
+		}
+		if p == "/session" || strings.HasPrefix(p, "/session?") {
+			log.Printf("[DEBUG] POST /session response status=%d, body prefix=%.200s, header-sent=%s",
+				resp.StatusCode, result.Body,
+				req.Header.Get("x-opencode-directory"))
+		}
+	}
+	return result
+}
+
+// addCreateSessionDirHeader 仅对新建会话（POST /session）注入工作目录请求头。
+func addCreateSessionDirHeader(req *http.Request, sess *webSession) {
+	if sess == nil || sess.workDir == "" {
+		return
+	}
+	if !strings.EqualFold(req.Method, http.MethodPost) {
+		return
+	}
+	p := req.URL.Path
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	p, _, _ = strings.Cut(p, "?")
+	if p == "/session" {
+		log.Printf("[DEBUG] addCreateSessionDirHeader: setting x-opencode-directory=%s for %s %s", sess.workDir, req.Method, p)
+		req.Header.Set("x-opencode-directory", sess.workDir)
+	}
 }
 
 // StartOpenCodeEvents 连接 opencode 全局 SSE，并通过 Wails 事件转发给前端。

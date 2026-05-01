@@ -132,11 +132,11 @@ const api = (() => {
     ],
     RunOpenCode: async (sid, cont) => { console.log('mock launch:', sid, cont); },
         // web 管理
-        StartOpenCodeWeb: async (port, hostname, proxy) => {
+        StartOpenCodeWeb: async (port, hostname, workDir, proxy) => {
             webURL = `http://${hostname || '127.0.0.1'}:${port || 4096}`;
             webRunning = true;
             updateWebUI();
-            console.log('mock network:', { port, hostname, proxy });
+            console.log('mock config:', { port, hostname, workDir, proxy });
             return { running: true, success: true, port: port || 4096, url: webURL };
         },
         StopOpenCodeWeb: async () => {
@@ -286,12 +286,15 @@ let lastMessageCount = 0;    // 上次消息数量
 let messageLoadSeq = 0;      // 消息加载序号，避免旧请求覆盖新内容
 let messageCache = {};       // 会话消息缓存，用于 SSE 流式增量渲染
 
+let sessionRefreshTimer = null;  // 会话列表防抖刷新
+
 let attachedFiles = [];    // 待发送的附件列表 [{data, filename, mime, size}]
 
 function getNetworkConfig() {
     try {
         const saved = JSON.parse(localStorage.getItem(NETWORK_CONFIG_KEY) || '{}');
         return {
+            workDir: (saved.workDir || '').trim(),
             serviceHost: (saved.serviceHost || '127.0.0.1').trim(),
             servicePort: (saved.servicePort || '4096').toString().trim(),
             proxyEnabled: !!saved.proxyEnabled,
@@ -299,12 +302,13 @@ function getNetworkConfig() {
             proxyPort: (saved.proxyPort || '7897').toString().trim(),
         };
     } catch (_) {
-        return { serviceHost: '127.0.0.1', servicePort: '4096', proxyEnabled: false, proxyHost: '127.0.0.1', proxyPort: '7897' };
+        return { workDir: '', serviceHost: '127.0.0.1', servicePort: '4096', proxyEnabled: false, proxyHost: '127.0.0.1', proxyPort: '7897' };
     }
 }
 
 function saveNetworkConfig(config) {
     const next = {
+        workDir: (config.workDir || '').trim(),
         serviceHost: (config.serviceHost || '127.0.0.1').trim(),
         servicePort: (config.servicePort || '4096').toString().trim(),
         proxyEnabled: !!config.proxyEnabled,
@@ -327,9 +331,11 @@ function updateProxyPreview() {
     const proxyPort = document.getElementById('proxyPort')?.value.trim() || '7897';
     const serviceHost = document.getElementById('serviceHost')?.value.trim() || '127.0.0.1';
     const servicePort = document.getElementById('servicePort')?.value.trim() || '4096';
+    const workDir = document.getElementById('serviceWorkDir')?.value.trim() || '当前目录';
     const preview = document.getElementById('proxyPreview');
     if (!preview) return;
     const parts = [];
+    parts.push(`工作目录: ${workDir}`);
     parts.push(`服务地址: ${serviceHost}:${servicePort}`);
     if (proxyEnabled) {
         const url = `http://${proxyHost}:${proxyPort}`;
@@ -345,11 +351,12 @@ function updateProxyButton() {
     if (!btn) return;
     const config = getNetworkConfig();
     btn.classList.toggle('active', config.proxyEnabled);
-    btn.title = webRunning ? '网络设置（服务运行期间仅可查看）' : (config.proxyEnabled ? `代理已启用: ${proxyUrl(config)}` : '网络设置');
+    btn.title = webRunning ? '配置（服务运行期间仅可查看）' : (config.proxyEnabled ? `代理已启用: ${proxyUrl(config)}` : '配置');
 }
 
 function showProxyModal() {
     const config = getNetworkConfig();
+    const serviceWorkDirEl = document.getElementById('serviceWorkDir');
     const serviceHostEl = document.getElementById('serviceHost');
     const servicePortEl = document.getElementById('servicePort');
     const proxyEnabledEl = document.getElementById('proxyEnabled');
@@ -357,6 +364,8 @@ function showProxyModal() {
     const proxyPortEl = document.getElementById('proxyPort');
     const saveBtn = document.getElementById('btnSaveProxy');
     const cancelBtn = document.getElementById('btnCancelProxy');
+    const pickBtn = document.getElementById('btnPickWorkDir');
+    serviceWorkDirEl.value = config.workDir || workDir;
     serviceHostEl.value = config.serviceHost;
     servicePortEl.value = config.servicePort;
     proxyEnabledEl.checked = config.proxyEnabled;
@@ -364,19 +373,23 @@ function showProxyModal() {
     proxyPortEl.value = config.proxyPort;
     // 运行时只读，仅保留关闭按钮
     const readonly = webRunning;
+    serviceWorkDirEl.readOnly = readonly;
     serviceHostEl.readOnly = readonly;
     servicePortEl.readOnly = readonly;
     proxyEnabledEl.disabled = readonly;
     proxyHostEl.readOnly = readonly;
     proxyPortEl.readOnly = readonly;
+    pickBtn.style.display = readonly ? 'none' : '';
     saveBtn.style.display = readonly ? 'none' : '';
     cancelBtn.textContent = readonly ? '关闭' : '取消';
     if (readonly) {
+        serviceWorkDirEl.style.opacity = '0.6';
         serviceHostEl.style.opacity = '0.6';
         servicePortEl.style.opacity = '0.6';
         proxyHostEl.style.opacity = '0.6';
         proxyPortEl.style.opacity = '0.6';
     } else {
+        serviceWorkDirEl.style.opacity = '';
         serviceHostEl.style.opacity = '';
         servicePortEl.style.opacity = '';
         proxyHostEl.style.opacity = '';
@@ -386,11 +399,21 @@ function showProxyModal() {
     document.getElementById('proxyModal').style.display = 'flex';
 }
 
+// pick work dir button in proxy modal
+document.getElementById('btnPickWorkDir').addEventListener('click', async () => {
+    try {
+        const dir = await api.OpenDirectoryDialog();
+        if (dir) document.getElementById('serviceWorkDir').value = dir;
+        updateProxyPreview();
+    } catch (e) { /* ignore */ }
+});
+
 function hideProxyModal() {
     document.getElementById('proxyModal').style.display = 'none';
 }
 
 function applyProxyConfig() {
+    const workDirVal = document.getElementById('serviceWorkDir').value.trim();
     const serviceHost = document.getElementById('serviceHost').value.trim() || '127.0.0.1';
     const servicePort = document.getElementById('servicePort').value.trim() || '4096';
     const proxyEnabled = document.getElementById('proxyEnabled').checked;
@@ -404,7 +427,12 @@ function applyProxyConfig() {
         showToast('代理端口必须是数字', 'error');
         return;
     }
-    saveNetworkConfig({ serviceHost, servicePort, proxyEnabled, proxyHost, proxyPort });
+    saveNetworkConfig({ workDir: workDirVal, serviceHost, servicePort, proxyEnabled, proxyHost, proxyPort });
+    // 同步全局 workDir
+    if (workDirVal) {
+        workDir = workDirVal;
+        updateDirDisplay();
+    }
     hideProxyModal();
     const msg = proxyEnabled ? `代理已启用: http://${proxyHost}:${proxyPort}` : '代理已关闭';
     showToast(msg, 'success');
@@ -549,6 +577,8 @@ function handleOcEvent(event) {
             const status = props.status || props;
             if (status?.type === 'idle') {
                 loadMessages();
+                // 会话变空闲后刷新一次列表
+                debounceRefreshSessions();
             } else if (getCachedMessages(sid).length) {
                 renderCachedMessages(sid);
             } else {
@@ -563,6 +593,7 @@ function handleOcEvent(event) {
         if (sid === currentSessionId) {
             updateSendButton();
             loadMessages();
+            debounceRefreshSessions();
         }
         return;
     }
@@ -593,9 +624,14 @@ function handleOcEvent(event) {
         return;
     }
 
-    if (type === 'session.created' || type === 'session.updated' || type === 'session.deleted') {
+    if (type === 'session.created' || type === 'session.deleted') {
         loadSessions();
         loadDiff();
+        return;
+    }
+    if (type === 'session.updated') {
+        loadDiff();
+        debounceRefreshSessions();
     }
 }
 
@@ -766,6 +802,15 @@ async function loadSessions() {
     }
 }
 
+function debounceRefreshSessions() {
+    // 当前会话忙碌时不刷新列表，避免频繁 innerHTML 闪动
+    if (currentSessionId && isSessionBusy(currentSessionId)) return;
+    clearTimeout(sessionRefreshTimer);
+    sessionRefreshTimer = setTimeout(() => {
+        if (webRunning) loadSessions();
+    }, 2000);
+}
+
 function renderSessions() {
     const list = document.getElementById('ocSessionList');
     if (!sessions.length) {
@@ -775,13 +820,49 @@ function renderSessions() {
     list.innerHTML = '';
     sessions.forEach(session => {
         const id = session.id || session.ID;
-        const item = document.createElement('button');
-        item.className = 'oc-session-item' + (id === currentSessionId ? ' active' : '');
-        item.textContent = session.title || session.name || id;
-        item.title = id;
-        item.addEventListener('click', () => selectSession(id));
+        const item = document.createElement('div');
+        item.className = 'oc-session-row';
+        if (id === currentSessionId) item.classList.add('active');
+
+        const btn = document.createElement('button');
+        btn.className = 'oc-session-item';
+        btn.textContent = session.title || session.name || id;
+        btn.title = id;
+        btn.addEventListener('click', () => selectSession(id));
+
+        const del = document.createElement('button');
+        del.className = 'oc-session-delete';
+        del.title = '删除会话';
+        del.innerHTML = '✕';
+        del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteSession(id);
+        });
+
+        item.appendChild(btn);
+        item.appendChild(del);
         list.appendChild(item);
     });
+}
+
+async function deleteSession(id) {
+    if (!id) return;
+    if (!confirm('确定要删除该会话吗？此操作不可撤销。')) return;
+    try {
+        await ocApi('DELETE', `/session/${encodeURIComponent(id)}`);
+        showToast('已删除', 'success');
+        if (id === currentSessionId) {
+            currentSessionId = '';
+            messageCache[currentSessionId] = null;
+            expandedParts = {};
+            document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">选择会话后查看消息，或输入内容创建新会话</div>';
+            document.getElementById('ocChatTitle').textContent = '未选择会话';
+            updateModelInfo(null);
+        }
+        await loadSessions();
+    } catch (e) {
+        showToast('删除失败: ' + (e.message || e), 'error');
+    }
 }
 
 async function loadSessionStatuses() {
@@ -1611,14 +1692,20 @@ async function startWeb() {
     const config = getNetworkConfig();
     const port = parseInt(config.servicePort) || 4096;
     const hostname = config.serviceHost || '127.0.0.1';
+    const workDirParam = config.workDir || workDir;
     const btn = document.getElementById('btnStartWeb');
     btn.disabled = true;
     btn.textContent = '⏳ 启动中...';
+    console.log('startWeb: port=' + port + ' hostname=' + hostname + ' workDir=' + workDirParam);
     try {
-        const result = await api.StartOpenCodeWeb(port, hostname, getNetworkConfig());
+        const result = await api.StartOpenCodeWeb(port, hostname, workDirParam, getNetworkConfig());
         if (result.running) {
             webRunning = true;
             webURL = result.url || `http://${hostname}:${port}`;
+            if (workDirParam) {
+                workDir = workDirParam;
+                updateDirDisplay();
+            }
             updateWebUI();
             btn.textContent = '▶ 启动 opencode';
             startEventStream();
@@ -1657,6 +1744,7 @@ async function stopWeb() {
         mcpStatus = null;
         lspStatus = null;
         clearInterval(refreshTimer);
+        clearTimeout(sessionRefreshTimer);
         updateWebUI();
         btn.textContent = '■ 停止';
         clearClientUI();
