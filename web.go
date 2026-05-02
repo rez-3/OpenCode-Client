@@ -48,6 +48,8 @@ type WebResult struct {
 	Running bool   `json:"running"`
 	Success bool   `json:"success"`
 	URL     string `json:"url"`
+	Health  string `json:"health"`
+	Version string `json:"version"`
 	Error   string `json:"error,omitempty"`
 }
 
@@ -85,7 +87,8 @@ func (a *App) StartOpenCodeWeb(port int, hostname string, proxy ProxyConfig) Web
 		if p != port || h != hostname {
 			return WebResult{Error: "OpenCode 服务已启动；修改地址或端口前请先停止服务"}
 		}
-		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", h, p)}
+		health, version, _ := getOpenCodeHealth(h, p)
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", h, p), Health: health, Version: version}
 	}
 	webSessMu.Unlock()
 
@@ -171,7 +174,8 @@ func (a *App) StartOpenCodeWeb(port int, hostname string, proxy ProxyConfig) Web
 		webSessMu.Unlock()
 	}()
 
-	return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port)}
+	health, version, _ := getOpenCodeHealth(hostname, port)
+	return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port), Health: health, Version: version}
 }
 
 // StopOpenCodeWeb 停止 opencode web 服务（含子进程 bun）。
@@ -231,7 +235,8 @@ func (a *App) GetWebStatus(hostname string, port int) WebResult {
 		p := webSess.port
 		h := webSess.hostname
 		defer webSessMu.Unlock()
-		return WebResult{Running: true, URL: fmt.Sprintf("http://%s:%d", h, p)}
+		health, version, _ := getOpenCodeHealth(h, p)
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", h, p), Health: health, Version: version}
 	}
 	webSessMu.Unlock()
 
@@ -240,10 +245,11 @@ func (a *App) GetWebStatus(hostname string, port int) WebResult {
 		webSessMu.Lock()
 		webSess = &webSession{port: port, hostname: hostname}
 		webSessMu.Unlock()
-		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port)}
+		health, version, _ := getOpenCodeHealth(hostname, port)
+		return WebResult{Running: true, Success: true, URL: fmt.Sprintf("http://%s:%d", hostname, port), Health: health, Version: version}
 	}
 
-	return WebResult{}
+	return WebResult{URL: fmt.Sprintf("http://%s:%d", hostname, port), Health: "离线"}
 }
 
 // getWebSession 返回当前 webSession，未启动则尝试用最后已知配置自动检测。
@@ -618,14 +624,52 @@ func killProcTree(pid int) {
 }
 
 func isOpenCodeServerRunning(hostname string, port int) bool {
+	_, _, ok := getOpenCodeHealth(hostname, port)
+	return ok
+}
+
+func getOpenCodeHealth(hostname string, port int) (string, string, bool) {
 	client := http.Client{Timeout: 2 * time.Second}
 	url := fmt.Sprintf("http://%s:%d/global/health", hostname, port)
 	resp, err := client.Get(url)
 	if err != nil {
-		return false
+		return "离线", "", false
 	}
 	defer resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 500
+
+	version := ""
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "异常", "", false
+	}
+	if len(body) > 0 {
+		var payload map[string]interface{}
+		if err := json.Unmarshal(body, &payload); err == nil {
+			version = stringValue(payload["version"])
+			if version == "" {
+				version = stringValue(payload["Version"])
+			}
+		}
+	}
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return "在线", version, true
+	}
+	if resp.StatusCode < 500 {
+		return "未知", version, true
+	}
+	return "异常", version, false
+}
+
+func stringValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return ""
+	}
 }
 
 // executablePath 返回当前进程可执行文件的路径。

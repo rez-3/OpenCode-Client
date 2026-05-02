@@ -6,6 +6,14 @@ import (
 )
 
 func TestGetWebSessionNil(t *testing.T) {
+	origHost, origPort := lastCfgHost, lastCfgPort
+	t.Cleanup(func() {
+		lastCfgHost = origHost
+		lastCfgPort = origPort
+	})
+	lastCfgHost = defaultHostname
+	lastCfgPort = 1
+
 	webSessMu.Lock()
 	webSess = nil
 	webSessMu.Unlock()

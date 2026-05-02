@@ -333,6 +333,8 @@ export namespace main {
 	    running: boolean;
 	    success: boolean;
 	    url: string;
+	    health: string;
+	    version: string;
 	    error?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -344,6 +346,8 @@ export namespace main {
 	        this.running = source["running"];
 	        this.success = source["success"];
 	        this.url = source["url"];
+	        this.health = source["health"];
+	        this.version = source["version"];
 	        this.error = source["error"];
 	    }
 	}

@@ -520,11 +520,55 @@ html, body {
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 6px;
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
     flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    min-width: 0;
+}
+.oc-panel-head:hover {
+    background: var(--bg-sidebar-hover);
+}
+.oc-panel-head .btn {
+    margin-left: auto;
+}
+.oc-panel-head span:first-of-type {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.oc-panel-arrow {
+    display: inline-block;
+    width: 14px;
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 200ms ease;
+    flex-shrink: 0;
+}
+.collapsed .oc-panel-arrow {
+    transform: rotate(-90deg);
+}
+.oc-panel-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    transition: opacity 150ms ease;
+}
+.collapsed .oc-panel-body {
+    display: none;
+}
+.oc-panel-section.collapsed {
+    min-height: 0;
+    flex: 0 0 auto;
+}
+.oc-panel-section.collapsed .oc-panel-head {
+    border-bottom: none;
 }
 .oc-panel-actions {
     display: flex;
@@ -556,6 +600,19 @@ html, body {
     display: inline-block;
     width: 16px;
 }
+.oc-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+.oc-tree-project-row {
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+}
+.oc-tree-project-row:hover {
+    background: var(--bg-sidebar-hover);
+}
 .oc-tree-label {
     cursor: default;
     vertical-align: middle;
@@ -564,6 +621,10 @@ html, body {
     white-space: nowrap;
     text-overflow: ellipsis;
     display: inline-block;
+}
+.oc-tree-row .oc-tree-label {
+    flex: 1;
+    min-width: 0;
 }
 .oc-tree-project { padding-left: 0; }
 .oc-tree-directory { padding-left: 16px; }
@@ -581,6 +642,30 @@ html, body {
     gap: 4px;
 }
 .oc-tree-session .oc-tree-label { flex: 1; min-width: 0; }
+.oc-tree-add-dir {
+    display: none;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 16px;
+}
+.oc-tree-project-row:hover .oc-tree-add-dir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.oc-tree-add-dir:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-ghost);
+}
 .oc-tree-del {
     display: none;
     flex-shrink: 0;
@@ -624,6 +709,7 @@ html, body {
     gap: 16px;
     user-select: text;
     -webkit-user-select: text;
+    contain: paint style;
 }
 .oc-scroll-bottom {
     position: absolute;
@@ -1089,12 +1175,122 @@ html, body {
 .oc-service-dot.off {
     background: var(--text-muted);
 }
+.oc-service-dot.warn {
+    background: var(--warning);
+}
 .oc-service-state {
     margin-left: auto;
     font-size: 11px;
     color: var(--text-muted);
 }
+.oc-service-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    overflow: hidden;
+}
+.oc-service-card .oc-service-item {
+    border-bottom: 1px solid var(--border);
+}
+.oc-service-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.oc-service-field span {
+    width: 42px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+.oc-service-field code {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 11px;
+}
 
+.oc-todos {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
+
+/* ── 代办事项 ── */
+.oc-todo-group {
+    margin-bottom: 10px;
+}
+.oc-todo-group-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+.oc-todo-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 5px 6px;
+    font-size: 12px;
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    line-height: 1.4;
+}
+.oc-todo-item:hover {
+    background: var(--bg-card-hover);
+}
+.oc-todo-item.done {
+    opacity: 0.55;
+}
+.oc-todo-item.done .oc-todo-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+.oc-todo-check {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    margin-top: 1px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+}
+.oc-todo-item.pri-high .oc-todo-check {
+    border-color: var(--danger);
+}
+.oc-todo-item.pri-high {
+    border-left: 2px solid var(--danger);
+}
+.oc-todo-item.pri-medium {
+    border-left: 2px solid var(--warning);
+}
+.oc-todo-item.pri-low {
+    border-left: 2px solid var(--text-muted);
+}
+.oc-todo-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.oc-todo-item:hover .oc-todo-text {
+    white-space: normal;
+}
 .oc-diff {
     flex: 1;
     min-height: 0;

@@ -140,16 +140,18 @@ const mockApi = (() => {
         StartOpenCodeWeb: async (port, hostname, proxy) => {
             webURL = `http://${hostname || '127.0.0.1'}:${port || 4096}`;
             webRunning = true;
+            serverStatus = { url: webURL, health: '在线', version: 'mock' };
             updateWebUI();
-            return { running: true, success: true, url: webURL };
+            return { running: true, success: true, url: webURL, health: '在线', version: 'mock' };
         },
         StopOpenCodeWeb: async () => {
             webRunning = false; webURL = '';
+            serverStatus = normalizeServerStatus(null);
             updateWebUI(); clearClientUI();
             return { success: true };
         },
 GetWebStatus: async (hostname, port) => {
-    return { running: webRunning, url: webURL || '' };
+    return { running: webRunning, url: webURL || `http://${hostname || '127.0.0.1'}:${port || 4096}`, health: webRunning ? '在线' : '离线', version: webRunning ? 'mock' : '' };
 },
         LaunchWindowsTerminal: async (mode, url, dir) => {
             console.log('mock launch wt:', mode, url, dir);
@@ -289,6 +291,7 @@ let sessions = [];
 let sessionStatuses = {};
 let sessionErrors = {};
 let refreshTimer = null;
+let serverStatus = { url: '', health: '未知', version: '' };
 let mcpStatus = null;
 let lspStatus = null;
 let expandedParts = {};
@@ -296,6 +299,9 @@ let markdownCache = {};
 let lastMessageCount = 0;
 let messageLoadSeq = 0;
 let messageCache = {};
+let pendingMessageRenderSession = '';
+let pendingMessageRenderFrame = 0;
+let userScrolling = false;  // 用户正在拖拽滚动条时跳过 DOM 重建
 
 let sessionRefreshTimer = null;
 let attachedFiles = [];
@@ -431,12 +437,16 @@ async function buildTree() {
         const knownDirs = JSON.parse(localStorage.getItem('oc-known-dirs') || '[]');
         const json = await api.GetProjectTree(JSON.stringify(knownDirs));
         if (json && json !== '[]') {
-            renderTree(JSON.parse(json));
+            const tree = JSON.parse(json);
+            window._lastProjectTree = tree;
+            renderTree(tree);
         } else {
+            window._lastProjectTree = [];
             document.getElementById('ocTree').innerHTML = '<div class="oc-empty">暂无项目，新建会话后将自动出现</div>';
         }
         return true;
     } catch (_) {
+        window._lastProjectTree = [];
         document.getElementById('ocTree').innerHTML = '<div class="oc-empty">加载树失败</div>';
         return false;
     }
@@ -458,7 +468,7 @@ function renderTree(tree) {
     let html = '';
     for (const proj of tree) {
         html += `<div class="oc-tree-node oc-tree-project" data-id="${escapeHtml(proj.id)}">`;
-        html += `<div class="oc-tree-toggle">▼</div><span class="oc-tree-label" title="${escapeHtml(proj.title)}">📁 ${escapeHtml(proj.title)}</span>`;
+        html += `<div class="oc-tree-row oc-tree-project-row"><div class="oc-tree-toggle">▼</div><span class="oc-tree-label" title="${escapeHtml(proj.title)}">📁 ${escapeHtml(proj.title)}</span><button class="oc-tree-add-dir" data-project-id="${escapeHtml(proj.id)}" title="添加工作目录">＋</button></div>`;
         html += `<div class="oc-tree-children">`;
         for (const dir of (proj.children || [])) {
             html += `<div class="oc-tree-node oc-tree-directory" data-id="${escapeHtml(dir.id)}">`;
@@ -480,7 +490,7 @@ function renderTree(tree) {
     // toggle 事件
     container.querySelectorAll('.oc-tree-toggle').forEach(el => {
         el.addEventListener('click', () => {
-            const node = el.parentElement;
+            const node = el.closest('.oc-tree-node');
             const children = node.querySelector('.oc-tree-children');
             if (children) {
                 const isOpen = children.style.display !== 'none';
@@ -498,6 +508,13 @@ function renderTree(tree) {
             if (sid && sid !== currentSessionId) {
                 await switchSession(sid);
             }
+        });
+    });
+    // 项目标签添加目录按钮
+    container.querySelectorAll('.oc-tree-add-dir').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await addDirectoryToProject(btn.dataset.projectId || '');
         });
     });
     // 删除按钮
@@ -540,20 +557,68 @@ async function newSessionWithDir() {
     }
 }
 
+function rememberKnownDir(dir) {
+    if (!dir) return;
+    try {
+        const dirs = JSON.parse(localStorage.getItem('oc-known-dirs') || '[]');
+        if (!dirs.includes(dir)) {
+            dirs.push(dir);
+            localStorage.setItem('oc-known-dirs', JSON.stringify(dirs));
+        }
+    } catch (_) {}
+}
+
+function treeHasSessionsForDir(tree, dir) {
+    const target = String(dir || '').replace(/\\+$/, '').toLowerCase();
+    for (const proj of (tree || [])) {
+        for (const child of (proj.children || [])) {
+            const title = String(child.title || '').replace(/\\+$/, '').toLowerCase();
+            if (title === target && (child.children || []).length > 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+async function addDirectoryToProject() {
+    if (!webRunning) return;
+    try {
+        const dir = await api.OpenDirectoryDialog();
+        if (!dir) return;
+        rememberKnownDir(dir);
+        const ok = await buildTree();
+        if (!ok || !treeHasSessionsForDir(window._lastProjectTree, dir)) {
+            document.getElementById('ocChatTitle').textContent = '工作目录 @ ' + dir;
+            document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">该目录下没有会话记录，请先在该目录下新建会话</div>';
+            showToast('该目录下没有会话记录，请先在该目录下新建会话', 'warning');
+            return;
+        }
+        showToast('已加载目录会话: ' + dir, 'success');
+    } catch (e) {
+        showToast('选择目录失败: ' + (e.message || e), 'error');
+    }
+}
+
 async function checkWebStatus() {
     try {
         const config = getNetworkConfig();
         const status = await api.GetWebStatus(config.serviceHost, parseInt(config.servicePort) || 4096);
         webRunning = status.running;
         webURL = status.url || '';
+        serverStatus = normalizeServerStatus(status);
         updateWebUI();
         if (webRunning) {
             startEventStream();
             buildTree();
             loadServiceStatus();
+        } else {
+            renderServiceStatus();
         }
     } catch (e) {
         console.warn('GetWebStatus failed:', e);
+        serverStatus = normalizeServerStatus(null);
+        renderServiceStatus();
     }
 }
 
@@ -646,7 +711,7 @@ function handleOcEvent(event) {
                 // 会话变空闲后刷新一次列表
                 debounceRefreshTree();
             } else if (getCachedMessages(sid).length) {
-                renderCachedMessages(sid);
+                scheduleRenderCachedMessages(sid);
             } else {
                 loadMessages();
             }
@@ -666,27 +731,27 @@ function handleOcEvent(event) {
 
     if (type === 'message.updated' && props.info) {
         upsertMessage(props.info);
-        renderCachedMessages(sid);
+        scheduleRenderCachedMessages(sid);
         return;
     }
     if (type === 'message.part.updated' && props.part) {
         upsertPart(props.part);
-        renderCachedMessages(sid);
+        scheduleRenderCachedMessages(sid);
         return;
     }
     if (type === 'message.part.delta') {
         applyPartDelta(props);
-        renderCachedMessages(sid);
+        scheduleRenderCachedMessages(sid);
         return;
     }
     if (type === 'message.part.removed') {
         removePart(props);
-        renderCachedMessages(sid);
+        scheduleRenderCachedMessages(sid);
         return;
     }
     if (type === 'message.removed') {
         removeMessage(props);
-        renderCachedMessages(sid);
+        scheduleRenderCachedMessages(sid);
         return;
     }
 
@@ -762,6 +827,18 @@ function getCachedMessages(sessionID) {
 function renderCachedMessages(sessionID) {
     if (!sessionID || sessionID !== currentSessionId) return;
     renderMessages(getCachedMessages(sessionID));
+}
+
+function scheduleRenderCachedMessages(sessionID) {
+    if (!sessionID || sessionID !== currentSessionId) return;
+    pendingMessageRenderSession = sessionID;
+    if (pendingMessageRenderFrame) return;
+    pendingMessageRenderFrame = requestAnimationFrame(() => {
+        const target = pendingMessageRenderSession;
+        pendingMessageRenderFrame = 0;
+        pendingMessageRenderSession = '';
+        renderCachedMessages(target);
+    });
 }
 
 function upsertMessage(info) {
@@ -933,14 +1010,7 @@ async function createNewSession() {
 async function createSessionWithDir(dir) {
     const result = await api.CreateSession(dir);
     if (!result.success) throw new Error(result.error || result.body || '创建失败');
-    // 记录已知目录
-    try {
-        const dirs = JSON.parse(localStorage.getItem('oc-known-dirs') || '[]');
-        if (!dirs.includes(dir)) {
-            dirs.push(dir);
-            localStorage.setItem('oc-known-dirs', JSON.stringify(dirs));
-        }
-    } catch (_) {}
+    rememberKnownDir(dir);
     return JSON.parse(result.body);
 }
 
@@ -979,8 +1049,15 @@ async function loadMessages() {
 
 function renderMessages(items) {
     const box = document.getElementById('ocMessages');
-    const scrollState = captureScrollState(box);
     const list = (items || []).map(normalizeMessageItem).filter(item => !isInternalUserMessage(item));
+
+    // 用户正在拖拽滚动条时跳过 DOM 重建，避免打断操作
+    if (userScrolling) {
+        lastMessageCount = list.length;
+        return;
+    }
+
+    const scrollState = captureScrollState(box);
     if (!list.length) {
         box.innerHTML = '<div class="oc-empty">该会话暂无消息</div>';
         lastMessageCount = 0;
@@ -1068,6 +1145,75 @@ function renderMessages(items) {
     updateModelInfo(items);
     restoreScroll(box, scrollState, false);
     updateScrollBottomButton();
+    renderTodos();
+}
+
+function extractTodos() {
+    const items = getCachedMessages(currentSessionId);
+    if (!items.length) return [];
+    // 从最新到最后一条 assistant 消息中查找 todowrite，取最后一次调用
+    for (let i = items.length - 1; i >= 0; i--) {
+        const info = items[i].info || items[i];
+        if (info.role !== 'assistant') continue;
+        const parts = items[i].parts || [];
+        for (let j = parts.length - 1; j >= 0; j--) {
+            const part = parts[j];
+            if (part.type !== 'tool') continue;
+            if (part.tool !== 'todowrite' && part.name !== 'todowrite') continue;
+            const state = part.state || {};
+            // todos 可能在 state.input.todos 或直接在 state.todos
+            const todos = (state.input && state.input.todos) || state.todos;
+            if (Array.isArray(todos)) return todos;
+        }
+    }
+    return [];
+}
+
+function renderTodos() {
+    const box = document.getElementById('ocTodos');
+    if (!box) return;
+    const todos = extractTodos();
+    if (!todos.length) {
+        box.innerHTML = '<div class="oc-empty">会话中暂无代办</div>';
+        return;
+    }
+    const active = todos.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
+    const completed = todos.filter(t => t.status === 'completed' || t.status === 'cancelled');
+    if (!active.length && !completed.length) {
+        box.innerHTML = '<div class="oc-empty">会话中暂无代办</div>';
+        return;
+    }
+
+    let html = '';
+    const priorityClass = { high: 'pri-high', medium: 'pri-medium', low: 'pri-low' };
+
+    // 活跃事项
+    if (active.length) {
+        html += '<div class="oc-todo-group"><div class="oc-todo-group-label">进行中</div>';
+        active.forEach(t => {
+            const pri = priorityClass[t.priority] || '';
+            html += `<div class="oc-todo-item ${pri}" title="${escapeHtml(t.content)}">`;
+            html += `<span class="oc-todo-check" data-content="${escapeHtml(t.content)}"></span>`;
+            html += `<span class="oc-todo-text">${escapeHtml(t.content)}</span>`;
+            html += `</div>`;
+        });
+        html += '</div>';
+    }
+
+    // 已完成事项
+    if (completed.length) {
+        html += '<div class="oc-todo-group"><div class="oc-todo-group-label">已完成</div>';
+        completed.forEach(t => {
+            const pri = priorityClass[t.priority] || '';
+            html += `<div class="oc-todo-item done ${pri}" title="${escapeHtml(t.content)}">`;
+            html += `<span class="oc-todo-check">✓</span>`;
+            html += `<span class="oc-todo-text">${escapeHtml(t.content)}</span>`;
+            html += `</div>`;
+        });
+        html += '</div>';
+    }
+
+    box.innerHTML = html;
 }
 
 function updateModelInfo(items) {
@@ -1111,7 +1257,13 @@ function captureScrollState(box) {
 
 function restoreScroll(box, state, force) {
     if (force || state.nearBottom) {
-        box.scrollTop = box.scrollHeight;
+        // 用 scrollIntoView 替代直接设置 scrollTop，强制浏览器先完成 content-visibility 元素的布局计算
+        const last = box.lastElementChild;
+        if (last) {
+            last.scrollIntoView({ block: 'end' });
+        } else {
+            box.scrollTop = box.scrollHeight;
+        }
         updateScrollBottomButton();
         return;
     }
@@ -1132,8 +1284,14 @@ function updateScrollBottomButton() {
 function scrollMessagesToBottom() {
     const box = document.getElementById('ocMessages');
     if (!box) return;
-    box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-    setTimeout(updateScrollBottomButton, 180);
+    // scrollIntoView 会强制浏览器完成 content-visibility 元素的布局计算，避免 scrollHeight 不准
+    const last = box.lastElementChild;
+    if (last) {
+        last.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    } else {
+        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    }
+    setTimeout(updateScrollBottomButton, 400);
 }
 
 function isSessionBusy(id) {
@@ -1509,27 +1667,67 @@ async function respondPermission(permission, reply) {
 }
 
 async function loadServiceStatus() {
-    if (!webRunning) return;
+    const config = getNetworkConfig();
     try {
-        const [mcp, lsp] = await Promise.all([
-            ocApi('GET', '/mcp').catch(() => null),
-            ocApi('GET', '/lsp').catch(() => null),
+        const [web, mcp, lsp] = await Promise.all([
+            api.GetWebStatus(config.serviceHost, parseInt(config.servicePort) || 4096).catch(() => null),
+            webRunning ? ocApi('GET', '/mcp').catch(() => null) : Promise.resolve(null),
+            webRunning ? ocApi('GET', '/lsp').catch(() => null) : Promise.resolve(null),
         ]);
+        if (web) {
+            webRunning = !!web.running;
+            webURL = web.url || '';
+        }
+        serverStatus = normalizeServerStatus(web);
         mcpStatus = mcp;
         lspStatus = lsp;
+        updateWebUI();
         renderServiceStatus();
     } catch (e) {
-        document.getElementById('ocServices').innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
+        serverStatus = normalizeServerStatus(null);
+        mcpStatus = null;
+        lspStatus = null;
+        renderServiceStatus();
     }
+}
+
+function normalizeServerStatus(status) {
+    const config = getNetworkConfig();
+    const fallbackURL = `http://${config.serviceHost || '127.0.0.1'}:${config.servicePort || '4096'}`;
+    if (!status) {
+        return { url: webURL || fallbackURL, health: webRunning ? '未知' : '离线', version: '' };
+    }
+    const running = !!status.running;
+    return {
+        url: status.url || webURL || fallbackURL,
+        health: status.health || (running ? '未知' : '离线'),
+        version: status.version || '',
+    };
+}
+
+function serviceHealthClass(health) {
+    if (health === '在线') return 'on';
+    if (health === '异常') return 'warn';
+    return 'off';
 }
 
 function renderServiceStatus() {
     const box = document.getElementById('ocServices');
-    if (!mcpStatus && !lspStatus) {
-        box.innerHTML = '<div class="oc-empty">暂无服务数据</div>';
-        return;
-    }
     box.innerHTML = '';
+
+    const serverSec = document.createElement('div');
+    serverSec.className = 'oc-service-group';
+    serverSec.innerHTML = '<div class="oc-service-group-title">服务器</div>';
+    const health = serverStatus.health || (webRunning ? '未知' : '离线');
+    const url = serverStatus.url || '--';
+    const version = serverStatus.version || '--';
+    serverSec.innerHTML += `
+        <div class="oc-service-card">
+            <div class="oc-service-item"><span class="oc-service-dot ${serviceHealthClass(health)}"></span>健康状态 <span class="oc-service-state">${escapeHtml(health)}</span></div>
+            <div class="oc-service-field"><span>URL</span><code title="${escapeHtml(url)}">${escapeHtml(url)}</code></div>
+            <div class="oc-service-field"><span>版本</span><code>${escapeHtml(version)}</code></div>
+        </div>`;
+    box.appendChild(serverSec);
 
     // MCP 服务
     if (mcpStatus) {
@@ -1695,6 +1893,7 @@ function scheduleRefresh() {
     clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
         if (webRunning && currentSessionId) {
+            const wasBusy = isSessionBusy(currentSessionId);
             loadSessionStatuses().then(statuses => {
                 const nextStatuses = statuses || {};
                 if (currentSessionId && isSessionBusy(currentSessionId) && !nextStatuses[currentSessionId]) {
@@ -1702,9 +1901,16 @@ function scheduleRefresh() {
                 }
                 sessionStatuses = nextStatuses;
                 updateSendButton();
-                loadMessages();
+                const busy = isSessionBusy(currentSessionId);
+                if (busy || wasBusy) {
+                    loadMessages();
+                }
+                if (!busy) {
+                    clearInterval(refreshTimer);
+                    refreshTimer = null;
+                }
             });
-            loadDiff();
+            if (wasBusy) loadDiff();
         }
     }, 4000);
 }
@@ -1759,6 +1965,7 @@ async function startWeb() {
         if (result.running) {
             webRunning = true;
             webURL = result.url || `http://${hostname}:${port}`;
+            serverStatus = normalizeServerStatus(result);
             updateWebUI();
             btn.textContent = '▶ 启动 opencode';
             startEventStream();
@@ -1794,6 +2001,7 @@ async function stopWeb() {
         expandedParts = {};
         markdownCache = {};
         lastMessageCount = 0;
+        serverStatus = normalizeServerStatus(null);
         mcpStatus = null;
         lspStatus = null;
         clearInterval(refreshTimer);
@@ -1827,14 +2035,13 @@ function clearClientUI() {
     document.getElementById('ocTree').innerHTML = '<div class="oc-empty">启动服务后加载项目树</div>';
     document.getElementById('ocChatTitle').textContent = '未选择会话';
     document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">选择会话后查看消息，或输入内容创建新会话</div>';
-    document.getElementById('ocServices').innerHTML = '<div class="oc-empty">启动服务后查看</div>';
+    renderServiceStatus();
     document.getElementById('ocDiff').innerHTML = '<div class="oc-empty">选择会话后查看变更</div>';
     document.getElementById('ocPrompt').value = '';
     updateModelInfo(null);
 }
 
 function updateWebUI() {
-    const statusEl = document.getElementById('webStatus');
     const btnStart = document.getElementById('btnStartWeb');
     const btnStop = document.getElementById('btnStopWeb');
     const btnProxy = document.getElementById('btnProxySettings');
@@ -1848,8 +2055,6 @@ function updateWebUI() {
     const btnAttach = document.getElementById('btnAttachFile');
 
     if (webRunning) {
-        statusEl.textContent = `运行中 ${webURL}`;
-        statusEl.className = 'oc-web-status running';
         btnStart.disabled = true;
         btnStop.disabled = false;
         btnWt.disabled = false;
@@ -1861,8 +2066,6 @@ function updateWebUI() {
         prompt.disabled = false;
         btnAttach.disabled = false;
     } else {
-        statusEl.textContent = '未启动';
-        statusEl.className = 'oc-web-status';
         btnStart.disabled = false;
         btnStop.disabled = true;
         btnWt.disabled = true;
@@ -1920,6 +2123,10 @@ document.getElementById('btnToggleSessions').addEventListener('click', toggleSes
 document.getElementById('btnToggleSidepanel').addEventListener('click', toggleSidepanel);
 document.getElementById('btnScrollBottom').addEventListener('click', scrollMessagesToBottom);
 document.getElementById('ocMessages').addEventListener('scroll', updateScrollBottomButton);
+// 跟踪用户是否在拖拽滚动条，避免流式更新时打断操作
+document.getElementById('ocMessages').addEventListener('mousedown', () => { userScrolling = true; });
+document.getElementById('ocMessages').addEventListener('mouseup', () => { userScrolling = false; });
+document.getElementById('ocMessages').addEventListener('mouseleave', () => { userScrolling = false; });
 document.getElementById('btnAttachFile').addEventListener('click', () => {
     document.getElementById('ocFileInput').click();
 });
@@ -1945,6 +2152,14 @@ document.getElementById('proxyPort').addEventListener('input', updateProxyPrevie
 document.getElementById('serviceHost').addEventListener('input', updateProxyPreview);
 document.getElementById('servicePort').addEventListener('input', updateProxyPreview);
 updateProxyButton();
+
+// 右侧面板折叠：点击标题栏切换折叠状态，不干扰内部按钮
+document.querySelector('.oc-sidepanel').addEventListener('click', (e) => {
+    const head = e.target.closest('.oc-panel-head');
+    if (!head) return;
+    if (e.target.closest('button')) return;
+    head.closest('.oc-panel-section')?.classList.toggle('collapsed');
+});
 
 // ============================================================
 // View 2: 模型配置
