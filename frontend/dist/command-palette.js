@@ -7,6 +7,12 @@ let cmdPaletteLoaded = false;
 let cmdPaletteIndex = -1;
 let cmdPaletteVisible = false;
 
+const FIXED_COMMANDS = [
+    { name: 'summarize', description: '压缩会话上下文', source: 'fixed' },
+    { name: 'revert',    description: '撤销最后消息（需 Git 仓库）', source: 'fixed' },
+    { name: 'unrevert',  description: '重做撤销（需 Git 仓库）', source: 'fixed' },
+];
+
 const cmdPaletteEl = document.getElementById('ocCmdPalette');
 const cmdPaletteScroll = cmdPaletteEl.querySelector('.oc-cmd-palette-scroll');
 const cmdInputEl = document.getElementById('ocPrompt');
@@ -22,6 +28,8 @@ async function loadCmdPalette() {
     } catch (_) {
         cmdPaletteItems = [];
     }
+    // 合并固定命令（排前面）
+    cmdPaletteItems = [...FIXED_COMMANDS, ...cmdPaletteItems];
     cmdPaletteLoaded = true;
 }
 
@@ -40,8 +48,6 @@ function filterCmdItems(query) {
 
 async function showCmdPalette() {
     await loadCmdPalette();
-    if (!cmdPaletteItems.length) return;
-
     cmdPaletteVisible = true;
     cmdPaletteIndex = 0;
     const query = cmdInputEl.value.slice(1);
@@ -71,10 +77,11 @@ function renderCmdPalette(query) {
     let html = '';
     filtered.forEach((item, i) => {
         const active = i === cmdPaletteIndex ? ' active' : '';
-        html += `<div class="oc-cmd-item${active}" data-cmd="${escapeHtml(item.name)}" data-idx="${i}">
+        const sourceTag = item.source === 'fixed' ? '<span class="oc-cmd-source fixed">内置</span>' : `<span class="oc-cmd-source">${escapeHtml(item.source || '')}</span>`;
+        html += `<div class="oc-cmd-item${active}" data-cmd="${escapeHtml(item.name)}" data-source="${escapeHtml(item.source || '')}" data-idx="${i}">
             <span class="oc-cmd-name">/${escapeHtml(item.name)}</span>
             <span class="oc-cmd-desc">${escapeHtml(item.description || '')}</span>
-            <span class="oc-cmd-source">${escapeHtml(item.source || '')}</span>
+            ${sourceTag}
         </div>`;
     });
 
@@ -84,7 +91,7 @@ function renderCmdPalette(query) {
     cmdPaletteScroll.querySelectorAll('.oc-cmd-item').forEach(el => {
         el.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            insertCmdToPrompt(el.dataset.cmd);
+            selectCmdItem(el.dataset.cmd, el.dataset.source);
         });
     });
 
@@ -170,8 +177,75 @@ function navigateCmdPalette(direction) {
 function selectCmdPalette() {
     const active = cmdPaletteScroll.querySelector('.oc-cmd-item.active');
     if (active) {
-        insertCmdToPrompt(active.dataset.cmd);
+        selectCmdItem(active.dataset.cmd, active.dataset.source);
     }
+}
+
+function selectCmdItem(cmdName, source) {
+    if (source === 'fixed') {
+        executeFixedCmd(cmdName);
+    } else {
+        insertCmdToPrompt(cmdName);
+    }
+}
+
+async function executeFixedCmd(cmdName) {
+    if (!webRunning || !currentSessionId) {
+        showToast('请先启动服务并选择会话', 'error');
+        return;
+    }
+    const sid = currentSessionId;
+    hideCmdPalette();
+    showToast(`执行 /${cmdName}...`, 'info');
+
+    try {
+        switch (cmdName) {
+            case 'summarize': {
+                // 从最后一条 assistant 消息中提取 provider/model
+                let providerID = '', modelID = '';
+                const list = getCachedMessages(sid);
+                for (let i = list.length - 1; i >= 0; i--) {
+                    const info = list[i].info || list[i];
+                    if (info.role === 'assistant' && info.modelID) {
+                        modelID = info.modelID;
+                        providerID = info.providerID || '';
+                        break;
+                    }
+                }
+                const body = {};
+                if (providerID) body.providerID = providerID;
+                if (modelID) body.modelID = modelID;
+                await ocApi('POST', `/session/${encodeURIComponent(sid)}/summarize`, body);
+                showToast('会话上下文已压缩', 'success');
+                break;
+            }
+            case 'revert': {
+                // 撤销最后一条 assistant 消息
+                const list = getCachedMessages(sid);
+                let messageID = '';
+                for (let i = list.length - 1; i >= 0; i--) {
+                    const info = list[i].info || list[i];
+                    if (info.role === 'assistant') {
+                        messageID = info.id || '';
+                        break;
+                    }
+                }
+                if (!messageID) { showToast('未找到可撤销的消息', 'error'); return; }
+                await ocApi('POST', `/session/${encodeURIComponent(sid)}/revert`, { messageID });
+                showToast('已撤销最后消息', 'success');
+                loadMessages();
+                break;
+            }
+            case 'unrevert':
+                await ocApi('POST', `/session/${encodeURIComponent(sid)}/unrevert`);
+                showToast('已重做撤销', 'success');
+                loadMessages();
+                break;
+        }
+    } catch (e) {
+        showToast(`/${cmdName} 失败: ` + (e.message || e), 'error');
+    }
+    cmdInputEl.value = '';
 }
 
 function insertCmdToPrompt(cmdName) {

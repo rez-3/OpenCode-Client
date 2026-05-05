@@ -1047,6 +1047,9 @@ function renderPart(part) {
         case 'patch': el = renderPatchPart(part); break;
         case 'agent':
         case 'subtask': el = renderAgentPart(part, type); break;
+        case 'compaction': el = renderCompaction(part); break;
+        case 'snapshot':   el = renderSnapshot(part); break;
+        case 'retry':      el = renderRetry(part); break;
         default: el = renderFallback(part); break;
     }
     if (id) el.dataset.partId = id;
@@ -1420,6 +1423,37 @@ function renderAgentPart(part, type) {
     el.className = 'oc-part oc-agent';
     const label = type === 'agent' ? '🤖 代理' : '📋 子任务';
     el.innerHTML = `<div class="oc-agent-head">${label}: ${escapeHtml(part.name || part.agent || type)}</div><pre>${escapeHtml(safeText(part))}</pre>`;
+    return el;
+}
+
+function renderCompaction(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-compaction';
+    const auto = part.auto;
+    el.innerHTML = auto
+        ? '🗜️ 自动压缩上下文'
+        : '🗜️ 上下文已压缩';
+    return el;
+}
+
+function renderSnapshot(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-snapshot';
+    const hash = (part.snapshot || '').slice(0, 7);
+    el.innerHTML = hash
+        ? `<span class="oc-snapshot-icon">📸</span> 文件快照 <span class="oc-snapshot-hash">${escapeHtml(hash)}</span>`
+        : '<span class="oc-snapshot-icon">📸</span> 文件快照';
+    return el;
+}
+
+function renderRetry(part) {
+    const el = document.createElement('div');
+    el.className = 'oc-part oc-retry';
+    const attempt = part.attempt || 0;
+    const msg = part.error?.data?.message || part.error?.message || '';
+    el.innerHTML = msg
+        ? `🔄 第 ${attempt} 次重试 — <span class="oc-retry-msg">${escapeHtml(msg)}</span>`
+        : `🔄 第 ${attempt} 次重试`;
     return el;
 }
 

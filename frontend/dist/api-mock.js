@@ -97,13 +97,13 @@ const mockApi = (() => {
         Refresh: async () => {},
         OpenDir: async (path) => { console.log('mock open:', path); showToast(`模拟打开目录: ${path}`, 'info'); },
         OpenDirectoryDialog: async () => 'E:\\data\\ai_test\\feishu\\skill-manager',
-    StartTerminal: async () => { console.log('mock terminal start'); },
-    TerminalWrite: async (data) => { console.log('mock term write:', data); },
-    GetSessions: async () => [
-        { id: 'ses_abc123', title: '开发 Skill 桌面管理工具' },
-        { id: 'ses_def456', title: 'OpenCode 模型配置管理' },
-    ],
-    RunOpenCode: async (sid, cont) => { console.log('mock launch:', sid, cont); },
+        StartTerminal: async () => { console.log('mock terminal start'); },
+        TerminalWrite: async (data) => { console.log('mock term write:', data); },
+        GetSessions: async () => [
+            { id: 'ses_abc123', title: '开发 Skill 桌面管理工具' },
+            { id: 'ses_def456', title: 'OpenCode 模型配置管理' },
+        ],
+        unOpenCode: async (sid, cont) => { console.log('mock launch:', sid, cont); },
         // web 管理
         StartOpenCodeWeb: async (port, hostname, proxy) => {
             webURL = `http://${hostname || '127.0.0.1'}:${port || 4096}`;
@@ -118,9 +118,9 @@ const mockApi = (() => {
             updateWebUI(); clearClientUI();
             return { success: true };
         },
-GetWebStatus: async (hostname, port) => {
-    return { running: webRunning, url: webURL || `http://${hostname || '127.0.0.1'}:${port || 4096}`, health: webRunning ? '在线' : '离线', version: webRunning ? 'mock' : '' };
-},
+        GetWebStatus: async (hostname, port) => {
+            return { running: webRunning, url: webURL || `http://${hostname || '127.0.0.1'}:${port || 4096}`, health: webRunning ? '在线' : '离线', version: webRunning ? 'mock' : '' };
+        },
         LaunchWindowsTerminal: async (mode, url, dir) => {
             console.log('mock launch wt:', mode, url, dir);
             showToast('模拟启动终端' + (dir ? ' 目录:' + dir : ''), 'info');
@@ -137,6 +137,9 @@ GetWebStatus: async (hostname, port) => {
                 { info: { role: 'assistant' }, parts: [{ type: 'text', text: '这是模拟回复' }, { type: 'tool', tool: 'read', state: { status: 'completed' } }] },
             ]) };
             if (path.includes('/diff')) return { success: true, status: 200, body: JSON.stringify([{ path: 'main.go', hunks: [{ lines: ['+ mock diff'] }] }]) };
+            if (path.includes('/summarize')) return { success: true, status: 200, body: 'true' };
+            if (path.includes('/revert')) return { success: true, status: 200, body: 'true' };
+            if (path.includes('/unrevert')) return { success: true, status: 200, body: 'true' };
             return { success: true, status: 200, body: '{}' };
         },
         CreateSession: async (dir) => ({ success: true, status: 200, body: JSON.stringify({ id: 'ses_new_' + Date.now(), title: '新会话' }) }),
@@ -163,16 +166,16 @@ GetWebStatus: async (hostname, port) => {
             'openai/gpt-5.1-codex', 'openai/gpt-5.5',
             'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
         ],
-    RefreshAvailableModels: async () => [
-        'deepseek/deepseek-chat', 'deepseek/deepseek-reasoner',
-        'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro',
-        'openai/gpt-5.1-codex', 'openai/gpt-5.5',
-        'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
-    ],
-    GetProviders: async () => [
-        { key: 'deepseek', name: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', apiKey: 'sk-ec****ffe1', enabled: true, models: [{id:'deepseek-v4-pro',name:'DeepSeek-V4-Pro'}] },
-        { key: 'siliconflow', name: 'SiliconFlow', baseURL: 'https://api.siliconflow.cn/v1', apiKey: 'sk-vg****bshs', enabled: false, models: [] },
-    ],
+        RefreshAvailableModels: async () => [
+            'deepseek/deepseek-chat', 'deepseek/deepseek-reasoner',
+            'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro',
+            'openai/gpt-5.1-codex', 'openai/gpt-5.5',
+            'anthropic/claude-sonnet-5', 'anthropic/claude-haiku-5',
+        ],
+        GetProviders: async () => [
+            { key: 'deepseek', name: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', apiKey: 'sk-ec****ffe1', enabled: true, models: [{id:'deepseek-v4-pro',name:'DeepSeek-V4-Pro'}] },
+            { key: 'siliconflow', name: 'SiliconFlow', baseURL: 'https://api.siliconflow.cn/v1', apiKey: 'sk-vg****bshs', enabled: false, models: [] },
+        ],
         SaveProvider: async (p) => ({ success: true }),
         DeleteProvider: async (key) => ({ success: true }),
         GetProviderConfigPath: async () => '~/.config/opencode/opencode.jsonc',
