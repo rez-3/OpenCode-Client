@@ -824,6 +824,28 @@ async function loadMessages() {
     }
 }
 
+function saveFocusState(el) {
+    const tag = el.tagName.toLowerCase();
+    const cls = el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\s+/).join('.')
+        : tag;
+    return {
+        selector: el.id ? '#' + el.id : (tag + cls),
+        start: el.selectionStart,
+        end: el.selectionEnd,
+    };
+}
+
+function restoreFocusState(container, state) {
+    const el = container.querySelector(state.selector);
+    if (!el) return;
+    try { el.focus(); } catch (_) {}
+    try {
+        if (typeof state.start === 'number') el.selectionStart = state.start;
+        if (typeof state.end === 'number') el.selectionEnd = state.end;
+    } catch (_) {}
+}
+
 function renderMessages(items) {
     const box = document.getElementById('ocMessages');
     const list = (items || []).map(normalizeMessageItem).filter(item => !isInternalUserMessage(item));
@@ -863,7 +885,11 @@ function renderMessages(items) {
                             body.appendChild(partEl);
                         }
                     } else {
+                        // 保存焦点状态，防止 replaceChildren 导致输入框失焦
+                        const focused = document.activeElement;
+                        const focusSelector = focused && body.contains(focused) ? saveFocusState(focused) : null;
                         body.replaceChildren(...partList.map(part => renderPart(part)));
+                        if (focusSelector) restoreFocusState(body, focusSelector);
                     }
                     updateModelInfo(list);
                     restoreScroll(box, scrollState, false);
