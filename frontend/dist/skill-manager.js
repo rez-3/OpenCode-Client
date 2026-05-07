@@ -19,8 +19,11 @@ async function loadSkillsData() {
 
 function renderStats(stats) {
     document.getElementById('statGlobal').textContent = stats.globalSkills || 0;
-    document.getElementById('statProject').textContent = stats.projectSkills || 0;
-    document.getElementById('sourcePath').textContent = '~/.config/opencode/skills/';
+    api.GetSourceDir().then(function(p) {
+        document.getElementById('sourcePath').textContent = p || '未知';
+    }).catch(function() {
+        document.getElementById('sourcePath').textContent = '未知';
+    });
 }
 
 function renderSkillList(filter) {
@@ -41,21 +44,19 @@ function renderSkillList(filter) {
         var safeName = escapeHtml(s.name);
         var safePath = escapeHtml(s.path);
         var safeDesc = escapeHtml(s.description || '无描述');
+        var escapedPath = safePath.replace(/\\/g, '\\\\');
         return '<div class="skill-card" data-skill="' + safeName + '" data-path="' + safePath + '">' +
             '<div class="skill-info">' +
                 '<div class="skill-name-row">' +
-                    '<span class="skill-name" style="cursor:pointer;text-decoration:underline;color:var(--accent)" onclick="previewSkill(\'' + safePath.replace(/\\/g, '\\\\') + '\')">' + safeName + '</span>' +
+                    '<span class="skill-name" style="cursor:pointer;text-decoration:underline;color:var(--accent)" onclick="previewSkill(\'' + escapedPath + '\')">' + safeName + '</span>' +
                     '<span class="skill-tag ' + sourceClass + '">' + sourceLabel + '</span>' +
                 '</div>' +
                 '<div class="skill-desc">' + safeDesc + '</div>' +
                 '<div class="skill-path">' + safePath + '</div>' +
             '</div>' +
             '<div class="skill-actions">' +
-                '<button class="btn btn-sm" onclick="editSkill(\'' + safePath.replace(/\\/g, '\\\\') + '\')">编辑</button>' +
-                '<label class="skill-toggle">' +
-                    '<input type="checkbox" ' + (s.linked ? 'checked' : '') + ' onchange="toggleSkill(\'' + safePath.replace(/\\/g, '\\\\') + '\', \'' + safeName + '\', this.checked)">' +
-                    '<span class="skill-toggle-slider"></span>' +
-                '</label>' +
+                '<button class="btn btn-sm" onclick="openSkillDir(\'' + escapedPath + '\')">📂 打开</button>' +
+                '<button class="btn btn-sm" onclick="previewSkill(\'' + escapedPath + '\')">详情</button>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -70,7 +71,7 @@ async function previewSkill(skillPath) {
     try {
         var result = await api.ReadSkillContent(skillPath);
         var html = marked.parse(result);
-        showSkillModal(html, skillPath, false);
+        showSkillModal('<div class="oc-text">' + html + '</div>', skillPath, false);
     } catch (err) {
         showToast('读取技能失败: ' + (err.message || err), 'error');
     }
@@ -125,7 +126,7 @@ async function saveSkillEdit() {
         await api.SaveSkillContent(skillPath, content);
         showToast('保存成功', 'success');
         var html = marked.parse(content);
-        showSkillModal(html, skillPath, false);
+        showSkillModal('<div class="oc-text">' + html + '</div>', skillPath, false);
     } catch (err) {
         showToast('保存失败: ' + (err.message || err), 'error');
     }
@@ -145,5 +146,14 @@ async function toggleSkill(skillPath, skillName, enable) {
         }
     } catch (err) {
         showToast('操作失败: ' + (err.message || err), 'error');
+    }
+}
+
+// 打开技能目录
+async function openSkillDir(skillPath) {
+    try {
+        await api.OpenDir(skillPath);
+    } catch (err) {
+        showToast('打开目录失败: ' + (err.message || err), 'error');
     }
 }

@@ -14,8 +14,7 @@ type SkillInfo struct {
 
 // Stats 统计信息。
 type Stats struct {
-	GlobalSkills  int `json:"globalSkills"`
-	ProjectSkills int `json:"projectSkills"`
+	GlobalSkills int `json:"globalSkills"`
 }
 
 // ToggleResult 单个技能切换结果。

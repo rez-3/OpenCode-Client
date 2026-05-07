@@ -37,8 +37,7 @@ function filterCmdItems(query) {
     if (!query) return cmdPaletteItems;
     const q = query.toLowerCase();
     return cmdPaletteItems.filter(item =>
-        item.name.toLowerCase().includes(q) ||
-        (item.description || '').toLowerCase().includes(q)
+        item.name.toLowerCase().includes(q)
     );
 }
 

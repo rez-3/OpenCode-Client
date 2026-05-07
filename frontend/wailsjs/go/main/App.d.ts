@@ -42,8 +42,6 @@ export function GetSourceDir():Promise<string>;
 
 export function GetStats():Promise<model.Stats>;
 
-export function GetTargets():Promise<Array<model.TargetInfo>>;
-
 export function GetWebStatus(arg1:string,arg2:number):Promise<model.WebResult>;
 
 export function LaunchWindowsTerminal(arg1:string,arg2:string,arg3:string):Promise<model.WebResult>;
@@ -53,6 +51,8 @@ export function OpenCodeAPI(arg1:string,arg2:string,arg3:string):Promise<model.A
 export function OpenDir(arg1:string):Promise<void>;
 
 export function OpenDirectoryDialog():Promise<string>;
+
+export function ReadSkillContent(arg1:string):Promise<string>;
 
 export function Refresh():Promise<void>;
 
@@ -64,6 +64,8 @@ export function SaveFullConfig(arg1:string):Promise<model.SaveResult>;
 
 export function SaveProvider(arg1:model.ProviderSave):Promise<model.SaveResult>;
 
+export function SaveSkillContent(arg1:string,arg2:string):Promise<void>;
+
 export function StartOpenCodeEvents():Promise<model.APIResult>;
 
 export function StartOpenCodeWeb(arg1:number,arg2:string,arg3:model.ProxyConfig):Promise<model.WebResult>;
@@ -71,8 +73,6 @@ export function StartOpenCodeWeb(arg1:number,arg2:string,arg3:model.ProxyConfig)
 export function StopOpenCodeEvents():Promise<model.APIResult>;
 
 export function StopOpenCodeWeb():Promise<model.WebResult>;
-
-export function ToggleAllSkills(arg1:string,arg2:boolean):Promise<model.BatchResult>;
 
 export function ToggleSkill(arg1:string,arg2:string,arg3:boolean):Promise<model.ToggleResult>;
 

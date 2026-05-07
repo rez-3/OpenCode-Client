@@ -66,27 +66,27 @@ const mockApi = (() => {
     ];
 
     const mockSkills = [
-        { name: 'afsim-scripts', description: 'AFSIM脚本编写助手', path: '~/.config/opencode/skills/afsim-scripts/SKILL.md', linked: true, source: 'global' },
-        { name: 'code-review', description: '专业的代码审查助手', path: '~/.config/opencode/skills/code-review/SKILL.md', linked: true, source: 'global' },
-        { name: 'docx', description: 'Word文档创建编辑', path: '~/.config/opencode/skills/docx/SKILL.md', linked: true, source: 'global' },
-        { name: 'skill-creator', description: '创建新技能指南', path: '~/.config/opencode/skills/skill-creator/SKILL.md', linked: true, source: 'global' },
-        { name: 'frontend-design', description: '前端UI设计', path: '~/.config/opencode/skills/frontend-design/SKILL.md', linked: true, source: 'global' },
-        { name: 'weather', description: '天气预报', path: '~/.config/opencode/skills/weather/SKILL.md', linked: true, source: 'global' },
-        { name: 'drawio', description: '图表绘制', path: '~/.config/opencode/skills/drawio/SKILL.md', linked: true, source: 'global' },
-        { name: 'karpathy-wiki', description: '本地知识库/wiki管理', path: '~/.config/opencode/skills/karpathy-wiki/SKILL.md', linked: false, source: 'global' },
-        { name: 'pdf', description: 'PDF文档处理', path: '~/.config/opencode/skills/pdf/SKILL.md', linked: true, source: 'global' },
-        { name: 'pptx', description: '幻灯片创建编辑', path: '~/.config/opencode/skills/pptx/SKILL.md', linked: false, source: 'project' },
-        { name: 'web-access', description: '联网搜索与网页抓取', path: '~/.config/opencode/skills/web-access/SKILL.md', linked: true, source: 'global' },
-        { name: 'xlsx', description: '电子表格处理', path: '~/.config/opencode/skills/xlsx/SKILL.md', linked: true, source: 'project' },
-        { name: 'frontend-ui-ux', description: 'UI/UX 设计系统', path: '~/.config/opencode/skills/frontend-ui-ux/SKILL.md', linked: true, source: 'project' },
-        { name: 'git-master', description: 'Git 操作大师', path: '~/.config/opencode/skills/git-master/SKILL.md', linked: false, source: 'project' },
+        { name: 'afsim-scripts', description: 'AFSIM脚本编写助手', path: '~/.config/opencode/skills/afsim-scripts', linked: true, source: 'global' },
+        { name: 'code-review', description: '专业的代码审查助手', path: '~/.config/opencode/skills/code-review', linked: true, source: 'global' },
+        { name: 'docx', description: 'Word文档创建编辑', path: '~/.config/opencode/skills/docx', linked: true, source: 'global' },
+        { name: 'skill-creator', description: '创建新技能指南', path: '~/.config/opencode/skills/skill-creator', linked: true, source: 'global' },
+        { name: 'frontend-design', description: '前端UI设计', path: '~/.config/opencode/skills/frontend-design', linked: true, source: 'global' },
+        { name: 'weather', description: '天气预报', path: '~/.config/opencode/skills/weather', linked: true, source: 'global' },
+        { name: 'drawio', description: '图表绘制', path: '~/.config/opencode/skills/drawio', linked: true, source: 'global' },
+        { name: 'karpathy-wiki', description: '本地知识库/wiki管理', path: '~/.config/opencode/skills/karpathy-wiki', linked: false, source: 'global' },
+        { name: 'pdf', description: 'PDF文档处理', path: '~/.config/opencode/skills/pdf', linked: true, source: 'global' },
+        { name: 'pptx', description: '幻灯片创建编辑', path: '~/.config/opencode/skills/pptx', linked: false, source: 'global' },
+        { name: 'web-access', description: '联网搜索与网页抓取', path: '~/.config/opencode/skills/web-access', linked: true, source: 'global' },
+        { name: 'xlsx', description: '电子表格处理', path: '~/.config/opencode/skills/xlsx', linked: true, source: 'global' },
+        { name: 'frontend-ui-ux', description: 'UI/UX 设计系统', path: '~/.config/opencode/skills/frontend-ui-ux', linked: true, source: 'global' },
+        { name: 'git-master', description: 'Git 操作大师', path: '~/.config/opencode/skills/git-master', linked: false, source: 'global' },
     ];
 
     return {
         GetSkills: async () => JSON.parse(JSON.stringify(mockSkills)),
+        GetSourceDir: async () => '~/.config/opencode/skills/',
         GetStats: async () => ({
-            globalSkills: mockSkills.filter(s => s.source === 'global').length,
-            projectSkills: mockSkills.filter(s => s.source === 'project').length,
+            globalSkills: mockSkills.length,
         }),
         ToggleSkill: async (path, name, enable) => ({ success: true }),
         ReadSkillContent: async (path) => {

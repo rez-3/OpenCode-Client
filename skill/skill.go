@@ -25,7 +25,7 @@ func NewManager() *Manager {
 	}
 }
 
-// SourceDir 返回全局技能目录路径。
+// SourceDir 返回 opencode 技能目录路径。
 func (m *Manager) SourceDir() string {
 	return m.globalDir
 }
@@ -36,14 +36,15 @@ type skillFrontmatter struct {
 	Description string
 }
 
-// GetAllSkills 扫描全局技能目录，返回所有技能信息。
+// GetAllSkills 扫描 opencode 技能目录，兼容软链接和真实目录。
 func (m *Manager) GetAllSkills() []model.SkillInfo {
-	return m.scanDir(m.globalDir, "global")
+	return m.scanDir(m.globalDir, "global", "")
 }
 
-// scanDir 扫描指定目录下的技能子目录。
-func (m *Manager) scanDir(dir, source string) []model.SkillInfo {
-	var skills []model.SkillInfo
+// scanDir 递归扫描目录，兼容软链接（Junction）和真实目录。
+// prefix 为相对路径前缀，用于递归时拼接完整技能名称（如 "superpowers/brainstorming"）。
+func (m *Manager) scanDir(dir, source, prefix string) []model.SkillInfo {
+	skills := make([]model.SkillInfo, 0)
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -51,39 +52,50 @@ func (m *Manager) scanDir(dir, source string) []model.SkillInfo {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		entryName := entry.Name()
+		skillPath := filepath.Join(dir, entryName)
+		relName := entryName
+		if prefix != "" {
+			relName = prefix + "/" + entryName
 		}
 
-		skillName := entry.Name()
-		skillPath := filepath.Join(dir, skillName)
+		// 检查该路径下是否有 SKILL.md（os.Stat 会跟随 Junction 到目标目录）
 		skillMD := filepath.Join(skillPath, "SKILL.md")
-
-		// 解析 SKILL.md 获取 name 和 description
-		name := skillName
+		if _, err := os.Stat(skillMD); err != nil {
+			// 没有 SKILL.md，但如果路径是目录（或 Junction）则递归扫描子目录
+			info, err2 := os.Stat(skillPath)
+			if err2 == nil && info.IsDir() {
+				subSkills := m.scanDir(skillPath, source, relName)
+				skills = append(skills, subSkills...)
+			}
+			continue
+		}
+		// 解析 SKILL.md 获取 frontmatter 信息（name 用于标题，但显示名仍用路径）
+		displayName := relName
 		desc := ""
 		if data, err := os.ReadFile(skillMD); err == nil {
 			fm, _ := parseFrontmatter(data)
-			if fm.Name != "" {
-				name = fm.Name
-			}
 			desc = fm.Description
 		}
 
 		// 检测链接状态
-		linked := false
-		linkPath := filepath.Join(m.globalDir, skillName)
+		linked := true
+		linkPath := filepath.Join(m.globalDir, relName)
 		if info, err := os.Lstat(linkPath); err == nil {
 			linked = (info.Mode()&os.ModeSymlink != 0) || info.IsDir()
 		}
 
 		skills = append(skills, model.SkillInfo{
-			Name:        name,
+			Name:        displayName,
 			Description: desc,
 			Path:        skillPath,
 			Linked:      linked,
 			Source:      source,
 		})
+
+		// 递归扫描子目录
+		subSkills := m.scanDir(skillPath, source, relName)
+		skills = append(skills, subSkills...)
 	}
 
 	return skills

@@ -82,10 +82,6 @@ export function GetStats() {
   return window['go']['main']['App']['GetStats']();
 }
 
-export function GetTargets() {
-  return window['go']['main']['App']['GetTargets']();
-}
-
 export function GetWebStatus(arg1, arg2) {
   return window['go']['main']['App']['GetWebStatus'](arg1, arg2);
 }
@@ -104,6 +100,10 @@ export function OpenDir(arg1) {
 
 export function OpenDirectoryDialog() {
   return window['go']['main']['App']['OpenDirectoryDialog']();
+}
+
+export function ReadSkillContent(arg1) {
+  return window['go']['main']['App']['ReadSkillContent'](arg1);
 }
 
 export function Refresh() {
@@ -126,6 +126,10 @@ export function SaveProvider(arg1) {
   return window['go']['main']['App']['SaveProvider'](arg1);
 }
 
+export function SaveSkillContent(arg1, arg2) {
+  return window['go']['main']['App']['SaveSkillContent'](arg1, arg2);
+}
+
 export function StartOpenCodeEvents() {
   return window['go']['main']['App']['StartOpenCodeEvents']();
 }
@@ -140,10 +144,6 @@ export function StopOpenCodeEvents() {
 
 export function StopOpenCodeWeb() {
   return window['go']['main']['App']['StopOpenCodeWeb']();
-}
-
-export function ToggleAllSkills(arg1, arg2) {
-  return window['go']['main']['App']['ToggleAllSkills'](arg1, arg2);
 }
 
 export function ToggleSkill(arg1, arg2, arg3) {

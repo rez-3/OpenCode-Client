@@ -374,7 +374,7 @@ async function checkWebStatus() {
         serverStatus = normalizeServerStatus(null);
         renderServiceStatus();
     }
-    setTimeout(function() { initResizeHandles(); initSearch(); }, 500);
+    setTimeout(function() { initSearch(); }, 500);
 }
 
 // ============================
@@ -2150,166 +2150,6 @@ function toggleSidepanel() {
     btn.title = hidden ? '显示信息栏' : '隐藏信息栏';
 }
 
-// ============================================================
-// Tab 管理
-// ============================================================
-let openTabs = [];
-var MAX_TABS = 8;
-
-function openTab(sessionId, title) {
-    var existing = -1;
-    for (var i = 0; i < openTabs.length; i++) {
-        if (openTabs[i].id === sessionId) { existing = i; break; }
-    }
-    if (existing >= 0) {
-        activateTab(existing);
-        return;
-    }
-    if (openTabs.length >= MAX_TABS) {
-        var oldestInactive = -1;
-        for (var j = 0; j < openTabs.length; j++) {
-            if (!openTabs[j].active) { oldestInactive = j; break; }
-        }
-        if (oldestInactive >= 0) {
-            openTabs.splice(oldestInactive, 1);
-        } else {
-            openTabs.shift();
-        }
-    }
-    var msgEl = document.getElementById('oc-msg-' + sessionId);
-    if (!msgEl) {
-        msgEl = document.createElement('div');
-        msgEl.id = 'oc-msg-' + sessionId;
-        msgEl.className = 'oc-messages';
-        msgEl.style.display = 'none';
-        var wrap = document.querySelector('.oc-messages-wrap');
-        if (wrap) wrap.appendChild(msgEl);
-    }
-    openTabs.push({ id: sessionId, title: title || '新会话', active: false, domEl: msgEl });
-    activateTab(openTabs.length - 1);
-}
-
-function activateTab(index) {
-    for (var i = 0; i < openTabs.length; i++) {
-        openTabs[i].active = (i === index);
-        if (openTabs[i].domEl) {
-            openTabs[i].domEl.style.display = openTabs[i].active ? '' : 'none';
-        }
-    }
-    if (openTabs[index]) {
-        currentSessionId = openTabs[index].id;
-        var titleEl = document.getElementById('ocChatTitle');
-        if (titleEl) titleEl.textContent = openTabs[index].title || '未选择会话';
-    }
-    renderTabs();
-}
-
-function closeTab(index) {
-    if (index < 0 || index >= openTabs.length) return;
-    var domEl = openTabs[index].domEl;
-    openTabs.splice(index, 1);
-    if (domEl && domEl.parentNode) domEl.parentNode.removeChild(domEl);
-    if (openTabs.length === 0) {
-        currentSessionId = '';
-        var titleEl = document.getElementById('ocChatTitle');
-        if (titleEl) titleEl.textContent = '未选择会话';
-        var ocMsgs = document.getElementById('ocMessages');
-        if (ocMsgs) ocMsgs.style.display = '';
-    } else {
-        var nextIndex = Math.min(index, openTabs.length - 1);
-        activateTab(nextIndex);
-    }
-}
-
-function renderTabs() {
-    var container = document.getElementById('ocTabs');
-    if (!container) return;
-    container.innerHTML = '';
-    for (var i = 0; i < openTabs.length; i++) {
-        var t = openTabs[i];
-        var activeClass = t.active ? ' active' : '';
-        var title = (t.title || '新会话').substring(0, 18);
-        var div = document.createElement('div');
-        div.className = 'oc-tab' + activeClass;
-        div.innerHTML = '<span class="oc-tab-title">' + escapeHtml(title) + '</span>' +
-            '<span class="oc-tab-close">&times;</span>';
-        (function(idx) {
-            div.querySelector('.oc-tab-title').addEventListener('click', function() { activateTab(idx); });
-            div.querySelector('.oc-tab-close').addEventListener('click', function(e) { e.stopPropagation(); closeTab(idx); });
-        })(i);
-        container.appendChild(div);
-    }
-}
-
-// 包装原 selectSession 来使用 Tab 系统
-var _originalSelectSession = selectSession;
-selectSession = function(sessionId) {
-    _originalSelectSession(sessionId);
-    // 获取会话标题
-    var title = '会话 ' + (sessionId || '').substring(0, 8);
-    var treeNodes = document.querySelectorAll('.oc-tree-item[data-session]');
-    for (var k = 0; k < treeNodes.length; k++) {
-        if (treeNodes[k].dataset.session === sessionId) {
-            var text = treeNodes[k].textContent.trim();
-            if (text) title = text;
-            break;
-        }
-    }
-    openTab(sessionId, title);
-};
-
-// ========== 面板拖拽 ==========
-function initResizeHandles() {
-    document.querySelectorAll('.oc-resize-handle').forEach(function(handle) {
-        var startX, startWidth;
-        var targetId = handle.dataset.target;
-        var minWidth = parseInt(handle.dataset.min) || 160;
-        var target = document.getElementById(targetId);
-        if (!target) return;
-
-        handle.addEventListener('mousedown', function(e) {
-            e.preventDefault();
-            startX = e.clientX;
-            startWidth = target.offsetWidth;
-            handle.classList.add('active');
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-
-            var onMove = function(e2) {
-                var dx = handle.dataset.side === 'left' ? (startX - e2.clientX) : (e2.clientX - startX);
-                var newWidth = Math.max(minWidth, startWidth + dx);
-                target.style.width = newWidth + 'px';
-                target.style.flex = 'none';
-            };
-            var onUp = function() {
-                handle.classList.remove('active');
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-                try {
-                    var widths = JSON.parse(localStorage.getItem('oc-panel-widths') || '{}');
-                    widths[targetId] = target.style.width;
-                    localStorage.setItem('oc-panel-widths', JSON.stringify(widths));
-                } catch (_) {}
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-            };
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-        });
-    });
-
-    // 恢复持久化宽度
-    try {
-        var savedWidths = JSON.parse(localStorage.getItem('oc-panel-widths') || '{}');
-        for (var id in savedWidths) {
-            if (savedWidths.hasOwnProperty(id)) {
-                var el = document.getElementById(id);
-                if (el) { el.style.width = savedWidths[id]; el.style.flex = 'none'; }
-            }
-        }
-    } catch (_) {}
-}
-
 // ========== 消息搜索 ==========
 var searchResults = [];
 var searchIndex = -1;
@@ -2359,11 +2199,7 @@ function doSearch(query) {
     if (nextBtn) nextBtn.disabled = true;
     if (!query || query.length < 2) return;
 
-    var msgContainer = null;
-    for (var t = 0; t < openTabs.length; t++) {
-        if (openTabs[t].active && openTabs[t].domEl) { msgContainer = openTabs[t].domEl; break; }
-    }
-    if (!msgContainer) msgContainer = document.getElementById('ocMessages');
+    var msgContainer = document.getElementById('ocMessages');
     if (!msgContainer) return;
 
     var walker = document.createTreeWalker(msgContainer, NodeFilter.SHOW_TEXT, null, false);

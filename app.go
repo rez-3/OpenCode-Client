@@ -70,16 +70,9 @@ func (a *App) OpenDir(path string) error {
 
 // GetStats 返回统计信息。
 func (a *App) GetStats() model.Stats {
-	skills := a.sm.GetAllSkills()
-	s := model.Stats{}
-	for _, sk := range skills {
-		if sk.Source == "global" {
-			s.GlobalSkills++
-		} else {
-			s.ProjectSkills++
-		}
+	return model.Stats{
+		GlobalSkills: len(a.sm.GetAllSkills()),
 	}
-	return s
 }
 
 // ToggleSkill 切换技能链接状态。
@@ -315,5 +308,5 @@ type (
 
 // String 实现 Stringer 接口，便于调试。
 func (s Stats) String() string {
-	return fmt.Sprintf("GlobalSkills: %d, ProjectSkills: %d", s.GlobalSkills, s.ProjectSkills)
+	return fmt.Sprintf("Skills: %d", s.GlobalSkills)
 }
