@@ -1190,6 +1190,7 @@ function renderReasoning(part) {
     const body = document.createElement('div');
     const expanded = !!expandedParts[key];
     body.className = 'oc-reasoning-body' + (expanded ? '' : ' hidden');
+    body.dataset.expandKey = key;
     body.innerHTML = typeof marked !== 'undefined'
         ? marked.parse(part.text || '', { breaks: true })
         : `<pre>${escapeHtml(part.text || '')}</pre>`;
@@ -1348,6 +1349,7 @@ function renderQuestionTool(part) {
 
     if (!isRunning) {
         const key = partExpandKey(part, 'question');
+        body.dataset.expandKey = key;
         if (!expandedParts[key]) body.classList.add('hidden');
         head.addEventListener('click', () => {
             expandedParts[key] = !expandedParts[key];
@@ -1402,6 +1404,8 @@ function renderTool(part) {
 
     const body = document.createElement('div');
     body.className = 'oc-tool-body';
+    body.dataset.expandKey = key;
+    body.dataset.defaultExpanded = isRunning ? 'true' : 'false';
 
     if (state.input) {
         const inputDiv = document.createElement('div');
@@ -1489,6 +1493,7 @@ function renderFilePart(part) {
     head.innerHTML = `<span>📎 ${escapeHtml(filename)}</span><span class="oc-file-meta">${escapeHtml(mime)} · ${size} · ${expanded ? '收起' : '展开'}</span>`;
     const body = document.createElement('pre');
     body.className = expanded ? '' : 'hidden';
+    body.dataset.expandKey = key;
     body.textContent = raw;
     head.addEventListener('click', () => {
         expandedParts[key] = !expandedParts[key];
@@ -2153,6 +2158,7 @@ function toggleSidepanel() {
 // ========== 消息搜索 ==========
 var searchResults = [];
 var searchIndex = -1;
+let searchTemporaryExpansion = null;
 
 function initSearch() {
     document.addEventListener('keydown', function(e) {
@@ -2188,6 +2194,7 @@ function initSearch() {
 }
 
 function doSearch(query) {
+    restoreSearchTemporaryExpansion();
     clearHighlights();
     searchResults = [];
     searchIndex = -1;
@@ -2240,9 +2247,11 @@ function navigateSearch(dir) {
     for (var i = 0; i < searchResults.length; i++) {
         searchResults[i].classList.remove('oc-search-active');
     }
+    restoreSearchTemporaryExpansion();
     searchIndex = (searchIndex + dir + searchResults.length) % searchResults.length;
     var current = searchResults[searchIndex];
     current.classList.add('oc-search-active');
+    temporarilyRevealSearchResult(current);
     var container = document.getElementById('ocMessages');
     if (container) {
         scrollSearchResultIntoView(current, container);
@@ -2262,7 +2271,7 @@ function scrollSearchResultIntoView(node, container) {
 }
 
 function getSearchAnchorTop(node, container) {
-    var anchor = node.closest('.oc-message') || node;
+    var anchor = node.closest('.oc-part') || node.closest('.oc-message') || node;
     var top = 0;
     var el = anchor;
     while (el && el !== container) {
@@ -2271,6 +2280,44 @@ function getSearchAnchorTop(node, container) {
     }
     if (el === container) return top;
     return anchor.offsetTop || 0;
+}
+
+function temporarilyRevealSearchResult(node) {
+    var hiddenAncestor = node.closest('.hidden');
+    if (!hiddenAncestor) return;
+    var targetPart = node.closest('.oc-part');
+    hiddenAncestor.classList.remove('hidden');
+    hiddenAncestor.classList.add('oc-search-temp-expanded');
+    if (targetPart) targetPart.classList.add('oc-search-target-part');
+    searchTemporaryExpansion = {
+        body: hiddenAncestor,
+        targetPart: targetPart,
+    };
+}
+
+function restoreSearchTemporaryExpansion() {
+    if (!searchTemporaryExpansion) return;
+    var body = searchTemporaryExpansion.body;
+    if (body && body.classList && body.classList.contains('oc-search-temp-expanded')) {
+        if (!shouldKeepTemporaryExpansionVisible(body)) {
+            body.classList.add('hidden');
+        }
+        body.classList.remove('oc-search-temp-expanded');
+    }
+    var targetPart = searchTemporaryExpansion.targetPart;
+    if (targetPart && targetPart.classList) {
+        targetPart.classList.remove('oc-search-target-part');
+    }
+    searchTemporaryExpansion = null;
+}
+
+function shouldKeepTemporaryExpansionVisible(body) {
+    var key = body.dataset ? body.dataset.expandKey : '';
+    if (!key) return false;
+    if (Object.prototype.hasOwnProperty.call(expandedParts, key)) {
+        return !!expandedParts[key];
+    }
+    return body.dataset.defaultExpanded === 'true';
 }
 
 function clearHighlights() {
@@ -2283,6 +2330,7 @@ function clearHighlights() {
 }
 
 function closeSearch() {
+    restoreSearchTemporaryExpansion();
     clearHighlights();
     var bar = document.getElementById('ocSearchBar');
     if (bar) bar.style.display = 'none';

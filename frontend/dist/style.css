@@ -2997,6 +2997,11 @@ html, body {
 .oc-search-count { font-size: 11px; color: var(--text-dim); min-width: 60px; text-align: center; }
 .oc-search-highlight { background: #ffeb3b; color: #000; border-radius: 2px; padding: 0 1px; }
 .oc-search-highlight.oc-search-active { background: var(--accent); color: #fff; }
+.oc-search-target-part { animation: oc-search-target-pulse 0.9s ease-out; }
+@keyframes oc-search-target-pulse {
+    0% { box-shadow: 0 0 0 2px var(--accent); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
 
 /* ======== 技能管理搜索框 ======== */
 #skillSearch { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm, 4px); background: var(--bg-input); color: var(--text); font-size: 13px; outline: none; }
