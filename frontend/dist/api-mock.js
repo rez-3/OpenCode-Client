@@ -66,34 +66,34 @@ const mockApi = (() => {
     ];
 
     const mockSkills = [
-        { name: 'afsim-scripts', description: 'AFSIM脚本编写助手', sourcePath: '~/.cc-switch/skills/afsim-scripts', targets: { opencode: true, claude: true, codex: true } },
-        { name: 'code-review', description: '专业的代码审查助手', sourcePath: '~/.cc-switch/skills/code-review', targets: { opencode: true, claude: true, codex: true } },
-        { name: 'docx', description: 'Word文档创建编辑', sourcePath: '~/.cc-switch/skills/docx', targets: { opencode: true, claude: true, codex: true } },
-        { name: 'skill-creator', description: '创建新技能指南', sourcePath: '~/.cc-switch/skills/skill-creator', targets: { opencode: true, claude: true, codex: false } },
-        { name: 'standards-golang', description: 'Go开发标准', sourcePath: '~/.cc-switch/skills/standards-golang', targets: { opencode: false, claude: true, codex: true } },
-        { name: 'weather', description: '天气预报', sourcePath: '~/.cc-switch/skills/weather', targets: { opencode: true, claude: false, codex: false } },
-        { name: 'drawio', description: '图表绘制', sourcePath: '~/.cc-switch/skills/drawio', targets: { opencode: true, claude: true, codex: false } },
-        { name: 'karpathy-wiki', description: '本地知识库/wiki管理', sourcePath: '~/.cc-switch/skills/karpathy-wiki', targets: { opencode: true, claude: false, codex: false } },
-        { name: 'pdf', description: 'PDF文档处理', sourcePath: '~/.cc-switch/skills/pdf', targets: { opencode: false, claude: true, codex: true } },
-        { name: 'pptx', description: '幻灯片创建编辑', sourcePath: '~/.cc-switch/skills/pptx', targets: { opencode: false, claude: false, codex: true } },
-        { name: 'web-access', description: '联网搜索与网页抓取', sourcePath: '~/.cc-switch/skills/web-access', targets: { opencode: true, claude: true, codex: true } },
-        { name: 'xlsx', description: '电子表格处理', sourcePath: '~/.cc-switch/skills/xlsx', targets: { opencode: false, claude: true, codex: true } },
+        { name: 'afsim-scripts', description: 'AFSIM脚本编写助手', path: '~/.config/opencode/skills/afsim-scripts/SKILL.md', linked: true, source: 'global' },
+        { name: 'code-review', description: '专业的代码审查助手', path: '~/.config/opencode/skills/code-review/SKILL.md', linked: true, source: 'global' },
+        { name: 'docx', description: 'Word文档创建编辑', path: '~/.config/opencode/skills/docx/SKILL.md', linked: true, source: 'global' },
+        { name: 'skill-creator', description: '创建新技能指南', path: '~/.config/opencode/skills/skill-creator/SKILL.md', linked: true, source: 'global' },
+        { name: 'frontend-design', description: '前端UI设计', path: '~/.config/opencode/skills/frontend-design/SKILL.md', linked: true, source: 'global' },
+        { name: 'weather', description: '天气预报', path: '~/.config/opencode/skills/weather/SKILL.md', linked: true, source: 'global' },
+        { name: 'drawio', description: '图表绘制', path: '~/.config/opencode/skills/drawio/SKILL.md', linked: true, source: 'global' },
+        { name: 'karpathy-wiki', description: '本地知识库/wiki管理', path: '~/.config/opencode/skills/karpathy-wiki/SKILL.md', linked: false, source: 'global' },
+        { name: 'pdf', description: 'PDF文档处理', path: '~/.config/opencode/skills/pdf/SKILL.md', linked: true, source: 'global' },
+        { name: 'pptx', description: '幻灯片创建编辑', path: '~/.config/opencode/skills/pptx/SKILL.md', linked: false, source: 'project' },
+        { name: 'web-access', description: '联网搜索与网页抓取', path: '~/.config/opencode/skills/web-access/SKILL.md', linked: true, source: 'global' },
+        { name: 'xlsx', description: '电子表格处理', path: '~/.config/opencode/skills/xlsx/SKILL.md', linked: true, source: 'project' },
+        { name: 'frontend-ui-ux', description: 'UI/UX 设计系统', path: '~/.config/opencode/skills/frontend-ui-ux/SKILL.md', linked: true, source: 'project' },
+        { name: 'git-master', description: 'Git 操作大师', path: '~/.config/opencode/skills/git-master/SKILL.md', linked: false, source: 'project' },
     ];
 
     return {
         GetSkills: async () => JSON.parse(JSON.stringify(mockSkills)),
-        GetTargets: async () => [
-            { key: 'opencode', label: 'OpenCode', path: '~/.config/opencode/skills' },
-            { key: 'claude',   label: 'Claude Code', path: '~/.claude/skills' },
-            { key: 'codex',    label: 'Codex', path: '~/.codex/skills' },
-        ],
-        GetSourceDir: async () => '~/.cc-switch/skills',
         GetStats: async () => ({
-            totalSkills: mockSkills.length,
-            targetStats: { opencode: 8, claude: 9, codex: 7 },
+            globalSkills: mockSkills.filter(s => s.source === 'global').length,
+            projectSkills: mockSkills.filter(s => s.source === 'project').length,
         }),
-        ToggleSkill: async (name, target, enable) => ({ skillName: name, target, linked: enable, success: true }),
-        ToggleAllSkills: async (target, enable) => ({ target, enabled: enable, success: true, errors: [] }),
+        ToggleSkill: async (path, name, enable) => ({ success: true }),
+        ReadSkillContent: async (path) => {
+            var name = path.replace(/\\/g, '/').split('/').pop().replace('.md', '');
+            return '# ' + name + '\n\n## 描述\n\n这是 ' + name + ' 技能的 mock SKILL.md 内容。\n\n## 使用\n\n当用户请求相关任务时自动加载。\n\n## 配置\n\n```json\n{\n  \"enabled\": true\n}\n```';
+        },
+        SaveSkillContent: async (path, content) => ({ success: true }),
         Refresh: async () => {},
         OpenDir: async (path) => { console.log('mock open:', path); showToast(`模拟打开目录: ${path}`, 'info'); },
         OpenDirectoryDialog: async () => 'E:\\data\\ai_test\\feishu\\skill-manager',
@@ -158,7 +158,7 @@ const mockApi = (() => {
         ]),
         StartOpenCodeEvents: async () => ({ success: true }),
         StopOpenCodeEvents: async () => ({ success: true }),
-        // 模型配置
+        // OMO 配置
         GetModelConfig: async () => [
             { key: 'sisyphus', type: 'agent', model: 'deepseek/deepseek-v4-pro', label: '执行者', comment: '执行者：负责执行具体任务' },
             { key: 'oracle', type: 'agent', model: 'deepseek/deepseek-v4-flash', label: '分析师', comment: '分析师：代码质量审查与安全分析' },

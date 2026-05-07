@@ -3,42 +3,33 @@ package model
 
 // ========== 技能管理相关 ==========
 
-// SkillInfo 前端展示用的技能信息。
+// SkillInfo 技能信息。
 type SkillInfo struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	SourcePath  string          `json:"sourcePath"`
-	Targets     map[string]bool `json:"targets"`
-}
-
-// TargetInfo 目标平台信息。
-type TargetInfo struct {
-	Key   string `json:"key"`
-	Label string `json:"label"`
-	Path  string `json:"path"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Path        string `json:"path"`
+	Linked      bool   `json:"linked"`
+	Source      string `json:"source"` // "global" 或 "project"
 }
 
 // Stats 统计信息。
 type Stats struct {
-	TotalSkills int            `json:"totalSkills"`
-	TargetStats map[string]int `json:"targetStats"`
+	GlobalSkills  int `json:"globalSkills"`
+	ProjectSkills int `json:"projectSkills"`
 }
 
 // ToggleResult 单个技能切换结果。
 type ToggleResult struct {
 	SkillName string  `json:"skillName"`
-	Target    string  `json:"target"`
 	Linked    bool    `json:"linked"`
 	Success   bool    `json:"success"`
 	Error     *string `json:"error,omitempty"`
 }
 
-// BatchResult 批量操作结果。
-type BatchResult struct {
-	Target  string   `json:"target"`
-	Enabled bool     `json:"enabled"`
-	Success bool     `json:"success"`
-	Errors  []string `json:"errors"`
+// SkillContent 技能文件内容。
+type SkillContent struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
 }
 
 // ========== 模型配置相关 ==========

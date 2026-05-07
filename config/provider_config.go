@@ -14,7 +14,7 @@ import (
 // OpenCodeConfigPath 返回 opencode.jsonc 的完整路径。
 func OpenCodeConfigPath() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "opencode", "opencode.jsonc")
+	return resolvePath(filepath.Join(home, ".config", "opencode", "opencode.jsonc"))
 }
 
 func loadOpenCodeConfig() (*model.OpenCodeConfig, error) {

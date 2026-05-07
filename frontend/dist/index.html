@@ -28,9 +28,9 @@
                 <span class="nav-icon">🔌</span>
                 <span class="nav-label">供应商配置</span>
             </div>
-            <div class="nav-item" data-view="view-models">
+            <div class="nav-item" data-view="view-omo">
                 <span class="nav-icon">⚙️</span>
-                <span class="nav-label">模型配置</span>
+                <span class="nav-label">OMO 配置</span>
             </div>
             <div class="nav-item" data-view="view-skills">
                 <span class="nav-icon">🔗</span>
@@ -71,8 +71,17 @@
                             <button class="btn btn-primary" id="btnNewSession" disabled>＋ 新建会话</button>
                         </div>
                     </aside>
+                    <div class="oc-resize-handle" id="resizeTree" data-target="ocSessions" data-min="160"></div>
+                    <div class="oc-tabs" id="ocTabs"></div>
                     <main class="oc-chat">
                         <div class="oc-chat-head" id="ocChatTitle">未选择会话</div>
+                        <div class="oc-search-bar" id="ocSearchBar" style="display:none">
+                            <input type="text" id="ocSearchInput" placeholder="搜索当前会话消息..." />
+                            <span class="oc-search-count" id="ocSearchCount"></span>
+                            <button class="btn btn-sm" id="ocSearchPrev" disabled>▲</button>
+                            <button class="btn btn-sm" id="ocSearchNext" disabled>▼</button>
+                            <button class="btn btn-sm" id="ocSearchClose">×</button>
+                        </div>
                         <div class="oc-messages-wrap">
                             <div class="oc-messages" id="ocMessages">
                                 <div class="oc-empty">选择会话后查看消息，或输入内容创建新会话</div>
@@ -104,6 +113,7 @@
                         </div>
                     </main>
                     <button class="oc-toggle-btn oc-toggle-right" id="btnToggleSidepanel" title="隐藏信息栏">▶</button>
+                    <div class="oc-resize-handle" id="resizeSide" data-target="ocSidepanel" data-side="left" data-min="200"></div>
                     <aside class="oc-sidepanel">
                         <div class="oc-panel-section">
                             <div class="oc-panel-head" role="button" tabindex="0">
@@ -145,8 +155,8 @@
                 </div>
             </div>
 
-            <!-- ===== View 2: 模型配置 ===== -->
-            <div class="view-panel" id="view-models">
+            <!-- ===== View 2: OMO 配置 ===== -->
+            <div class="view-panel" id="view-omo">
                 <section class="path-bar">
                     <span class="path-label">配置文件：</span>
                     <span class="path-value" id="configPath">加载中...</span>
@@ -154,7 +164,7 @@
                 </section>
 
                 <div class="model-list" id="modelConfig">
-                    <div class="loading"><div class="spinner"></div><p>正在加载模型配置...</p></div>
+                    <div class="loading"><div class="spinner"></div><p>正在加载 OMO 配置...</p></div>
                 </div>
 
                 <div class="model-actions" id="modelActions" style="display:none">
@@ -169,8 +179,12 @@
                 <!-- 统计栏 -->
                 <section class="stats-bar">
                     <div class="stat-item">
-                        <span class="stat-value" id="statTotal">0</span>
-                        <span class="stat-label">个技能</span>
+                        <span class="stat-value" id="statGlobal">0</span>
+                        <span class="stat-label">全局技能</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="statProject">0</span>
+                        <span class="stat-label">项目技能</span>
                     </div>
                     <div class="stats-spacer"></div>
                     <button class="btn btn-sm btn-refresh" id="btnRefresh" title="刷新技能列表">🔄 刷新</button>
@@ -178,15 +192,15 @@
 
                 <!-- 源路径 -->
                 <section class="path-bar">
-                    <span class="path-label">源目录：</span>
+                    <span class="path-label">全局目录：</span>
                     <span class="path-value" id="sourcePath">加载中...</span>
                     <button class="btn btn-sm btn-open" id="btnOpenDir" title="在资源管理器中打开">📂 打开</button>
                 </section>
 
-                <!-- 批量操作栏 -->
-                <section class="batch-bar">
-                    <span class="batch-label">批量操作：</span>
-                    <div class="batch-buttons" id="batchButtons"></div>
+                <!-- 搜索栏 -->
+                <section class="path-bar">
+                    <span class="path-label">搜索：</span>
+                    <input type="text" id="skillSearch" placeholder="输入技能名称过滤..." style="flex:1;padding:4px 8px;" />
                 </section>
 
                 <!-- 技能列表 -->
@@ -261,6 +275,22 @@
         </div>
     </div>
 
+    <!-- 技能预览/编辑 Modal -->
+    <div class="modal-overlay" id="skillModal" style="display:none">
+        <div class="modal skill-modal">
+            <div class="modal-header">
+                <h3 id="skillModalTitle">技能名称</h3>
+                <div class="modal-header-actions">
+                    <button class="btn btn-sm" id="skillModalEdit">编辑</button>
+                    <button class="btn btn-sm btn-primary" id="skillModalSave" style="display:none">保存</button>
+                    <button class="btn btn-sm btn-cancel" id="skillModalCancel" style="display:none">取消</button>
+                    <button class="btn btn-sm" id="skillModalClose">×</button>
+                </div>
+            </div>
+            <div class="modal-body" id="skillModalBody"></div>
+        </div>
+    </div>
+
     <input type="file" id="ocFileInput" multiple hidden />
     <!-- 模块化 JS，按依赖顺序加载 -->
     <script src="/theme.js"></script>
@@ -269,7 +299,7 @@
     <script src="/navigation.js"></script>
     <script src="/chat.js"></script>
     <script src="/command-palette.js"></script>
-    <script src="/model-config.js"></script>
+    <script src="/omo-config.js"></script>
     <script src="/skill-manager.js"></script>
     <script src="/commands-view.js"></script>
     <script src="/provider-view.js"></script>

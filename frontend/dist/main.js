@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ========================
-    // 模型配置事件绑定
+    // OMO 配置事件绑定
     // ========================
 
     // 刷新模型列表
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btnAddModelType').addEventListener('click', showAddTypeModal);
 
-    // 保存模型配置
+    // 保存 OMO 配置
     document.getElementById('modelActions').addEventListener('click', async (e) => {
         if (e.target.id !== 'btnSaveModels') return;
         showToast('保存中...', 'info');
@@ -181,6 +181,28 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             showToast('打开目录失败: ' + (err.message || err), 'error');
         }
+    });
+
+    // 搜索框事件
+    var skillSearchInput = document.getElementById('skillSearch');
+    if (skillSearchInput) {
+        skillSearchInput.addEventListener('input', function(e) {
+            renderSkillList(e.target.value);
+        });
+    }
+
+    // Modal 关闭事件
+    document.getElementById('skillModalClose').addEventListener('click', closeSkillModal);
+    document.getElementById('skillModal').addEventListener('click', function(e) {
+        if (e.target.id === 'skillModal') closeSkillModal();
+    });
+    document.getElementById('skillModalEdit').addEventListener('click', function() {
+        editSkill(document.getElementById('skillModal').dataset.skillPath);
+    });
+    document.getElementById('skillModalSave').addEventListener('click', saveSkillEdit);
+    document.getElementById('skillModalCancel').addEventListener('click', function() {
+        var modal = document.getElementById('skillModal');
+        previewSkill(modal.dataset.skillPath);
     });
 
     // ========================

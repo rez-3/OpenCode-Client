@@ -51,11 +51,6 @@ func (a *App) GetSkills() []model.SkillInfo {
 	return a.sm.GetAllSkills()
 }
 
-// GetTargets 返回所有目标平台名称列表。
-func (a *App) GetTargets() []model.TargetInfo {
-	return a.sm.GetTargets()
-}
-
 // GetSourceDir 返回技能源目录路径。
 func (a *App) GetSourceDir() string {
 	return a.sm.SourceDir()
@@ -76,29 +71,22 @@ func (a *App) OpenDir(path string) error {
 // GetStats 返回统计信息。
 func (a *App) GetStats() model.Stats {
 	skills := a.sm.GetAllSkills()
-	s := model.Stats{
-		TotalSkills: len(skills),
-		TargetStats: make(map[string]int),
-	}
-	targets := a.sm.GetTargets()
-	for _, t := range targets {
-		count := 0
-		for _, sk := range skills {
-			if sk.Targets[t.Key] {
-				count++
-			}
+	s := model.Stats{}
+	for _, sk := range skills {
+		if sk.Source == "global" {
+			s.GlobalSkills++
+		} else {
+			s.ProjectSkills++
 		}
-		s.TargetStats[t.Key] = count
 	}
 	return s
 }
 
-// ToggleSkill 切换某个技能在指定目标平台的链接状态。
-func (a *App) ToggleSkill(skillName, target string, enable bool) model.ToggleResult {
-	newState, err := a.sm.ToggleSkill(skillName, target, enable)
+// ToggleSkill 切换技能链接状态。
+func (a *App) ToggleSkill(skillPath, skillName string, enable bool) model.ToggleResult {
+	newState, err := a.sm.ToggleSkill(skillPath, skillName, enable)
 	result := model.ToggleResult{
 		SkillName: skillName,
-		Target:    target,
 		Linked:    newState,
 		Success:   err == nil,
 	}
@@ -109,19 +97,14 @@ func (a *App) ToggleSkill(skillName, target string, enable bool) model.ToggleRes
 	return result
 }
 
-// ToggleAllSkills 批量切换某个目标平台下所有技能的链接状态。
-func (a *App) ToggleAllSkills(target string, enable bool) model.BatchResult {
-	errs := a.sm.ToggleAll(target, enable)
-	result := model.BatchResult{
-		Target:  target,
-		Enabled: enable,
-		Errors:  make([]string, 0),
-	}
-	for _, e := range errs {
-		result.Errors = append(result.Errors, e.Error())
-	}
-	result.Success = len(result.Errors) == 0
-	return result
+// ReadSkillContent 读取技能 SKILL.md 内容。
+func (a *App) ReadSkillContent(skillPath string) (string, error) {
+	return a.sm.ReadSkillContent(skillPath)
+}
+
+// SaveSkillContent 保存技能 SKILL.md 内容。
+func (a *App) SaveSkillContent(skillPath, content string) error {
+	return a.sm.SaveSkillContent(skillPath, content)
 }
 
 // Refresh 重新扫描技能目录并刷新状态。
@@ -311,27 +294,26 @@ func (a *App) GetSessions() ([]model.SessionInfo, error) {
 
 // 类型定义已迁移至 model 子包。以下通过类型别名保持前端 bind 兼容。
 type (
-	SkillInfo      = model.SkillInfo
-	TargetInfo     = model.TargetInfo
-	Stats          model.Stats
-	ToggleResult   = model.ToggleResult
-	BatchResult    = model.BatchResult
-	WebResult      = model.WebResult
-	APIResult      = model.APIResult
-	ProxyConfig    = model.ProxyConfig
-	ModelEntry     = model.ModelEntry
+	SkillInfo       = model.SkillInfo
+	SkillContent    = model.SkillContent
+	Stats           model.Stats
+	ToggleResult    = model.ToggleResult
+	WebResult       = model.WebResult
+	APIResult       = model.APIResult
+	ProxyConfig     = model.ProxyConfig
+	ModelEntry      = model.ModelEntry
 	ModelSaveResult = model.ModelSaveResult
-	SaveResult     = model.SaveResult
-	ProviderInfo   = model.ProviderInfo
-	ModelInfo      = model.ModelInfo
-	ProviderSave   = model.ProviderSave
-	CmdInfo        = model.CmdInfo
-	CmdGroup       = model.CmdGroup
-	CmdPaletteItem = model.CmdPaletteItem
-	SessionInfo    = model.SessionInfo
+	SaveResult      = model.SaveResult
+	ProviderInfo    = model.ProviderInfo
+	ModelInfo       = model.ModelInfo
+	ProviderSave    = model.ProviderSave
+	CmdInfo         = model.CmdInfo
+	CmdGroup        = model.CmdGroup
+	CmdPaletteItem  = model.CmdPaletteItem
+	SessionInfo     = model.SessionInfo
 )
 
 // String 实现 Stringer 接口，便于调试。
 func (s Stats) String() string {
-	return fmt.Sprintf("Skills: %d, Targets: %v", s.TotalSkills, s.TargetStats)
+	return fmt.Sprintf("GlobalSkills: %d, ProjectSkills: %d", s.GlobalSkills, s.ProjectSkills)
 }

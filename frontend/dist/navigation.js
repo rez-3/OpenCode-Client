@@ -13,7 +13,7 @@ function switchView(viewId) {
     });
 
     // 延迟加载各视图数据
-    if (viewId === 'view-models') {
+    if (viewId === 'view-omo') {
         loadModelConfig();
     } else if (viewId === 'view-skills') {
         loadSkillsData();

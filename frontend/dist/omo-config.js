@@ -1,5 +1,5 @@
 // ============================================================
-// OpenCode 管理中心 - 模型配置视图
+// OpenCode 管理中心 - OMO 配置视图
 // ============================================================
 
 let modelEntries = [];
@@ -14,7 +14,7 @@ let fullConfigRaw = '';
 async function loadModelConfig() {
     const container = document.getElementById('modelConfig');
 
-    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载模型配置...</p></div>';
+    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载OMO 配置...</p></div>';
 
     try {
         const [fullConfig, models, confPath] = await Promise.all([
@@ -97,7 +97,7 @@ function extractComments(text) {
 }
 
 // ============================
-// 渲染模型配置
+// 渲染OMO 配置
 // ============================
 
 function renderModelConfig() {
@@ -108,7 +108,7 @@ function renderModelConfig() {
     actions.style.display = 'flex';
 
     if (modelTypes.length === 0) {
-        container.innerHTML = '<div class="empty"><p>📭 未找到模型配置类型</p><p class="empty-hint">点击底部"添加类型"创建 agents、categories 等分组</p></div>';
+        container.innerHTML = '<div class="empty"><p>📭 未找到OMO 配置类型</p><p class="empty-hint">点击底部"添加类型"创建 agents、categories 等分组</p></div>';
         updateSaveStatus();
         return;
     }
@@ -302,7 +302,7 @@ function showAddTypeModal() {
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
         <div class="modal" onclick="event.stopPropagation()">
-            <h3>添加模型配置类型</h3>
+            <h3>添加OMO 配置类型</h3>
             <div class="modal-field"><label>类型名称（顶层 section）</label><input id="modalTypeKey" placeholder="如 agents / categories / reviewers" /></div>
             <div class="modal-actions"><button class="btn btn-cancel" id="btnCancelAddType">取消</button><button class="btn btn-primary" id="btnConfirmAddType">➕ 添加类型</button></div>
         </div>`;

@@ -17,10 +17,22 @@ var configWriteMu sync.Mutex
 
 // ========== 配置路径 & 加载 ==========
 
+// resolvePath 优先返回 .jsonc 路径，若不存在则回退到 .json。
+func resolvePath(jsoncPath string) string {
+	if _, err := os.Stat(jsoncPath); err == nil {
+		return jsoncPath
+	}
+	jsonPath := strings.TrimSuffix(jsoncPath, ".jsonc") + ".json"
+	if _, err := os.Stat(jsonPath); err == nil {
+		return jsonPath
+	}
+	return jsoncPath
+}
+
 // ConfigPath 返回 oh-my-openagent.jsonc 的完整路径。
 func ConfigPath() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "opencode", "oh-my-openagent.jsonc")
+	return resolvePath(filepath.Join(home, ".config", "opencode", "oh-my-openagent.jsonc"))
 }
 
 // LoadConfig 读取并解析 JSONC 配置，同时返回原始文本用于后续写回。
