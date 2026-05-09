@@ -15,7 +15,7 @@ tasks:
   generate:syso:
     summary: 生成 Windows .syso 资源文件（嵌入图标、清单、版本信息到 exe）
     cmds:
-      - powershell -NoProfile -Command "$targetDir = 'build\bin\windows'; New-Item -ItemType Directory -Force -Path $targetDir | Out-Null; if (-not (Test-Path "$targetDir\icon.ico")) { Write-Error 'icon.ico 不存在，请先运行 generate:icons'; exit 1 }"
+      - powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path build\bin\windows | Out-Null; if (-not (Test-Path build\bin\windows\icon.ico)) { Write-Error 'icon.ico 不存在，请先运行 generate:icons'; exit 1 }"
       - >-
         wails3 generate syso
         -icon build/bin/windows/icon.ico
