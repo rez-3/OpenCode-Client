@@ -1382,8 +1382,21 @@ function renderTool(part) {
     const key = partExpandKey(part, tool || 'tool');
 
     const isShell = tool === 'bash' || tool === 'shell';
-    const isFileOp = /^(read|write|edit|glob|grep|look_at|ast_grep_search|ast_grep_replace)$/.test(tool);
-    const category = isShell ? 'shell' : (isFileOp ? 'file' : 'tool');
+
+    // 细粒度文件操作分类
+    const fileCategoryMap = {
+        read:              { cat: 'file-read',     icon: '📖', label: '读取文件' },
+        look_at:           { cat: 'file-read',     icon: '📖', label: '读取文件' },
+        glob:              { cat: 'file-search',   icon: '🔍', label: '搜索文件' },
+        grep:              { cat: 'file-search',   icon: '🔍', label: '搜索文件' },
+        ast_grep_search:   { cat: 'file-search',   icon: '🔍', label: '搜索文件' },
+        ast_grep_replace:  { cat: 'file-edit',     icon: '✏️', label: '编辑文件' },
+        edit:              { cat: 'file-edit',     icon: '✏️', label: '编辑文件' },
+        write:             { cat: 'file-create',   icon: '📝', label: '创建文件' },
+    };
+
+    const fc = fileCategoryMap[tool];
+    const category = isShell ? 'shell' : (fc ? fc.cat : 'tool');
 
     const el = document.createElement('div');
     el.className = `oc-part oc-tool oc-tool-${category}` + (isCompleted ? ' done' : '') + (isError ? ' error' : '') + (isRunning ? ' running' : '');
@@ -1391,10 +1404,10 @@ function renderTool(part) {
     const head = document.createElement('div');
     head.className = 'oc-tool-head';
 
-    const iconMap = { shell: '💻', file: '📄', tool: '🔧' };
-    const labelMap = { shell: '指令执行', file: '文件操作', tool: '工具调用' };
-    const icon = iconMap[category];
-    const label = labelMap[category];
+    const iconMap = { shell: '💻', tool: '🔧' };
+    const labelMap = { shell: '指令执行', tool: '工具调用' };
+    const icon = fc ? fc.icon : (iconMap[category] || '🔧');
+    const label = fc ? fc.label : (labelMap[category] || '工具调用');
 
     let statusText = '';
     let statusClass = '';
