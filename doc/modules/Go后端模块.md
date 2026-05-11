@@ -10,7 +10,7 @@ Go 后端是整个应用的**业务逻辑核心**和**前后端桥梁**，通过
 
 ---
 
-## 二、核心门面：app.go（311行）
+## 二、核心门面：app.go（~370行）
 
 `App` 结构体是 Wails 绑定的**唯一入口**，所有前端调用的 Go 方法都定义在此。它本身不包含复杂业务逻辑，而是通过**依赖注入**协调各子模块。
 
@@ -28,7 +28,8 @@ type App struct {
 | 分组 | 方法 | 说明 |
 |------|------|------|
 | **技能管理** | `GetSkills()`, `ToggleSkill()`, `ReadSkillContent()`, `SaveSkillContent()`, `Refresh()`, `GetSourceDir()`, `GetStats()` | 委托 `skill.Manager` |
-| **模型配置** | `GetModelConfig()`, `GetAvailableModels()`, `RefreshAvailableModels()`, `UpdateModels()`, `AddModelEntry()`, `DeleteModelEntry()`, `AddModelType()`, `DeleteModelType()`, `GetConfigPath()`, `GetFullConfig()`, `SaveFullConfig()` | 委托 `config` 包 + `models.go` |
+| **模型配置** | `GetModelConfig()`, `GetAgentDescriptions()`, `GetAvailableModels()`, `RefreshAvailableModels()`, `UpdateModels()`, `AddModelEntry()`, `DeleteModelEntry()`, `AddModelType()`, `DeleteModelType()`, `GetConfigPath()`, `GetFullConfig()`, `SaveFullConfig()` | 委托 `config` 包 + `models.go` |
+| **方案管理** | `GetSchemeDir()`, `ListSchemes()`, `ReadScheme()`, `SaveScheme()`, `ExportConfig()`, `OpenSchemeDir()` | 委托 `config` 包 + `service/scheme.go` |
 | **供应商配置** | `GetProviders()`, `SaveProvider()`, `DeleteProvider()`, `GetProviderConfigPath()` | 委托 `config` 包 |
 | **Web 服务** | `StartOpenCodeWeb()`, `StopOpenCodeWeb()`, `GetWebStatus()`, `OpenCodeAPI()`, `CreateSession()`, `AnswerQuestion()`, `RejectQuestion()`, `GetProjectTree()`, `StartOpenCodeEvents()`, `StopOpenCodeEvents()`, `LaunchWindowsTerminal()`, `OpenDirectoryDialog()`, `GetOpenCodeCommands()`, `GetSessions()` | 委托 `service` 包 |
 | **命令参考** | `GetCommands()` | 静态数据 |
@@ -88,7 +89,7 @@ var (
 | `SkillInfo` | 技能信息（名称、描述、路径、链接状态） |
 | `Stats` / `ToggleResult` | 技能统计和操作结果 |
 | `OpenAgentConfig` | oh-my-openagent.jsonc 顶层模型配置 |
-| `ModelEntry` / `ModelConfig` | 前端展示和 JSONC 模型条目 |
+| `ModelEntry` / `ModelConfig` / `SchemeInfo` | 前端展示的模型条目和方案信息 |
 | `OpenCodeConfig` / `ProviderEntry` / `ProviderInfo` | opencode.jsonc 供应商配置 |
 | `WebResult` / `APIResult` / `ProxyConfig` | Web 服务和 API 透传 |
 | `TreeNode` / `CmdPaletteItem` / `SessionInfo` | 项目树、命令面板、会话 |
@@ -136,11 +137,13 @@ main.go
   └── app.go ── 创建 App → 协调所有子模块
        ├── skill.Manager (skill/skill.go)
        ├── config.LoadConfig / SaveConfig (config/model_config.go)
+       ├── config.LoadAgentDescriptions / ApplyDescriptions (config/agent_descriptions.go)
        ├── config.GetProviders / SaveProvider (config/provider_config.go)
        ├── service.StartOpenCodeWeb / StopOpenCodeWeb (service/process.go)
        ├── service.OpenCodeAPI (service/api.go)
        ├── service.StartOpenCodeEvents (service/sse.go)
        ├── service.GetProjectTree (service/tree.go)
+       ├── service.ListSchemes / SaveScheme / ExportConfig (service/scheme.go)
        └── models.go (getAvailableModels / fetchModels)
 ```
 
