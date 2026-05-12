@@ -414,9 +414,11 @@ html, body {
     padding: 0 0px 6px;
 }
 
-/* 技能管理视图：整体滚动 */
+/* 技能管理视图：顶部固定 + 列表滚动 */
 #view-skills.active {
-    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 #view-skills .stats-bar,
 #view-skills .path-bar,
@@ -424,8 +426,9 @@ html, body {
     flex-shrink: 0;
 }
 #view-skills .skill-list {
-    flex: none;
-    overflow-y: visible;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* OpenCode 视图：web 嵌入 */
@@ -2491,6 +2494,7 @@ html, body {
     border-radius: var(--radius-md);
     transition: all var(--transition);
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .skill-card:hover {

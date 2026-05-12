@@ -109,7 +109,7 @@ function isEmptyModelSectionName(type) {
 
 function stripJsonComments(jsonStr) {
     if (jsonStr == null) return '';
-    return String(jsonStr).replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    return String(jsonStr).replace(/(?<!:)\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 // ============================
