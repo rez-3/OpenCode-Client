@@ -211,6 +211,16 @@ html, body {
 .btn-sm {
     padding: 5px 12px;
     font-size: 12px;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.btn-sm:hover:not(:disabled) {
+    background: var(--bg-card);
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 .btn-icon {

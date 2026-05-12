@@ -140,7 +140,7 @@ function renderModelConfig() {
             <option value="">-- 批量设置模型 --</option>
             ${availableModels.map(m => `<option value="${m}">${m}</option>`).join('')}
         </select>
-        <button class="btn btn-sm" id="btnApplyBatch">应用</button>
+        <button class="btn btn-sm btn-open" id="btnApplyBatch">应用</button>
     `;
     const batchBar = document.getElementById('omoBatchBar');
     if (batchBar) {
