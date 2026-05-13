@@ -38,7 +38,8 @@ type OpenAgentConfig map[string]map[string]ModelConfig
 
 // ModelConfig 单个 agent/category 的模型配置。
 type ModelConfig struct {
-	Model string `json:"model"`
+	Model   string `json:"model"`
+	Variant string `json:"variant"`
 }
 
 // ModelEntry 前端展示用的模型条目。
@@ -46,6 +47,7 @@ type ModelEntry struct {
 	Key     string `json:"key"`
 	Type    string `json:"type"`
 	Model   string `json:"model"`
+	Variant string `json:"variant"`
 	Comment string `json:"comment"`
 }
 
