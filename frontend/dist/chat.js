@@ -30,6 +30,7 @@ let agentList = [];
 let modelList = [];
 let selectedAgent = '';
 let selectedModel = '';
+let selectedVariant = '';
 let agentModelSelectorsLoaded = false;
 
 // ============================
@@ -364,6 +365,15 @@ async function loadAgentModelSelectors() {
     modelSel.addEventListener('change', () => {
         selectedModel = modelSel.value;
     });
+
+    // Variant 选择器
+    const variantSel = document.getElementById('ocVariantSelect');
+    if (variantSel) {
+        variantSel.value = selectedVariant;
+        variantSel.addEventListener('change', () => {
+            selectedVariant = variantSel.value;
+        });
+    }
 
     agentModelSelectorsLoaded = true;
 }
@@ -1050,12 +1060,14 @@ function updateModelInfo(items) {
     const list = items || [];
     let agent = '';
     let model = '';
+    let variant = '';
     for (let i = list.length - 1; i >= 0; i--) {
         const info = list[i].info || list[i];
         if (info.role === 'assistant') {
             agent = info.agent || '';
             model = info.modelID || (info.model && info.model.modelID) || '';
             if (info.providerID) model = info.providerID + '/' + model;
+            variant = info.variant || '';
             break;
         }
     }
@@ -1067,10 +1079,13 @@ function updateModelInfo(items) {
     // 同步选中值
     if (agent && agentSel) agentSel.value = agent;
     if (model && modelSel)  modelSel.value = model;
+    const variantSel = document.getElementById('ocVariantSelect');
+    if (variant && variantSel) variantSel.value = variant;
 
     // 首次加载时同步全局选中值
     if (agent && !selectedAgent) selectedAgent = agent;
     if (model && !selectedModel) selectedModel = model;
+    if (variant && !selectedVariant) selectedVariant = variant;
 }
 
 // 确保 <select> 中存在指定 value 的选项（API 加载失败时的降级）
@@ -1970,6 +1985,7 @@ async function sendPrompt() {
                 };
             }
         }
+        if (selectedVariant) body.variant = selectedVariant;
         await ocApi('POST', `/session/${encodeURIComponent(currentSessionId)}/prompt_async`, body);
         if (isNew) {
             const title = text.slice(0, 15) + (text.length > 15 ? '...' : '');
