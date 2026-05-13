@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('保存中...', 'info');
         const totalChanges = modelEntries.filter(e => {
             const orig = originalEntries.find(o => sameModelEntry(o, e));
-            return !orig || orig.model !== e.model;
+            return !orig || orig.model !== e.model || orig.variant !== e.variant;
         }).length + originalEntries.filter(o => !modelEntries.find(e => sameModelEntry(e, o))).length;
 
         if (totalChanges === 0) {

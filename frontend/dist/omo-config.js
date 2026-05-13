@@ -618,7 +618,7 @@ async function handleSchemeApply() {
     // 保存当前编辑内容到实际配置文件
     const totalChanges = modelEntries.filter(e => {
         const orig = originalEntries.find(o => sameModelEntry(o, e));
-        return !orig || orig.model !== e.model;
+        return !orig || orig.model !== e.model || orig.variant !== e.variant;
     }).length + originalEntries.filter(o => !modelEntries.find(e => sameModelEntry(e, o))).length;
 
     if (totalChanges === 0) {
