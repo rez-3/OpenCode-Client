@@ -8,6 +8,8 @@ let availableModels = [];
 let originalEntries = [];
 let modelSectionsLoaded = false;
 
+const VARIANT_OPTIONS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+
 let fullConfigJson = {};
 let workingConfigJson = {};
 
@@ -190,6 +192,20 @@ function renderModelConfig() {
         });
     });
 
+    container.querySelectorAll('.model-variant-select').forEach(select => {
+        select.addEventListener('change', e => {
+            const entry = modelEntries.find(en => en.id === e.target.dataset.id);
+            if (entry) {
+                entry.variant = e.target.value;
+                // 同步写回 workingConfigJson
+                if (!workingConfigJson[entry.type]) workingConfigJson[entry.type] = {};
+                if (!workingConfigJson[entry.type][entry.key]) workingConfigJson[entry.type][entry.key] = {};
+                workingConfigJson[entry.type][entry.key].variant = entry.variant;
+                updateSaveStatus(); checkUnsavedChanges();
+            }
+        });
+    });
+
     updateSaveStatus();
     checkUnsavedChanges();
 }
@@ -275,6 +291,17 @@ function createModelGroup(title, entries, entryType) {
             select.appendChild(opt);
         });
 
+        const variantSelect = document.createElement('select');
+        variantSelect.className = 'model-variant-select';
+        variantSelect.dataset.key = entry.key;
+        variantSelect.dataset.id = entry.id;
+        VARIANT_OPTIONS.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v; opt.textContent = v;
+            if (v === entry.variant) opt.selected = true;
+            variantSelect.appendChild(opt);
+        });
+
         const badge = document.createElement('span');
         badge.className = 'model-type-badge';
         badge.textContent = entry.type;
@@ -297,6 +324,7 @@ function createModelGroup(title, entries, entryType) {
         topRow.appendChild(cb);
         topRow.appendChild(nameSpan);
         topRow.appendChild(select);
+        topRow.appendChild(variantSelect);
         topRow.appendChild(badge);
         topRow.appendChild(delBtn);
         row.appendChild(topRow);
@@ -380,6 +408,7 @@ function showAddEntryModal(entryType) {
             <h3>添加 ${modelTypeTitle(entryType).replace(/^[^\w\u4e00-\u9fa5]+\s*/, '')}</h3>
             <div class="modal-field"><label>Key（唯一标识）</label><input id="modalEntryKey" placeholder="如 my-agent" /></div>
             <div class="modal-field"><label>模型</label><select id="modalEntryModel" style="width:100%;padding:6px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary)">${availableModels.map(m => `<option value="${m}">${m}</option>`).join('')}</select></div>
+            <div class="modal-field"><label>Variant</label><select id="modalEntryVariant" style="width:100%;padding:6px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary)">${VARIANT_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join('')}</select></div>
             <div class="modal-field"><label>描述（作为注释）</label><input id="modalEntryComment" placeholder="简要描述用途" /></div>
             <div class="modal-actions"><button class="btn btn-cancel" id="btnCancelAdd">取消</button><button class="btn btn-primary" id="btnConfirmAdd">💾 添加</button></div>
         </div>`;
@@ -389,12 +418,13 @@ function showAddEntryModal(entryType) {
     overlay.querySelector('#btnConfirmAdd').addEventListener('click', () => {
         const key = overlay.querySelector('#modalEntryKey').value.trim();
         const model = overlay.querySelector('#modalEntryModel').value;
+        const variant = overlay.querySelector('#modalEntryVariant').value;
         const comment = overlay.querySelector('#modalEntryComment').value.trim();
         if (!key) { showToast('Key 不能为空', 'error'); return; }
         if (modelEntries.find(e => e.type === entryType && e.key === key)) { showToast('当前类型下 Key 已存在', 'error'); return; }
-        modelEntries.push({ id: modelEntryId(entryType, key), key, type: entryType, model: model || 'deepseek-v4-flash', variant: 'none', comment });
+        modelEntries.push({ id: modelEntryId(entryType, key), key, type: entryType, model: model || 'deepseek-v4-flash', variant, comment });
         if (!workingConfigJson[entryType]) workingConfigJson[entryType] = {};
-        workingConfigJson[entryType][key] = { model: model || 'deepseek-v4-flash', variant: 'none' };
+        workingConfigJson[entryType][key] = { model: model || 'deepseek-v4-flash', variant };
         overlay.remove();
         renderModelConfig();
         updateSaveStatus();
