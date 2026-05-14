@@ -19,6 +19,13 @@ type Manager struct {
 
 // NewManager 创建新的 Manager 实例。
 func NewManager() *Manager {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir != "" {
+		return &Manager{
+			globalDir: filepath.Join(dir, "opencode", "skills"),
+		}
+	}
+
 	homeDir, _ := os.UserHomeDir()
 	return &Manager{
 		globalDir: filepath.Join(homeDir, ".config", "opencode", "skills"),

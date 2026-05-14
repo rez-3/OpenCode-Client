@@ -31,6 +31,11 @@ func resolvePath(jsoncPath string) string {
 
 // ConfigPath 返回 oh-my-openagent.jsonc 的完整路径。
 func ConfigPath() string {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir != "" {
+		return resolvePath(filepath.Join(dir, "opencode", "oh-my-openagent.jsonc"))
+	}
+
 	home, _ := os.UserHomeDir()
 	return resolvePath(filepath.Join(home, ".config", "opencode", "oh-my-openagent.jsonc"))
 }

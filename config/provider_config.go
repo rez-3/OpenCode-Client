@@ -13,6 +13,10 @@ import (
 
 // OpenCodeConfigPath 返回 opencode.jsonc 的完整路径。
 func OpenCodeConfigPath() string {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir != "" {
+		return resolvePath(filepath.Join(dir, "opencode", "opencode.jsonc"))
+	}
 	home, _ := os.UserHomeDir()
 	return resolvePath(filepath.Join(home, ".config", "opencode", "opencode.jsonc"))
 }
