@@ -2102,6 +2102,24 @@ html, body {
     margin-left: auto;
 }
 
+.model-group-select-all {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+.model-group-select-all:hover {
+    color: var(--text-secondary);
+}
+.model-group-select-all input {
+    margin: 0;
+    cursor: pointer;
+}
+
 .btn-delete-type {
     width: 22px;
     height: 22px;

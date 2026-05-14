@@ -226,6 +226,20 @@ function createModelGroup(title, entries, entryType) {
     titleSpan.textContent = title;
     const headerActions = document.createElement('span');
     headerActions.className = 'model-group-actions';
+
+    // 卡片内全选
+    const selectAll = document.createElement('label');
+    selectAll.className = 'model-group-select-all';
+    selectAll.innerHTML = '<input type="checkbox"> 全选';
+    selectAll.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    selectAll.querySelector('input').addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        body.querySelectorAll('.model-check').forEach(cb => { cb.checked = checked; });
+    });
+    headerActions.appendChild(selectAll);
+
     const addBtn = document.createElement('button');
     addBtn.className = 'btn-add-entry';
     addBtn.dataset.type = entryType;
