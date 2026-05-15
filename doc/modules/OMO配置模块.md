@@ -170,10 +170,24 @@ type SchemeInfo struct {
 用户点击 💾 保存
   → 计算差异：modelEntries vs originalEntries
   → 无差异 → toast "没有需要保存的更改"
-  → 有差异 → api.UpdateModels(modelEntries)
-           ├ → config.SaveConfig: 行级替换 model 值
-           └ → config.ApplyDescriptions: 合并 key-comment 到 agents-comments.json
+  → 有差异 → handleSchemeApply()
+           ├ → buildMergedConfigForSave()
+           ├ → api.SaveFullConfig(JSON.stringify(...))
+           ├ → fullConfigJson / workingConfigJson / originalEntries 更新
+           └ → updateSaveStatus() / updateSchemeStatus() / renderModelConfig()
 ```
+
+当前方案切换/导入后的“保存并应用”策略已做收敛：
+
+- 页面保存前会先以“当前保存底稿”作为基底：
+  - 初始进入页面时，底稿来自当前系统配置 `fullConfigJson`
+  - 切换方案后，底稿更新为该方案的完整原始内容
+  - 导入外部方案后，底稿更新为导入内容的完整原始对象
+- 页面未显示的顶层字段（如 `$schema`、`sisyphus_agent` 以及其他隐藏字段）完整保留
+- 页面可编辑的模型分组（如 `agents`、`categories` 及其他模型 section）使用当前界面条目重建后覆盖
+- 最终通过完整 JSON 字符串写回，避免大范围方案切换时由行级 patch 生成非法 JSONC
+- 页面底部“保存”按钮与方案“保存并应用”入口已统一收口到 `handleSchemeApply()`，不再直接走 `UpdateModels(modelEntries)` 旧链路
+- 保存过程仍保留交互反馈：保存中提示、按钮禁用、按钮文案切换，保存成功后恢复
 
 ### 切换方案流程
 
@@ -258,7 +272,7 @@ function createModelGroup(title, entries, entryType) {
 ```
 
 - 页面加载时：`api.GetAgentDescriptions()` 加载 → 匹配 key → 填充 comment
-- 保存时：`api.UpdateModels()` 内部调用 `ApplyDescriptions()` → 合并新描述到文件
+- 保存时：`handleSchemeApply()` 通过完整合并后的 JSON 直接写回系统配置，描述表不会丢失；模型描述仍在页面加载时和导入/切换后通过 `api.GetAgentDescriptions()` + `applyDescriptions()` 补充
 - 切换/导入方案后：`applyDescriptions()` 异步加载补充描述
 
 ### 6.4 方案目录

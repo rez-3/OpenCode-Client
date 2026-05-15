@@ -12,6 +12,7 @@ const VARIANT_OPTIONS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'm
 
 let fullConfigJson = {};
 let workingConfigJson = {};
+let saveBaseConfigJson = {};
 
 // ========== 方案管理状态 ==========
 let schemeDir = '';
@@ -34,6 +35,7 @@ async function loadModelConfig() {
 
         fullConfigJson = JSON.parse(stripJsonComments(fullConfig) || '{}');
         workingConfigJson = JSON.parse(JSON.stringify(fullConfigJson || {}));
+        saveBaseConfigJson = JSON.parse(JSON.stringify(fullConfigJson || {}));
 
         // 从后端加载 agent/category 描述表
         let descMap = {};
@@ -486,6 +488,7 @@ async function loadSchemeIntoEditor(name) {
         const content = await api.ReadScheme(name);
         const data = JSON.parse(stripJsonComments(content));
         workingConfigJson = JSON.parse(JSON.stringify(data || {}));
+        saveBaseConfigJson = JSON.parse(JSON.stringify(data || {}));
         rebuildModelEntriesFromFull(workingConfigJson);
         await applyDescriptions();
         currentSourceType = 'scheme';
@@ -512,6 +515,18 @@ function buildModelConfig() {
         map[e.type][e.key] = { model: e.model, variant: e.variant };
     });
     return map;
+}
+
+function buildMergedConfigForSave() {
+    const merged = JSON.parse(JSON.stringify(saveBaseConfigJson || {}));
+    const visibleConfig = buildModelConfig();
+    for (const type of modelTypes) {
+        delete merged[type];
+    }
+    for (const [type, section] of Object.entries(visibleConfig)) {
+        merged[type] = section;
+    }
+    return merged;
 }
 
 // 从 workingConfigJson 重建编辑条目（不调用 renderModelConfig）
@@ -570,6 +585,7 @@ async function handleSchemeImport() {
             const text = await file.text();
             const data = JSON.parse(stripJsonComments(text));
             workingConfigJson = JSON.parse(JSON.stringify(data || {}));
+            saveBaseConfigJson = JSON.parse(JSON.stringify(data || {}));
             rebuildModelEntriesFromFull(workingConfigJson);
             await applyDescriptions();
             currentSourceType = 'imported';
@@ -591,7 +607,7 @@ async function handleSchemeExport() {
     const dir = await api.OpenDirectoryDialog();
     if (!dir) return;
     // 使用 workingConfigJson 输出完整结构
-    const content = JSON.stringify(workingConfigJson, null, 2);
+    const content = JSON.stringify(buildMergedConfigForSave(), null, 2);
     try {
         const savedPath = await api.ExportConfig(dir, name, content);
         showToast('已导出: ' + savedPath, 'success');
@@ -608,7 +624,7 @@ async function handleSchemeSave() {
         return;
     }
     try {
-        const content = JSON.stringify(workingConfigJson, null, 2);
+        const content = JSON.stringify(buildMergedConfigForSave(), null, 2);
         await api.SaveScheme(name, content);
         await initSchemes();
         showToast('已保存到方案目录: ' + name, 'success');
@@ -640,9 +656,19 @@ async function handleSchemeApply() {
         return;
     }
 
+    const btn = document.getElementById('btnSaveModels');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ 保存中...';
+    }
+    showToast('保存中...', 'info');
+
     try {
-        const result = await api.UpdateModels(modelEntries);
+        const result = await api.SaveFullConfig(JSON.stringify(buildMergedConfigForSave(), null, 2));
         if (result.success) {
+            fullConfigJson = buildMergedConfigForSave();
+            saveBaseConfigJson = JSON.parse(JSON.stringify(fullConfigJson || {}));
+            workingConfigJson = JSON.parse(JSON.stringify(fullConfigJson || {}));
             originalEntries = modelEntries.map(e => ({ ...e }));
             originalState = JSON.stringify(buildModelConfig());
             currentSourceType = 'system';
@@ -650,12 +676,18 @@ async function handleSchemeApply() {
             hasUnsavedChanges = false;
             updateSaveStatus();
             updateSchemeStatus();
-            showToast('已保存并应用配置', 'success');
+            renderModelConfig();
+            showToast(`已保存 ${totalChanges} 项更改`, 'success');
         } else {
             showToast('保存失败: ' + (result.error || '未知错误'), 'error');
         }
     } catch (err) {
         showToast('保存失败: ' + (err.message || err), 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '💾 保存';
+        }
     }
 }
 

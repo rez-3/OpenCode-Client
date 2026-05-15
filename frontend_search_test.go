@@ -167,3 +167,87 @@ func TestProviderViewIncludesNpmFormatOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestOmoSchemeSaveMergesHiddenFields(t *testing.T) {
+	js, err := os.ReadFile("frontend/dist/omo-config.js")
+	if err != nil {
+		t.Fatalf("读取 OMO 脚本失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"let saveBaseConfigJson = {};",
+		"function buildMergedConfigForSave() {",
+		"const merged = JSON.parse(JSON.stringify(saveBaseConfigJson || {}));",
+		"for (const type of modelTypes) {",
+		"delete merged[type];",
+		"JSON.stringify(buildMergedConfigForSave(), null, 2)",
+		"api.SaveFullConfig(",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("OMO 保存脚本缺少保存合并逻辑: %s", required)
+		}
+	}
+}
+
+func TestOmoSchemeSwitchUpdatesSaveBaseConfig(t *testing.T) {
+	js, err := os.ReadFile("frontend/dist/omo-config.js")
+	if err != nil {
+		t.Fatalf("读取 OMO 脚本失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"saveBaseConfigJson = JSON.parse(JSON.stringify(fullConfigJson || {}));",
+		"saveBaseConfigJson = JSON.parse(JSON.stringify(data || {}));",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("OMO 方案切换后未更新保存基底: %s", required)
+		}
+	}
+}
+
+func TestOmoSaveButtonUsesHandleSchemeApply(t *testing.T) {
+	js, err := os.ReadFile("frontend/dist/main.js")
+	if err != nil {
+		t.Fatalf("读取 main.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"if (typeof handleSchemeApply === 'function') {",
+		"await handleSchemeApply();",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("OMO 保存按钮未统一走 handleSchemeApply: %s", required)
+		}
+	}
+
+	forbidden := regexp.MustCompile(`(?s)document\.getElementById\('modelActions'\)\.addEventListener\('click', async \(e\) => \{.*?const result = await api\.UpdateModels\(modelEntries\);`)
+	if forbidden.MatchString(source) {
+		t.Fatal("OMO 保存按钮不应再直接调用 api.UpdateModels(modelEntries)")
+	}
+}
+
+func TestOmoSaveApplyKeepsButtonFeedback(t *testing.T) {
+	js, err := os.ReadFile("frontend/dist/omo-config.js")
+	if err != nil {
+		t.Fatalf("读取 OMO 脚本失败: %v", err)
+	}
+	source := string(js)
+	lowerSource := strings.ToLower(source)
+
+	for _, required := range []string{
+		"showtoast('保存中...', 'info');",
+		"btn.disabled = true;",
+		"btn.textcontent = '⏳ 保存中...';",
+		"btn.disabled = false;",
+		"btn.textcontent = '💾 保存';",
+		"已保存 ",
+		"rendermodelconfig();",
+	} {
+		if !strings.Contains(lowerSource, strings.ToLower(required)) {
+			t.Fatalf("OMO 保存交互缺少线索: %s", required)
+		}
+	}
+}

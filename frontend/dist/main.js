@@ -160,46 +160,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 保存 OMO 配置
     document.getElementById('modelActions').addEventListener('click', async (e) => {
         if (e.target.id !== 'btnSaveModels') return;
-        showToast('保存中...', 'info');
-        const totalChanges = modelEntries.filter(e => {
-            const orig = originalEntries.find(o => sameModelEntry(o, e));
-            return !orig || orig.model !== e.model || orig.variant !== e.variant;
-        }).length + originalEntries.filter(o => !modelEntries.find(e => sameModelEntry(e, o))).length;
-
-        if (totalChanges === 0) {
-            currentSourceType = 'system';
-            hasUnsavedChanges = false;
-            updateSchemeStatus();
-            showToast('没有需要保存的更改', 'info');
-            return;
+        if (typeof handleSchemeApply === 'function') {
+            await handleSchemeApply();
+        } else {
+            showToast('当前页面未加载 OMO 保存逻辑', 'error');
         }
-
-        const btn = e.target;
-        btn.disabled = true;
-        btn.textContent = '⏳ 保存中...';
-
-        try {
-            const result = await api.UpdateModels(modelEntries);
-            if (result.success) {
-                originalEntries = modelEntries.map(e => ({ ...e }));
-                updateSaveStatus();
-                showToast(`已保存 ${totalChanges} 项更改`, 'success');
-                if (typeof checkUnsavedChanges === 'function') {
-                    originalState = JSON.stringify(buildModelConfig());
-                    currentSourceType = 'system';
-                    hasUnsavedChanges = false;
-                    updateSchemeStatus();
-                }
-                renderModelConfig();
-            } else {
-                showToast('保存失败: ' + (result.error || '未知错误'), 'error');
-            }
-        } catch (err) {
-            showToast('保存失败: ' + (err.message || err), 'error');
-        }
-
-        btn.disabled = false;
-        btn.textContent = '💾 保存';
     });
 
     // ========================
