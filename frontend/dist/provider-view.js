@@ -53,11 +53,11 @@ function providerCardHtml(p) {
             <div class="provider-card-body">
                 <div style="display:flex;gap:10px">
                     <label style="flex:1">
-                        <span style="font-size:10px;color:var(--text-muted)">请求地址 (baseURL)</span>
+                        <span style="font-size:11px;font-weight:600;color:var(--text-muted)">请求地址 (baseURL)</span>
                         <input class="prov-edit-url" value="${escapeHtml(p.baseURL||'')}" placeholder="https://api.xxx.com/v1" style="width:100%;margin-top:2px" />
                     </label>
                     <label style="flex:1">
-                        <span style="font-size:10px;color:var(--text-muted)">API Key</span>
+                        <span style="font-size:10px;font-weight:600;color:var(--text-muted)">API Key</span>
                         <div style="display:flex;gap:0;margin-top:2px">
                             <input class="prov-edit-apikey" value="${escapeHtml(p.apiKey||'')}" type="password" placeholder="sk-..." style="width:100%;border-right:none;border-radius:4px 0 0 4px" />
                             <button class="btn-eye" type="button" title="切换明文">👁</button>
@@ -70,9 +70,9 @@ function providerCardHtml(p) {
                         ${(p.models||[]).map((m,i) => `
                             <div class="model-subcard">
                                 <div style="display:flex;align-items:center;gap:8px;flex:1">
-                                    <span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">模型ID</span>
+                                    <span style="font-size:11px;font-weight:600;color:var(--text-muted);width:45px;flex-shrink:0">模型ID</span>
                                     <input class="model-edit-id" value="${escapeHtml(m.id)}" placeholder="deepseek-v4-pro" style="font-size:12px;flex:1;width:50%" />
-                                    <span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">名称</span>
+                                    <span style="font-size:11px;font-weight:600;color:var(--text-muted);width:45px;flex-shrink:0">名称</span>
                                     <input class="model-edit-name" value="${escapeHtml(m.name||'')}" placeholder="DeepSeek-V4-Pro" style="font-size:12px;flex:1;width:50%" />
                                 </div>
                                 <button class="btn btn-del btn-del-model" title="删除">✕</button>

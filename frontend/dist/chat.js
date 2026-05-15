@@ -508,7 +508,6 @@ function handleOcEvent(event) {
             const status = props.status || props;
             if (status?.type === 'idle') {
                 loadMessages();
-                debounceRefreshTree();
             } else if (getCachedMessages(sid).length) {
                 scheduleRenderCachedMessages(sid);
                 scheduleSubtaskExtraction(sid);
@@ -524,7 +523,6 @@ function handleOcEvent(event) {
         if (sid === currentSessionId) {
             updateSendButton();
             loadMessages();
-            debounceRefreshTree();
         }
         return;
     }
@@ -560,14 +558,19 @@ function handleOcEvent(event) {
         return;
     }
 
-    if (type === 'session.created' || type === 'session.deleted') {
+    const isCurrentSession = sid && sid === currentSessionId;
+    if (type === 'session.created' && isCurrentSession) {
+        buildTree();
+        loadDiff();
+        return;
+    }
+    if (type === 'session.deleted') {
         buildTree();
         loadDiff();
         return;
     }
     if (type === 'session.updated') {
         loadDiff();
-        debounceRefreshTree();
     }
 }
 
@@ -1816,59 +1819,86 @@ function renderServiceStatus() {
     const box = document.getElementById('ocServices');
     box.innerHTML = '';
 
-    const serverSec = document.createElement('div');
-    serverSec.className = 'oc-service-group';
-    serverSec.innerHTML = '<div class="oc-service-group-title">服务器</div>';
+    // ── 服务器 — 始终展开 ──
     const health = serverStatus.health || (webRunning ? '未知' : '离线');
     const url = serverStatus.url || '--';
     const version = serverStatus.version || '--';
-    serverSec.innerHTML += `
-        <div class="oc-service-card">
-            <div class="oc-service-item"><span class="oc-service-dot ${serviceHealthClass(health)}"></span>健康状态 <span class="oc-service-state">${escapeHtml(health)}</span></div>
-            <div class="oc-service-field"><span>URL</span><code title="${escapeHtml(url)}">${escapeHtml(url)}</code></div>
-            <div class="oc-service-field"><span>版本</span><code>${escapeHtml(version)}</code></div>
-        </div>`;
+    const serverSec = document.createElement('div');
+    serverSec.className = 'oc-service-group';
+    serverSec.innerHTML =
+        '<div class="oc-service-group-title">' +
+            '<span class="oc-service-dot ' + serviceHealthClass(health) + '"></span>' +
+            '服务器' +
+        '</div>' +
+        '<div class="oc-service-card">' +
+            '<div class="oc-service-item"><span class="oc-service-dot ' + serviceHealthClass(health) + '"></span>健康状态 <span class="oc-service-state">' + escapeHtml(health) + '</span></div>' +
+            '<div class="oc-service-field"><span>URL</span><code title="' + escapeHtml(url) + '">' + escapeHtml(url) + '</code></div>' +
+            '<div class="oc-service-field"><span>版本</span><code>' + escapeHtml(version) + '</code></div>' +
+        '</div>';
     box.appendChild(serverSec);
 
+    // ── MCP 服务 — 点击展开/折叠 ──
     if (mcpStatus) {
-        const sec = document.createElement('div');
-        sec.className = 'oc-service-group';
-        sec.innerHTML = '<div class="oc-service-group-title">MCP 服务</div>';
         const entries = typeof mcpStatus === 'object' ? Object.entries(mcpStatus) : [];
-        if (!entries.length) {
-            sec.innerHTML += '<div class="oc-service-item"><span class="oc-service-dot off"></span>无已配置的 MCP 服务</div>';
+        const anyRunning = entries.some(([, info]) => info?.status === 'connected' || info?.connected || info?.running);
+        const anyFailed = entries.some(([, info]) => info?.status === 'error');
+        const dotClass = entries.length === 0 ? 'off' : (anyFailed ? 'off' : (anyRunning ? 'on' : 'off'));
+        const collapsed = entries.length > 0 ? ' collapsed' : '';
+
+        const sec = document.createElement('div');
+        sec.className = 'oc-service-group' + collapsed;
+        sec.innerHTML = '<div class="oc-service-group-title clickable">' +
+            '<span class="oc-service-dot ' + dotClass + '"></span>MCP 服务' +
+        '</div>';
+        if (entries.length === 0) {
+            sec.innerHTML += '<div class="oc-service-body"><div class="oc-service-item"><span class="oc-service-dot off"></span>无已配置的 MCP 服务</div></div>';
         } else {
+            let body = '<div class="oc-service-body">';
             entries.forEach(([name, info]) => {
                 const running = info?.status === 'connected' || info?.connected || info?.running;
-                const div = document.createElement('div');
-                div.className = 'oc-service-item';
-                div.innerHTML = `<span class="oc-service-dot ${running ? 'on' : 'off'}"></span>${escapeHtml(name)} <span class="oc-service-state">${running ? '已连接' : '未连接'}</span>`;
-                sec.appendChild(div);
+                body += '<div class="oc-service-item"><span class="oc-service-dot ' + (running ? 'on' : 'off') + '"></span>' + escapeHtml(name) + ' <span class="oc-service-state">' + (running ? '已连接' : '未连接') + '</span></div>';
             });
+            body += '</div>';
+            sec.innerHTML += body;
         }
+        sec.querySelector('.oc-service-group-title.clickable').addEventListener('click', function() {
+            sec.classList.toggle('collapsed');
+        });
         box.appendChild(sec);
     }
 
+    // ── LSP 服务 — 点击展开/折叠 ──
     if (lspStatus) {
-        const sec = document.createElement('div');
-        sec.className = 'oc-service-group';
-        sec.innerHTML = '<div class="oc-service-group-title">LSP 服务</div>';
         const entries = Array.isArray(lspStatus) ? lspStatus : Object.values(lspStatus || {});
-        if (!entries.length) {
-            sec.innerHTML += '<div class="oc-service-item"><span class="oc-service-dot off"></span>已从文件类型自动检测 LSP，打开代码文件后会启动匹配的服务</div>';
+        const anyRunning = entries.some(info => info?.status === 'connected' || info?.status === 'running' || info?.running || info?.connected);
+        const anyFailed = entries.some(info => info?.status === 'error');
+        const dotClass = entries.length === 0 ? 'off' : (anyFailed ? 'off' : (anyRunning ? 'on' : 'off'));
+        //const collapsed = entries.length > 0 ? ' collapsed' : '';
+        const collapsed = ' collapsed';
+
+        const sec = document.createElement('div');
+        sec.className = 'oc-service-group' + collapsed;
+        sec.innerHTML = '<div class="oc-service-group-title clickable">' +
+            '<span class="oc-service-dot ' + dotClass + '"></span>LSP 服务' +
+        '</div>';
+        if (entries.length === 0) {
+            sec.innerHTML += '<div class="oc-service-body"><div class="oc-service-item"><span class="oc-service-dot off"></span>已从文件类型自动检测 LSP，打开代码文件后会启动匹配的服务</div></div>';
         } else {
+            let body = '<div class="oc-service-body">';
             entries.forEach(info => {
                 const name = info?.name || info?.server || info?.language || '?';
                 const status = info?.status || '';
                 const running = status === 'connected' || status === 'running' || info?.running || info?.connected;
                 const failed = status === 'error';
                 const stateText = failed ? '异常' : (running ? '已连接' : '未启动');
-                const div = document.createElement('div');
-                div.className = 'oc-service-item';
-                div.innerHTML = `<span class="oc-service-dot ${running ? 'on' : 'off'}"></span>${escapeHtml(name)} <span class="oc-service-state">${stateText}</span>`;
-                sec.appendChild(div);
+                body += '<div class="oc-service-item"><span class="oc-service-dot ' + (running ? 'on' : 'off') + '"></span>' + escapeHtml(name) + ' <span class="oc-service-state">' + stateText + '</span></div>';
             });
+            body += '</div>';
+            sec.innerHTML += body;
         }
+        sec.querySelector('.oc-service-group-title.clickable').addEventListener('click', function() {
+            sec.classList.toggle('collapsed');
+        });
         box.appendChild(sec);
     }
 }

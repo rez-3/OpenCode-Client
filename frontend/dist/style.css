@@ -1437,6 +1437,18 @@ input::placeholder, textarea::placeholder {
     padding: 4px 2px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.oc-service-group-title.clickable {
+    cursor: pointer;
+}
+.oc-service-group-title.clickable:hover {
+    color: var(--text-primary);
+}
+.oc-service-group.collapsed .oc-service-body {
+    display: none;
 }
 .oc-service-item {
     display: flex;
@@ -2971,7 +2983,7 @@ input::placeholder, textarea::placeholder {
     margin-top: 6px;
 }
 .provider-models-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 4px;

@@ -34,6 +34,14 @@ type App struct {
 | Web 服务 | `StartOpenCodeWeb`, `StopOpenCodeWeb`, `GetWebStatus`, `OpenCodeAPI`, `CreateSession`, `AnswerQuestion`, `RejectQuestion`, `GetProjectTree`, `StartOpenCodeEvents`, `StopOpenCodeEvents`, `LaunchWindowsTerminal`, `OpenDirectoryDialog`, `GetOpenCodeCommands`, `GetSessions` | `service` 包 |
 | 通用 | `OpenDir` | — |
 
+其中 `GetProjectTree()` 负责返回项目 → 目录 → 会话的树形 JSON，`GetOpenCodeCommands()` 负责为 `/` 命令面板拉取动态命令列表；二者都委托给 `service` 层，不在 `app.go` 中内联业务逻辑。
+
+其中与工作区最相关的链路是：
+
+- `GetProjectTree()` → `service/tree.go` 构建项目 → 目录 → 会话树
+- `StartOpenCodeEvents()` / `StopOpenCodeEvents()` → `service/sse.go` 转发 OpenCode 全局 SSE
+- `GetOpenCodeCommands()` → `service/tree.go` 读取 `/command` 供 `/` 命令面板使用
+
 ### 2.3 类型别名
 
 ```go
@@ -105,8 +113,8 @@ var (
 |------|------|
 | `process.go` | OpenCode serve 进程管理（启动/停止/健康检查/终端启动） |
 | `api.go` | 通用 HTTP API 代理 + 会话创建 + question 应答 |
-| `sse.go` | SSE 事件流透传到前端 |
-| `tree.go` | 项目树构建（项目→目录→会话三级结构）+ 命令面板 |
+| `sse.go` | SSE 事件流透传到前端运行时事件 |
+| `tree.go` | 项目树构建（项目→目录→会话三级结构）+ `/command` 命令面板数据 |
 | `scheme.go` | 方案文件管理：`ListSchemes` / `ReadScheme` / `SaveScheme` / `ExportConfig` / `OpenSchemeDir` |
 
 ---

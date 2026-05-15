@@ -81,3 +81,39 @@ func TestSessionTooltipIncludesTitleDirectoryAndUpdatedAt(t *testing.T) {
 		}
 	}
 }
+
+func TestProjectTreeRefreshOnlyOnStructuralSessionEvents(t *testing.T) {
+	chatBytes, err := os.ReadFile("frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取聊天脚本失败: %v", err)
+	}
+	chatSource := string(chatBytes)
+
+	for _, required := range []string{
+		`if (type === 'session.deleted') {`,
+		`buildTree();`,
+		`const isCurrentSession = sid && sid === currentSessionId;`,
+		`if (type === 'session.created' && isCurrentSession) {`,
+	} {
+		if !strings.Contains(chatSource, required) {
+			t.Fatalf("项目树缺少结构性会话事件刷新逻辑: %s", required)
+		}
+	}
+
+	forbiddenPatterns := map[string]*regexp.Regexp{
+		"session.status idle 刷新项目树": regexp.MustCompile(`(?s)if \(type === 'session\.status' && sid\) \{.*?if \(status\?\.type === 'idle'\) \{\s*loadMessages\(\);\s*debounceRefreshTree\(\);`),
+		"session.idle 刷新项目树":       regexp.MustCompile(`(?s)if \(type === 'session\.idle' && sid\) \{.*?loadMessages\(\);\s*debounceRefreshTree\(\);`),
+		"session.updated 刷新项目树":    regexp.MustCompile(`(?s)if \(type === 'session\.updated'\) \{\s*loadDiff\(\);\s*debounceRefreshTree\(\);`),
+	}
+
+	for name, pattern := range forbiddenPatterns {
+		if pattern.MatchString(chatSource) {
+			t.Fatalf("会话过程事件不应触发项目树刷新: %s", name)
+		}
+	}
+
+	createdRefreshRe := regexp.MustCompile(`(?s)if \(type === 'session\.created' \|\| type === 'session\.deleted'\) \{\s*buildTree\(\);`)
+	if createdRefreshRe.MatchString(chatSource) {
+		t.Fatal("session.created 不应再无条件触发项目树刷新")
+	}
+}
