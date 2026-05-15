@@ -1,86 +1,100 @@
 /* ============================================================
-   OpenCode 管理中心 - 主样式表
-   VSCode Dark+/Light+ 风格主题系统
+   OpenCode 管理中心 - 主样式表   Apple 设计风格主题系统
    ============================================================ */
 
-/* ========== CSS 变量 — 深色主题 (VSCode Dark+ 风格) ========== */
+/* ========== CSS 变量 — 浅色主题 (Apple 风格) ========== */
 :root {
-    --bg-primary: #1e1e1e;
-    --bg-secondary: #252526;
-    --bg-card: #2d2d2d;
-    --bg-card-hover: #333333;
-    --bg-input: #3c3c3c;
-    --bg-sidebar: #252526;
-    --bg-sidebar-hover: #2a2d2e;
-    --bg-sidebar-active: #37373d;
+    /* 品牌色 — 唯一可交互色 */
+    --accent: #0066cc;
+    --accent-hover: #0077ed;
+    --accent-glow: rgba(0, 102, 204, 0.15);
+    --accent-ghost: rgba(0, 102, 204, 0.06);
 
-    --text-primary: #cccccc;
-    --text-secondary: #9d9d9d;
-    --text-muted: #6a6a6a;
+    /* 表面 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f7;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f5f5f7;
+    --bg-input: #fff;
+    --bg-sidebar: #f5f5f7;
+    --bg-sidebar-hover: #ebebed;
+    --bg-sidebar-active: #e8e8ed;
 
-    --accent: #007acc;
-    --accent-hover: #1a8ad4;
-    --accent-glow: rgba(0, 122, 204, 0.25);
+    /* 文字 */
+    --text-primary: #1d1d1f;
+    --text-secondary: #333333;
+    --text-muted: #86868b;
 
-    --success: #4ec9b0;
-    --success-bg: rgba(78, 201, 176, 0.12);
-    --danger: #f44747;
-    --danger-bg: rgba(244, 71, 71, 0.12);
-    --warning: #cca700;
+    /* 状态色 */
+    --success: #34c759;
+    --success-bg: rgba(52, 199, 89, 0.08);
+    --danger: #ff3b30;
+    --danger-bg: rgba(255, 59, 48, 0.08);
+    --warning: #ff9500;
+    --warning-bg: rgba(255, 149, 0, 0.08);
 
-    --accent-ghost: rgba(0, 122, 204, 0.08);
-    --success-glow: rgba(78, 201, 176, 0.35);
+    --success-glow: rgba(52, 199, 89, 0.15);
 
-    --border: #3c3c3c;
-    --border-light: #474747;
+    /* 边框 */
+    --border: #e0e0e0;
+    --border-light: #d1d1d6;
 
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
+    /* 阴影 — Apple 只用一种极轻阴影 */
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
 
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 6px 10px -2px rgba(0, 0, 0, 0.35), 0 3px 5px -3px rgba(0, 0, 0, 0.35);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    /* 圆角 (Apple 风格) */
+    --radius-xs: 5px;
+    --radius-sm: 8px;
+    --radius-md: 11px;
+    --radius-lg: 18px;
+    --radius-pill: 9999px;
 
-    --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    --sidebar-width: 180px;
-    --header-height: 52px;
+    /* 过渡 */
+    --transition: 0.2s ease;
+
+    /* 布局 */
+    --header-height: 48px;
+    --sidebar-width: 160px;
 }
 
-/* ========== CSS 变量 — 浅色主题 (VSCode Light+ 风格) ========== */
-[data-theme="light"] {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f3f3f3;
-    --bg-card: #ffffff;
-    --bg-card-hover: #f0f0f0;
-    --bg-input: #ffffff;
-    --bg-sidebar: #f3f3f3;
-    --bg-sidebar-hover: #e8e8e8;
-    --bg-sidebar-active: #e0e0e0;
+/* ========== CSS 变量 — 深色主题 (Apple 暗色覆盖) ========== */
+[data-theme="dark"] {
+    --bg-primary: #1a1a1c;
+    --bg-secondary: #242426;
+    --bg-card: #2a2a2c;
+    --bg-card-hover: #303032;
+    --bg-input: #2a2a2c;
+    --bg-sidebar: #1e1e20;
+    --bg-sidebar-hover: #2a2a2c;
+    --bg-sidebar-active: #303032;
 
-    --text-primary: #1e1e1e;
-    --text-secondary: #616161;
-    --text-muted: #8e8e8e;
+    --text-primary: #f5f5f7;
+    --text-secondary: #a1a1a6;
+    --text-muted: #6e6e73;
 
-    --accent: #007acc;
-    --accent-hover: #0062a3;
-    --accent-glow: rgba(0, 122, 204, 0.2);
+    --border: #3a3a3c;
+    --border-light: #48484a;
 
-    --success: #388a34;
-    --success-bg: rgba(56, 138, 52, 0.12);
-    --danger: #d83b01;
-    --danger-bg: rgba(216, 59, 1, 0.12);
-    --warning: #ca5010;
+    --shadow: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.25);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.35);
 
-    --accent-ghost: rgba(0, 122, 204, 0.06);
-    --success-glow: rgba(56, 138, 52, 0.35);
+    /* 暗色下品牌蓝需提亮 */
+    --accent: #2997ff;
+    --accent-hover: #40a5ff;
+    --accent-glow: rgba(41, 151, 255, 0.15);
+    --accent-ghost: rgba(41, 151, 255, 0.08);
 
-    --border: #e0e0e0;
-    --border-light: #cccccc;
+    --success: #30d158;
+    --success-bg: rgba(48, 209, 88, 0.12);
+    --danger: #ff453a;
+    --danger-bg: rgba(255, 69, 58, 0.12);
+    --warning: #ff9f0a;
+    --warning-bg: rgba(255, 159, 10, 0.12);
 
-    --shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+    --success-glow: rgba(48, 209, 88, 0.15);
 }
 
 /* ========== 基础重置 ========== */
@@ -95,29 +109,58 @@ html, body {
     width: 100%;
     display: flex;
     flex-direction: column;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.47;
+    letter-spacing: -0.022em;
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.5;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* ========== 滚动条 ========== */
+/* ========== 全局表单元素 (Apple 风格) ========== */
+input[type="text"],
+input[type="search"],
+input[type="password"],
+input[type="number"],
+input:not([type]),
+select,
+textarea {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color var(--transition);
+}
+input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+}
+input::placeholder, textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* ========== 滚动条 (Apple 风格) ========== */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: var(--bg-primary);
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: var(--border-light);
-    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: rgba(128, 128, 128, 0.5);
 }
 
 /* ========== 顶部导航栏 ========== */
@@ -126,8 +169,8 @@ html, body {
     align-items: center;
     justify-content: space-between;
     height: var(--header-height);
-    padding: 0 20px;
-    background: var(--bg-secondary);
+    padding: 0 17px;
+    background: var(--bg-sidebar);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     -webkit-app-region: drag;
@@ -141,42 +184,47 @@ html, body {
 }
 
 .app-title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    letter-spacing: 0.3px;
+    letter-spacing: -0.01em;
 }
 
-/* ========== 按钮 ========== */
+/* ========== 按钮 (Apple 风格) ========== */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 16px;
+    padding: 8px 18px;
     border: none;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
+    border-radius: var(--radius-pill);
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition);
     white-space: nowrap;
     outline: none;
     font-family: inherit;
+    letter-spacing: -0.01em;
+}
+
+.btn:active {
+    transform: scale(0.97);
 }
 
 .btn:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
 }
 
 .btn-primary {
     background: var(--accent);
-    color: white;
+    color: #fff;
+    border-radius: var(--radius-pill);
 }
 .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
-    box-shadow: 0 0 12px var(--accent-glow);
 }
 
 .btn-refresh {
@@ -185,9 +233,9 @@ html, body {
     border: 1px solid var(--border);
 }
 .btn-refresh:hover:not(:disabled) {
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border-color: var(--border-light);
+    background: var(--bg-card-hover);
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 .btn-theme {
@@ -209,8 +257,9 @@ html, body {
 }
 
 .btn-sm {
-    padding: 5px 12px;
-    font-size: 12px;
+    padding: 5px 14px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
     background: var(--bg-input);
     color: var(--text-secondary);
     border: 1px solid var(--border);
@@ -218,7 +267,7 @@ html, body {
 }
 
 .btn-sm:hover:not(:disabled) {
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
     color: var(--accent);
     border-color: var(--accent);
 }
@@ -239,7 +288,7 @@ html, body {
     justify-content: center;
 }
 .btn-icon:hover {
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
     color: var(--text-primary);
 }
 
@@ -250,7 +299,7 @@ html, body {
     flex-shrink: 0;
 }
 .btn-open:hover:not(:disabled) {
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
     color: var(--accent);
     border-color: var(--accent);
 }
@@ -262,7 +311,7 @@ html, body {
 }
 .btn-success:hover:not(:disabled) {
     background: var(--success);
-    color: white;
+    color: #fff;
 }
 
 .btn-danger-outline {
@@ -272,7 +321,7 @@ html, body {
 }
 .btn-danger-outline:hover:not(:disabled) {
     background: var(--danger);
-    color: white;
+    color: #fff;
 }
 
 .btn-config {
@@ -283,7 +332,7 @@ html, body {
 }
 .btn-config:hover:not(:disabled) {
     background: var(--accent);
-    color: white;
+    color: #fff;
 }
 
 .btn-proxy {
@@ -300,7 +349,6 @@ html, body {
     background: var(--success-bg);
     color: var(--success);
     border-color: var(--success);
-    box-shadow: 0 0 12px var(--success-glow);
 }
 
 .btn-launch {
@@ -327,7 +375,7 @@ html, body {
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 8px 0;
+    padding: 8px 6px;
     overflow-y: auto;
 }
 
@@ -335,15 +383,14 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 16px;
-    margin: 1px 8px;
-    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin: 1px 0;
+    border-radius: var(--radius-md);
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     transition: all var(--transition);
-    border-left: 3px solid transparent;
     position: relative;
 }
 
@@ -355,12 +402,11 @@ html, body {
 .nav-item.active {
     background: var(--bg-sidebar-active);
     color: var(--text-primary);
-    border-left-color: var(--accent);
     font-weight: 600;
 }
 
 .nav-icon {
-    font-size: 16px;
+    font-size: 17px;
     width: 22px;
     text-align: center;
     flex-shrink: 0;
@@ -465,7 +511,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 16px;
+    padding: 8px 17px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
@@ -548,7 +594,7 @@ html, body {
 }
 .oc-toggle-btn:hover {
     opacity: 0.9;
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
     color: var(--text-primary);
 }
 .oc-toggle-left {
@@ -571,7 +617,7 @@ html, body {
 
 .oc-panel-head,
 .oc-chat-head {
-    height: 42px;
+    height: 44px;
     padding: 0 12px;
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -692,16 +738,16 @@ html, body {
     display: inline-block;
     font-size: 10px;
     padding: 1px 6px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-weight: 600;
     line-height: 1.4;
     flex-shrink: 0;
     vertical-align: middle;
 }
 .oc-subtask-status-badge.status-completed { background: var(--success-bg); color: var(--success); }
-.oc-subtask-status-badge.status-running   { background: rgba(0,122,204,0.12); color: var(--accent); }
+.oc-subtask-status-badge.status-running   { background: var(--accent-ghost); color: var(--accent); }
 .oc-subtask-status-badge.status-error     { background: var(--danger-bg); color: var(--danger); }
-.oc-subtask-status-badge.status-interrupt { background: rgba(204,167,0,0.12); color: var(--warning); }
+.oc-subtask-status-badge.status-interrupt { background: var(--warning-bg); color: var(--warning); }
 .oc-subtask-status-badge.status-pending   { background: var(--bg-input); color: var(--text-muted); }
 
 /* 主消息高亮动画 */
@@ -744,19 +790,20 @@ html, body {
     display: inline-block;
     font-size: 11px;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-weight: 500;
     flex-shrink: 0;
 }
 .subtask-status-badge[data-status="completed"] { background: var(--success-bg); color: var(--success); }
-.subtask-status-badge[data-status="running"]   { background: rgba(0,122,204,0.12); color: var(--accent); }
+.subtask-status-badge[data-status="running"]   { background: var(--accent-ghost); color: var(--accent); }
 .subtask-status-badge[data-status="error"]     { background: var(--danger-bg); color: var(--danger); }
-.subtask-status-badge[data-status="interrupt"] { background: rgba(204,167,0,0.12); color: var(--warning); }
+.subtask-status-badge[data-status="interrupt"] { background: var(--warning-bg); color: var(--warning); }
 .oc-panel-actions {
     display: flex;
     align-items: center;
     gap: 6px;
 }
+
 /* ==================== 项目树 ==================== */
 .oc-tree {
     flex: 1;
@@ -866,7 +913,7 @@ html, body {
     background: var(--danger-bg);
 }
 .oc-tree-session:hover {
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
     color: var(--text-primary);
 }
 .oc-tree-session.active {
@@ -890,10 +937,10 @@ html, body {
 .oc-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 17px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 17px;
     height: 100%;
     position: relative;
     user-select: text;
@@ -902,16 +949,16 @@ html, body {
 }
 .oc-scroll-bottom {
     position: absolute;
-    right: 16px;
+    right: 17px;
     bottom: 12px;
     z-index: 8;
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--border);
     background: var(--bg-card);
     color: var(--text-primary);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow);
     cursor: pointer;
     opacity: 0;
     transform: translateY(8px) scale(0.96);
@@ -938,13 +985,13 @@ html, body {
     align-self: flex-end;
     background: var(--accent-ghost);
     border: 1px solid var(--accent);
-    border-bottom-right-radius: 4px;
+    border-bottom-right-radius: var(--radius-xs);
 }
 .oc-message.assistant {
     align-self: flex-start;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-bottom-left-radius: 4px;
+    border-bottom-left-radius: var(--radius-xs);
 }
 .oc-message-role {
     font-size: 10px;
@@ -999,7 +1046,7 @@ html, body {
     color: var(--text-muted);
 }
 .oc-step-label { font-weight: 600; }
-.oc-step-cost { font-family: "Cascadia Code", monospace; font-size: 10px; }
+.oc-step-cost { font-family: "SF Mono", "Cascadia Code", monospace; font-size: 10px; }
 
 /* ── 上下文压缩 ── */
 .oc-compaction {
@@ -1024,7 +1071,7 @@ html, body {
 }
 .oc-snapshot-icon { font-size: 13px; }
 .oc-snapshot-hash {
-    font-family: "Cascadia Code", monospace;
+    font-family: "SF Mono", "Cascadia Code", monospace;
     font-size: 10px;
     color: var(--text-muted);
     opacity: 0.6;
@@ -1049,6 +1096,7 @@ html, body {
 .oc-reasoning {
     border: 1px solid var(--border);
     background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
     overflow: hidden;
 }
 .oc-reasoning-head {
@@ -1078,7 +1126,7 @@ html, body {
 .oc-reasoning-body ul, .oc-reasoning-body ol { padding-left: 16px; margin: 4px 0; }
 .oc-reasoning-body li { margin: 2px 0; }
 .oc-reasoning-body code {
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 0.9em;
     background: var(--bg-card);
     padding: 1px 4px;
@@ -1093,7 +1141,7 @@ html, body {
     border-radius: var(--radius-sm);
     white-space: pre-wrap;
     word-break: break-word;
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 11px;
     color: var(--text-secondary);
     line-height: 1.5;
@@ -1120,6 +1168,7 @@ html, body {
 .oc-tool {
     border: 1px solid var(--border);
     background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
     overflow: hidden;
 }
 .oc-tool.done { border-left: 3px solid var(--success); }
@@ -1166,13 +1215,13 @@ html, body {
     white-space: pre-wrap;
     word-break: break-word;
     overflow-x: auto;
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 11px;
     color: var(--text-primary);
     line-height: 1.5;
     background: var(--bg-card);
     padding: 6px 8px;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     display: block;
 }
 .oc-tool-error .oc-tool-io-label { color: var(--danger); }
@@ -1181,7 +1230,7 @@ html, body {
 .oc-text {
     line-height: 1.7;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 14px;
 }
 .oc-text h1, .oc-text h2, .oc-text h3, .oc-text h4, .oc-text h5, .oc-text h6 {
     margin: 12px 0 6px;
@@ -1195,11 +1244,11 @@ html, body {
 .oc-text ul, .oc-text ol { padding-left: 20px; margin: 4px 0; }
 .oc-text li { margin: 2px 0; }
 .oc-text code {
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 0.9em;
     background: var(--bg-secondary);
     padding: 1px 5px;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     color: var(--accent);
 }
 .oc-text pre {
@@ -1298,7 +1347,7 @@ html, body {
     white-space: pre-wrap;
     word-break: break-word;
     overflow-x: auto;
-    font-family: "Cascadia Code", monospace;
+    font-family: "SF Mono", "Cascadia Code", monospace;
     font-size: 11px;
     color: var(--text-secondary);
 }
@@ -1308,7 +1357,7 @@ html, body {
     color: var(--text-secondary);
 }
 .oc-patch-hash code {
-    font-family: "Cascadia Code", monospace;
+    font-family: "SF Mono", "Cascadia Code", monospace;
     font-size: 11px;
     color: var(--accent);
 }
@@ -1348,13 +1397,13 @@ html, body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     cursor: pointer;
     transition: color 0.15s;
 }
 
 .oc-dir-bar-path:hover {
-    color: var(--accent, #007acc);
+    color: var(--accent);
     text-decoration: underline;
 }
 
@@ -1409,7 +1458,6 @@ html, body {
 }
 .oc-service-dot.on {
     background: var(--success);
-    box-shadow: 0 0 4px var(--success-glow);
 }
 .oc-service-dot.off {
     background: var(--text-muted);
@@ -1451,7 +1499,7 @@ html, body {
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text-primary);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 11px;
 }
 
@@ -1497,11 +1545,11 @@ html, body {
 }
 .oc-todo-check {
     flex-shrink: 0;
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
     margin-top: 1px;
     border: 1.5px solid var(--border-light);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     color: var(--text-muted);
     font-size: 10px;
     display: flex;
@@ -1557,7 +1605,7 @@ html, body {
     white-space: pre-wrap;
     word-break: break-word;
     color: var(--text-secondary);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 11px;
     user-select: text;
     -webkit-user-select: text;
@@ -1613,7 +1661,7 @@ html, body {
     margin-left: auto;
     font-size: 11px;
     color: var(--text-muted);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     flex-shrink: 0;
 }
 .oc-tree-children.hidden,
@@ -1632,7 +1680,7 @@ html, body {
     white-space: pre-wrap;
     word-break: break-word;
     color: var(--text-secondary);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-size: 11px;
     user-select: text;
     -webkit-user-select: text;
@@ -1654,10 +1702,10 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 10px 6px;
+    padding: 10px 12px 8px;
     background: var(--bg-input);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 .oc-input-wrap textarea {
@@ -1668,7 +1716,7 @@ html, body {
     background: transparent;
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
     resize: none;
     outline: none;
@@ -1718,7 +1766,7 @@ html, body {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 5px 12px;
+    padding: 6px 12px;
     cursor: pointer;
     font-size: 12px;
     line-height: 1.5;
@@ -1730,7 +1778,7 @@ html, body {
 }
 .oc-cmd-name {
     color: var(--accent);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     font-weight: 600;
     white-space: nowrap;
     flex-shrink: 0;
@@ -1749,7 +1797,7 @@ html, body {
     flex-shrink: 0;
     padding: 1px 5px;
     background: var(--bg-input);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
 }
 .oc-cmd-source.fixed {
     color: var(--accent);
@@ -1763,8 +1811,8 @@ html, body {
 }
 .oc-empty {
     color: var(--text-muted);
-    font-size: 12px;
-    padding: 16px;
+    font-size: 13px;
+    padding: 20px;
     text-align: center;
 }
 .oc-empty.error {
@@ -1801,7 +1849,7 @@ html, body {
     align-items: center;
     gap: 4px;
     max-width: 200px;
-    padding: 3px 6px;
+    padding: 3px 8px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1828,9 +1876,9 @@ html, body {
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 4px 8px;
+    padding: 6px 10px;
     width: 200px;
-    font-family: monospace;
+    font-family: "SF Mono", monospace;
     outline: none;
 }
 .oc-dir-input.set {
@@ -1845,7 +1893,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-top: 1px solid var(--border);
     background: var(--bg-secondary);
     flex-shrink: 0;
@@ -1856,13 +1904,13 @@ html, body {
     line-height: 1;
 }
 .oc-model-select {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 10px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
     background: var(--bg-input);
     color: var(--text-primary);
     border: 1px solid var(--border);
-    font-family: monospace;
+    font-family: "SF Mono", monospace;
     cursor: pointer;
     outline: none;
     min-width: 80px;
@@ -1870,10 +1918,9 @@ html, body {
 }
 .oc-model-select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent-ghost);
 }
 .oc-model-select option {
-    font-family: monospace;
+    font-family: "SF Mono", monospace;
     font-size: 11px;
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -1884,7 +1931,7 @@ html, body {
 .batch-model-bar {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     padding: 8px 18px;
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
@@ -1919,11 +1966,13 @@ html, body {
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.4);
     z-index: 300;
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 .modal {
     background: var(--bg-secondary);
@@ -1936,28 +1985,29 @@ html, body {
     box-shadow: var(--shadow-lg);
 }
 .modal h3 {
-    font-size: 16px;
+    font-size: 17px;
     color: var(--text-primary);
-    margin-bottom: 16px;
+    margin-bottom: 17px;
+    font-weight: 600;
 }
 .modal-field {
     margin-bottom: 12px;
 }
 .modal-field label {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
     margin-bottom: 4px;
     font-weight: 500;
 }
 .modal-field input {
     width: 100%;
-    padding: 6px 10px;
+    padding: 8px 12px;
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
 }
 .modal-field input:focus {
@@ -1967,7 +2017,7 @@ html, body {
     display: flex;
     gap: 8px;
     justify-content: flex-end;
-    margin-top: 16px;
+    margin-top: 20px;
 }
 .proxy-modal {
     width: 460px;
@@ -2010,7 +2060,7 @@ html, body {
 }
 .proxy-preview {
     min-height: 32px;
-    padding: 8px 10px;
+    padding: 8px 12px;
     border-radius: var(--radius-sm);
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -2024,20 +2074,20 @@ html, body {
     background: var(--bg-input);
     color: var(--text-secondary);
     border: 1px solid var(--border);
-    padding: 6px 16px;
-    border-radius: var(--radius-sm);
+    padding: 8px 18px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* ============================================================
    View 2: OMO 配置
    ============================================================ */
 .model-list {
-    padding: 12px 18px;
+    padding: 12px 24px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 
 .model-group {
@@ -2047,8 +2097,8 @@ html, body {
 }
 
 .model-group-title {
-    padding: 12px 18px;
-    font-size: 14px;
+    padding: 14px 20px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
     background: var(--bg-secondary);
@@ -2062,8 +2112,8 @@ html, body {
 }
 .btn-add-entry {
     margin-left: auto;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     font-size: 14px;
     font-weight: bold;
     border-radius: 50%;
@@ -2077,7 +2127,7 @@ html, body {
 }
 .btn-add-entry:hover {
     background: var(--accent);
-    color: white;
+    color: #fff;
 }
 
 .model-group-title:hover {
@@ -2121,20 +2171,20 @@ html, body {
 }
 
 .btn-delete-type {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    border: 1px solid var(--danger, #ef4444);
+    border: 1px solid var(--border);
     background: transparent;
-    color: var(--danger, #ef4444);
+    color: var(--danger);
     cursor: pointer;
     line-height: 1;
     font-size: 12px;
 }
 
 .btn-delete-type:hover {
-    background: var(--danger, #ef4444);
-    color: white;
+    background: var(--danger);
+    color: #fff;
 }
 
 .model-group-title.collapsed::before {
@@ -2153,7 +2203,7 @@ html, body {
 .model-row {
     display: flex;
     flex-direction: column;
-    padding: 10px 18px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--border);
     transition: background var(--transition);
     gap: 4px;
@@ -2185,7 +2235,7 @@ html, body {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-primary);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2199,23 +2249,15 @@ html, body {
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 12px;
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     cursor: pointer;
     outline: none;
     transition: border-color var(--transition);
     max-width: 400px;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 8px center;
-    background-repeat: no-repeat;
-    background-size: 16px;
-    padding-right: 32px;
 }
 
 .model-select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .model-select option {
@@ -2232,22 +2274,14 @@ html, body {
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 12px;
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     cursor: pointer;
     outline: none;
     transition: border-color var(--transition);
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 6px center;
-    background-repeat: no-repeat;
-    background-size: 14px;
-    padding-right: 28px;
 }
 
 .model-variant-select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .model-variant-select option {
@@ -2260,7 +2294,7 @@ html, body {
     font-weight: 600;
     text-transform: uppercase;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--radius-pill);
     background: var(--bg-input);
     color: var(--text-muted);
     letter-spacing: 0.5px;
@@ -2275,7 +2309,7 @@ html, body {
 }
 
 .model-group-empty {
-    padding: 14px 18px;
+    padding: 14px 20px;
     color: var(--text-muted);
     font-size: 12px;
     border: 1px dashed var(--border);
@@ -2306,7 +2340,7 @@ html, body {
 
 .btn-add-type:hover:not(:disabled) {
     background: var(--accent);
-    color: white;
+    color: #fff;
 }
 
 .save-status {
@@ -2373,7 +2407,7 @@ html, body {
 
 .path-value {
     color: var(--text-secondary);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2442,7 +2476,7 @@ html, body {
     border: 1px solid var(--border);
 }
 .omo-action-btn:hover:not(:disabled) {
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
     color: var(--text-primary);
     border-color: var(--border-light);
 }
@@ -2471,7 +2505,7 @@ html, body {
 }
 .omo-scheme-select {
     font-size: 13px;
-    padding: 2px 6px;
+    padding: 4px 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg-input);
@@ -2541,10 +2575,10 @@ html, body {
 .skill-list {
     flex: none;
     overflow-y: visible;
-    padding: 8px 16px;
+    padding: 8px 24px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 /* 技能卡片 */
@@ -2559,7 +2593,6 @@ html, body {
 
 .skill-card:hover {
     border-color: var(--border-light);
-    box-shadow: var(--shadow);
     background: var(--bg-card-hover);
 }
 
@@ -2567,7 +2600,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 10px 14px;
     gap: 8px;
 }
 
@@ -2624,10 +2657,10 @@ html, body {
 
 .toggle-slider {
     position: relative;
-    width: 40px;
-    height: 22px;
+    width: 42px;
+    height: 24px;
     background: var(--bg-input);
-    border-radius: 11px;
+    border-radius: 12px;
     transition: all var(--transition);
     border: 2px solid var(--border);
 }
@@ -2637,22 +2670,21 @@ html, body {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     background: var(--text-muted);
     border-radius: 50%;
     transition: all var(--transition);
 }
 
 .toggle input:checked + .toggle-slider {
-    background: var(--success-bg);
+    background: var(--success);
     border-color: var(--success);
 }
 
 .toggle input:checked + .toggle-slider::after {
-    background: var(--success);
+    background: #fff;
     left: 20px;
-    box-shadow: 0 0 6px var(--success-glow);
 }
 
 .toggle input:disabled + .toggle-slider {
@@ -2673,7 +2705,7 @@ html, body {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    padding: 0 16px;
+    padding: 0 17px;
 }
 
 .cmd-tab {
@@ -2703,7 +2735,7 @@ html, body {
 .cmd-content {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 24px;
+    padding: 20px 24px;
 }
 
 .cmd-group {
@@ -2729,7 +2761,7 @@ html, body {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 14px 16px;
+    padding: 14px 17px;
     transition: all var(--transition);
     display: flex;
     flex-direction: column;
@@ -2738,7 +2770,6 @@ html, body {
 
 .cmd-card:hover {
     border-color: var(--border-light);
-    box-shadow: var(--shadow);
     background: var(--bg-card-hover);
 }
 
@@ -2753,29 +2784,29 @@ html, body {
     font-size: 16px;
     font-weight: 700;
     color: var(--accent);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     letter-spacing: -0.3px;
 }
 
 .cmd-card-sub {
     font-size: 12px;
     color: var(--text-muted);
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     background: var(--bg-input);
     padding: 1px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
 }
 
 .cmd-card-shortcut {
     font-size: 10px;
     font-weight: 600;
     color: var(--warning);
-    background: rgba(204, 167, 0, 0.12);
+    background: var(--warning-bg);
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--radius-pill);
     letter-spacing: 0.5px;
     margin-left: auto;
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     white-space: nowrap;
 }
 
@@ -2821,7 +2852,7 @@ html, body {
 }
 
 .empty-hint, .error-detail {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -2835,9 +2866,9 @@ html, body {
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%) translateY(100px);
-    padding: 10px 20px;
-    border-radius: var(--radius-md);
-    font-size: 13px;
+    padding: 12px 24px;
+    border-radius: var(--radius-pill);
+    font-size: 14px;
     font-weight: 500;
     z-index: 1000;
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -2851,17 +2882,17 @@ html, body {
 
 .toast.success {
     background: var(--success);
-    color: white;
+    color: #fff;
 }
 
 .toast.error {
     background: var(--danger);
-    color: white;
+    color: #fff;
 }
 
 .toast.info {
     background: var(--accent);
-    color: white;
+    color: #fff;
 }
 
 /* ============================================================
@@ -2875,11 +2906,11 @@ html, body {
 }
 .providers-toolbar {
     flex-shrink: 0;
-    padding: 12px 18px;
+    padding: 12px 24px;
     border-bottom: 1px solid var(--border);
 }
 .providers-list {
-    padding: 12px 18px;
+    padding: 12px 24px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -2894,20 +2925,20 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 14px 20px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     gap: 12px;
 }
 .provider-card-name {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
 }
 .provider-card-key {
     font-size: 11px;
     color: var(--text-muted);
-    font-family: "Cascadia Code", monospace;
+    font-family: "SF Mono", "Cascadia Code", monospace;
 }
 .provider-card-actions {
     display: flex;
@@ -2915,7 +2946,7 @@ html, body {
     flex-shrink: 0;
 }
 .provider-card-body {
-    padding: 12px 16px;
+    padding: 14px 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -2932,7 +2963,7 @@ html, body {
 }
 .provider-field-value {
     color: var(--text-secondary);
-    font-family: "Cascadia Code", monospace;
+    font-family: "SF Mono", "Cascadia Code", monospace;
     flex: 1;
     word-break: break-all;
 }
@@ -2949,14 +2980,14 @@ html, body {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 8px;
+    padding: 6px 10px;
     background: var(--bg-input);
     border-radius: var(--radius-sm);
     margin-bottom: 3px;
     font-size: 11px;
 }
 .model-subcard-id {
-    font-family: "Cascadia Code", monospace;
+    font-family: "SF Mono", "Cascadia Code", monospace;
     color: var(--accent);
     flex: 1;
 }
@@ -2965,8 +2996,8 @@ html, body {
     width: 140px;
 }
 .btn-del {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     padding: 0;
     font-size: 11px;
     border-radius: 50%;
@@ -2986,9 +3017,10 @@ html, body {
 }
 .btn-add {
     background: var(--accent);
-    color: white;
+    color: #fff;
     border: none;
     font-weight: 500;
+    border-radius: var(--radius-pill);
 }
 .btn-add:hover {
     background: var(--accent-hover);
@@ -2996,7 +3028,7 @@ html, body {
 
 /* 供应商卡片内输入框统一样式 */
 .provider-card input {
-    padding: 4px 8px;
+    padding: 6px 10px;
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -3023,10 +3055,10 @@ html, body {
 }
 .btn-eye:hover {
     color: var(--text-primary);
-    background: var(--bg-card);
+    background: var(--bg-card-hover);
 }
 .provider-card-add:hover {
-    background: var(--bg-card-hover) !important;
+    background: var(--bg-card-hover);
 }
 
 /* ============================================================
@@ -3089,7 +3121,7 @@ html, body {
    ============================================================ */
 
 .oc-tool-question {
-    border-left-color: var(--accent, #007acc) !important;
+    border-left-color: var(--accent);
 }
 
 .oc-question-block {
@@ -3116,8 +3148,8 @@ html, body {
     font-size: 13px;
     color: var(--text-primary);
     padding: 8px 10px;
-    background: var(--bg-card, rgba(0,0,0,0.04));
-    border-radius: 6px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
     margin-bottom: 8px;
 }
 
@@ -3143,8 +3175,8 @@ html, body {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg-input, rgba(255,255,255,0.04));
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
     color: var(--text-primary);
     cursor: pointer;
     text-align: left;
@@ -3154,12 +3186,12 @@ html, body {
 }
 
 .oc-question-option-btn:hover {
-    border-color: var(--accent, #007acc);
-    background: color-mix(in srgb, var(--accent, #007acc) 8%, transparent);
+    border-color: var(--accent);
+    background: var(--accent-ghost);
 }
 
 .oc-question-option-btn:active {
-    background: color-mix(in srgb, var(--accent, #007acc) 15%, transparent);
+    background: var(--accent-glow);
 }
 
 .oc-option-label {
@@ -3183,10 +3215,10 @@ html, body {
 
 .oc-question-custom-input {
     flex: 1;
-    padding: 7px 10px;
+    padding: 8px 12px;
     border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-input, rgba(255,255,255,0.04));
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
     color: var(--text-primary);
     font-size: 12px;
     font-family: inherit;
@@ -3198,14 +3230,14 @@ html, body {
 
 .oc-question-custom-input:focus {
     outline: none;
-    border-color: var(--accent, #007acc);
+    border-color: var(--accent);
 }
 
 .oc-question-custom-btn {
-    padding: 6px 14px;
-    border: 1px solid var(--accent, #007acc);
-    border-radius: 6px;
-    background: var(--accent, #007acc);
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
     color: #fff;
     cursor: pointer;
     font-size: 12px;
@@ -3224,9 +3256,9 @@ html, body {
 }
 
 .oc-question-skip-btn {
-    padding: 5px 14px;
+    padding: 6px 16px;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
@@ -3246,24 +3278,24 @@ html, body {
 
 /* 已跳过状态 */
 .oc-question-dismissed {
-    background: color-mix(in srgb, var(--text-muted) 6%, transparent) !important;
-    color: var(--text-muted) !important;
+    background: var(--bg-input);
+    color: var(--text-muted);
 }
 
 /* dismissed 状态卡片 */
 .oc-tool-question.dismissed {
-    border-left-color: var(--text-muted) !important;
+    border-left-color: var(--text-muted);
 }
 
 /* skipped status badge */
 .oc-tool-status.skipped {
-    background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+    background: var(--bg-input);
     color: var(--text-muted);
 }
 
 /* ======== CSS 变量补丁 ======== */
 :root { --bg-code: var(--bg-secondary); --bg-tag: var(--bg-input); --text-dim: var(--text-muted); }
-[data-theme="light"] { --bg-code: var(--bg-secondary); --bg-tag: var(--bg-input); --text-dim: var(--text-muted); }
+[data-theme="dark"] { --bg-code: var(--bg-secondary); --bg-tag: var(--bg-input); --text-dim: var(--text-muted); }
 
 /* ======== 技能 Modal ======== */
 .skill-modal { width: 1080px; max-height: 80vh; display: flex; flex-direction: column; }
@@ -3271,25 +3303,25 @@ html, body {
 .skill-modal .modal-header h3 { margin: 0; font-size: 1.1em; }
 .skill-modal .modal-header-actions { display: flex; gap: 8px; align-items: center; }
 .skill-modal .modal-header-actions .btn { font-size: 12px; background: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border); }
-.skill-modal .modal-header-actions .btn:hover { background: var(--bg-card); color: var(--text); }
+.skill-modal .modal-header-actions .btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
 .skill-modal .modal-header-actions .btn-primary { background: var(--accent); color: #fff; border: none; }
 .skill-modal .modal-header-actions .btn-primary:hover { background: var(--accent-hover); }
 /* 内容区代码块背景 */
-.skill-modal .modal-body { flex: 1; overflow: hidden; padding: 16px; line-height: 1.6; background: var(--bg-input); display: flex; flex-direction: column; min-height: 0; }
+.skill-modal .modal-body { flex: 1; overflow: hidden; padding: 17px; line-height: 1.6; background: var(--bg-input); display: flex; flex-direction: column; min-height: 0; }
 /* 预览模式下恢复滚动 */
 .skill-modal .modal-body .oc-text { overflow-y: auto; flex: 1; min-height: 0; }
-.skill-modal .modal-body pre { background: var(--bg-card); padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; }
-.skill-modal .modal-body code { font-family: monospace; background: var(--bg-card); padding: 1px 4px; border-radius: 2px; }
-.skill-edit-area { width: 100%; flex: 1; min-height: 800px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5; padding: 12px; border: none; border-radius: 4px; background: var(--bg-input); color: var(--text); resize: none; outline: none; box-sizing: border-box; }
+.skill-modal .modal-body pre { background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; font-size: 13px; }
+.skill-modal .modal-body code { font-family: "SF Mono", monospace; background: var(--bg-card); padding: 1px 4px; border-radius: var(--radius-xs); }
+.skill-edit-area { width: 100%; flex: 1; min-height: 800px; font-family: "SF Mono", 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5; padding: 12px; border: none; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); resize: none; outline: none; box-sizing: border-box; }
 
 /* ======== 技能卡片扩展 ======== */
-.skill-card { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
+.skill-card { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; }
 .skill-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.skill-tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; }
+.skill-tag { font-size: 11px; padding: 1px 6px; border-radius: var(--radius-xs); }
 .skill-source-global { background: var(--bg-tag); color: var(--text-dim); }
-.skill-source-project { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.skill-source-project { background: var(--accent-ghost); color: var(--accent); }
 .skill-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 2px; }
-.skill-path { font-size: 11px; color: var(--text-muted); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skill-path { font-size: 11px; color: var(--text-muted); font-family: "SF Mono", 'Cascadia Code', 'Fira Code', 'Consolas', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skill-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 /* 技能卡片按钮暗黑主题兼容 */
 .skill-card .btn {
@@ -3298,17 +3330,17 @@ html, body {
     border: 1px solid var(--border);
 }
 .skill-card .btn:hover {
-    background: var(--bg-card);
-    color: var(--text);
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
     border-color: var(--border-light);
 }
 
 /* ======== 搜索栏 ======== */
-.oc-search-bar { display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
-.oc-search-bar input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-input); color: var(--text); font-size: 13px; outline: none; }
+.oc-search-bar { display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+.oc-search-bar input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-size: 13px; outline: none; }
 .oc-search-bar input:focus { border-color: var(--accent); }
 .oc-search-bar .btn { background: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border); }
-.oc-search-bar .btn:hover { background: var(--bg-card); color: var(--text); }
+.oc-search-bar .btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
 .oc-search-count { font-size: 11px; color: var(--text-dim); min-width: 60px; text-align: center; }
 .oc-search-highlight { background: #ffeb3b; color: #000; border-radius: 2px; padding: 0 1px; }
 .oc-search-highlight.oc-search-active { background: var(--accent); color: #fff; }
@@ -3319,5 +3351,5 @@ html, body {
 }
 
 /* ======== 技能管理搜索框 ======== */
-#skillSearch { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm, 4px); background: var(--bg-input); color: var(--text); font-size: 13px; outline: none; }
-#skillSearch:focus { border-color: var(--accent); }
+#skillSearch { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-size: 13px; outline: none; }
+

@@ -55,7 +55,7 @@ function renderSkillList(filter) {
                 '<div class="skill-path">' + safePath + '</div>' +
             '</div>' +
             '<div class="skill-actions">' +
-                '<button class="btn btn-sm" onclick="openSkillDir(\'' + escapedPath + '\')">📂 打开</button>' +
+                '<button class="btn btn-sm btn-open" onclick="openSkillDir(\'' + escapedPath + '\')">📂 打开</button>' +
                 '<button class="btn btn-sm" onclick="previewSkill(\'' + escapedPath + '\')">详情</button>' +
             '</div>' +
         '</div>';
