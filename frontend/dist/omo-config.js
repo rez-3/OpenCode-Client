@@ -496,8 +496,10 @@ async function loadSchemeIntoEditor(name) {
         renderModelConfig();
         checkUnsavedChanges();
         updateSchemeStatus();
+        return true;
     } catch (e) {
         showToast('方案加载失败: ' + (e.message || e), 'error');
+        return false;
     }
 }
 
@@ -639,9 +641,11 @@ async function handleSchemeSwitch(name) {
     if (hasUnsavedChanges) {
         if (!confirm('当前编辑区有未保存修改，切换方案将覆盖当前内容。是否继续？')) return;
     }
-    await loadSchemeIntoEditor(name);
-    updateSchemeStatus();
-    showToast('已加载方案: ' + name, 'success');
+    const ok = await loadSchemeIntoEditor(name);
+    if (ok) {
+        updateSchemeStatus();
+        showToast('已加载方案: ' + name, 'success');
+    }
 }
 
 async function handleSchemeApply() {
