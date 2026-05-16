@@ -50,6 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnWtOpen').addEventListener('click', launchTerminal);
     document.getElementById('btnRefreshTree').addEventListener('click', refreshTree);
     document.getElementById('btnNewSession').addEventListener('click', createNewSession);
+    document.getElementById('btnMobileTree').addEventListener('click', toggleMobileTree);
+    document.getElementById('btnMobileTree').addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    document.getElementById('ocMobileTreeMask').addEventListener('click', closeMobileTree);
 
     // 发送/停止按钮
     document.getElementById('btnSendPrompt').addEventListener('click', () => {
@@ -77,12 +82,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 移动端输入时暂停后台轮询，避免与键入争抢渲染
+    document.getElementById('ocPrompt').addEventListener('focus', () => {
+        if (isMobileTreeMode()) { clearInterval(refreshTimer); refreshTimer = null; }
+    });
+    document.getElementById('ocPrompt').addEventListener('blur', () => {
+        if (isMobileTreeMode() && !refreshTimer) { scheduleRefresh(); }
+    });
+
     document.getElementById('btnLoadDiff').addEventListener('click', loadDiff);
     document.getElementById('btnRefreshStatus').addEventListener('click', loadServiceStatus);
     document.getElementById('btnToggleSessions').addEventListener('click', toggleSessions);
     document.getElementById('btnToggleSidepanel').addEventListener('click', toggleSidepanel);
     document.getElementById('btnScrollBottom').addEventListener('click', scrollMessagesToBottom);
     document.getElementById('ocMessages').addEventListener('scroll', updateScrollBottomButton);
+    document.querySelector('.oc-chat').addEventListener('click', (e) => {
+        if (e.target.closest('.modal-overlay')) return;
+        if (isMobileTreeMode()) {
+            closeMobileTree();
+        }
+    });
 
     // 跟踪用户拖拽滚动条
     document.getElementById('ocMessages').addEventListener('mousedown', () => { userScrolling = true; });
@@ -314,7 +333,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ESC 关闭面板
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            // 预留
+            closeMobileTree();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (!isMobileTreeMode()) {
+            closeMobileTree();
         }
     });
 

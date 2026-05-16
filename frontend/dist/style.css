@@ -653,6 +653,31 @@ input::placeholder, textarea::placeholder {
     -webkit-user-select: none;
     min-width: 0;
 }
+.oc-chat-head-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.oc-chat-head-mobile-toggle {
+    display: none;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.oc-mobile-tree-mask {
+    display: none;
+}
 .oc-panel-head:hover {
     background: var(--bg-sidebar-hover);
 }
@@ -941,6 +966,39 @@ input::placeholder, textarea::placeholder {
     background: var(--accent-ghost);
     color: var(--accent);
 }
+.oc-tree-tooltip {
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 220px;
+    max-width: 320px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+    display: none;
+    z-index: 30;
+    pointer-events: none;
+}
+.oc-tree-tooltip-title {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+.oc-tree-tooltip-row {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    word-break: break-word;
+}
+.oc-tree-session:hover .oc-tree-tooltip {
+    display: block;
+}
 .oc-tree-children { }
 .oc-tree-children { }
 .oc-chat {
@@ -966,7 +1024,7 @@ input::placeholder, textarea::placeholder {
     position: relative;
     user-select: text;
     -webkit-user-select: text;
-    contain: paint style;
+    contain: layout paint style;
 }
 .oc-scroll-bottom {
     position: absolute;
@@ -995,6 +1053,14 @@ input::placeholder, textarea::placeholder {
     border-color: var(--accent);
     color: var(--accent);
     transform: translateY(-1px) scale(1.04);
+}
+.oc-history-more {
+    width: 100%;
+    margin-bottom: 12px;
+    text-align: center;
+    border-style: dashed;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
 }
 .oc-message {
     border-radius: var(--radius-md);
@@ -3126,17 +3192,13 @@ input::placeholder, textarea::placeholder {
    ============================================================ */
 @media (max-width: 800px) {
     .sidebar {
-        width: 56px;
-    }
-    .nav-label {
         display: none;
     }
-    .nav-item {
-        justify-content: center;
-        padding: 10px 8px;
+    .oc-toolbar {
+        display: none;
     }
-    .nav-icon {
-        width: auto;
+    .main-layout {
+        padding-left: 0;
     }
     .oc-params-grid {
         grid-template-columns: 1fr;
@@ -3173,6 +3235,55 @@ input::placeholder, textarea::placeholder {
     }
     .model-select {
         max-width: 100%;
+    }
+    .oc-client,
+    .oc-client.hide-left,
+    .oc-client.hide-right,
+    .oc-client.hide-left.hide-right {
+        grid-template-columns: 1fr;
+        transition: none;
+    }
+    .oc-sessions {
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        bottom: 0;
+        width: min(70vw, 320px);
+        z-index: 210;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease, border 0.2s ease;
+        box-shadow: var(--shadow-lg);
+    }
+    .oc-client.mobile-tree-open .oc-sessions {
+        transform: translateX(0);
+    }
+    .hide-left .oc-sessions {
+        border-right: 1px solid var(--border);
+    }
+    .oc-mobile-tree-mask {
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.3);
+        z-index: 205;
+        display: block;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+    .oc-client.mobile-tree-open .oc-mobile-tree-mask {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .oc-toggle-left,
+    .oc-toggle-right,
+    .oc-sidepanel {
+        display: none;
+    }
+    .oc-chat-head-mobile-toggle {
+        display: inline-flex;
     }
 }
 

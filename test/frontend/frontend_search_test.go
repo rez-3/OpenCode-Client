@@ -393,6 +393,127 @@ func TestWebDirectoryBrowserModalIsWiredForProjectTreeAddAction(t *testing.T) {
 	}
 }
 
+func TestMobileProjectTreeDrawerFullyHidesAndDoesNotBlockModals(t *testing.T) {
+	cssBytes, err := os.ReadFile("../../frontend/dist/style.css")
+	if err != nil {
+		t.Fatalf("读取 style.css 失败: %v", err)
+	}
+	css := string(cssBytes)
+	for _, required := range []string{
+		`left: 0;`,
+		`width: min(70vw, 320px);`,
+		`.oc-client.mobile-tree-open .oc-mobile-tree-mask {`,
+		`z-index: 205;`,
+		`.modal-overlay {`,
+	} {
+		if !strings.Contains(css, required) {
+			t.Fatalf("style.css 缺少手机端抽屉完全隐藏或弹窗层级线索: %s", required)
+		}
+	}
+
+	jsBytes, err := os.ReadFile("../../frontend/dist/main.js")
+	if err != nil {
+		t.Fatalf("读取 main.js 失败: %v", err)
+	}
+	js := string(jsBytes)
+	for _, required := range []string{
+		`if (e.target.closest('.modal-overlay')) return;`,
+	} {
+		if !strings.Contains(js, required) {
+			t.Fatalf("main.js 缺少弹窗输入保护逻辑: %s", required)
+		}
+	}
+}
+
+func TestMobileSessionSwitchClosesDrawerBeforeAwaitingLoad(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"if (sid && sid !== currentSessionId) {",
+		"if (isMobileTreeMode()) {",
+		"closeMobileTree();",
+		"await switchSession(sid);",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少手机端异步切换会话线索: %s", required)
+		}
+	}
+
+	wrongOrder := regexp.MustCompile(`(?s)await switchSession\(sid\);\s*closeMobileTree\(\);`)
+	if wrongOrder.MatchString(source) {
+		t.Fatal("手机端会话切换不应在 await switchSession 之后才关闭抽屉")
+	}
+}
+
+func TestMobileLongSessionLimitsInitialRenderedMessages(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"const MOBILE_MESSAGE_RENDER_LIMIT = 30;",
+		"const MOBILE_MESSAGE_LOAD_MORE_STEP = 20;",
+		"function trimMessagesForMobile(items) {",
+		"return list.slice(-getVisibleMessageCount());",
+		"function getVisibleMessageCount() {",
+		"function renderCollapsedHistoryNotice(totalCount, hiddenCount) {",
+		"已折叠较早消息，点击加载更多",
+		"visibleMessageCount += MOBILE_MESSAGE_LOAD_MORE_STEP;",
+		"const sourceList = (items || []).map(normalizeMessageItem).filter(item => !isInternalUserMessage(item));",
+		"const list = trimMessagesForMobile(sourceList);",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少手机端长会话限量渲染线索: %s", required)
+		}
+	}
+}
+
+func TestSessionSelectionUsesImmediateLoadingInsteadOfAwaitingMessages(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"document.getElementById('ocMessages').innerHTML = '<div class=\"oc-empty\">正在加载会话消息...</div>';",
+		"loadMessages().then(() => {",
+		"if (id !== currentSessionId) return;",
+		"smartScroll(document.getElementById('ocMessages'), true);",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少异步切换会话线索: %s", required)
+		}
+	}
+
+}
+
+func TestMobileSendPromptUsesLightweightPendingInsteadOfFullRerender(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"function renderPendingAssistantPlaceholder(sessionID) {",
+		"if (isMobileTreeMode()) {",
+		"renderPendingAssistantPlaceholder(currentSessionId);",
+		"} else {",
+		"renderCachedMessages(currentSessionId);",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少轻量 pending 渲染线索: %s", required)
+		}
+	}
+}
+
 func TestSkillBrowserSupportsEditableTextFlow(t *testing.T) {
 	js, err := os.ReadFile("../../frontend/dist/skill-manager.js")
 	if err != nil {
@@ -777,6 +898,90 @@ func TestApiMockGenericBrowserRpcThrowsOnHttpFailure(t *testing.T) {
 	} {
 		if !strings.Contains(source, required) {
 			t.Fatalf("api-mock.js 缺少通用 RPC 错误处理线索: %s", required)
+		}
+	}
+}
+
+func TestMobileProjectTreeDrawerUsesOverlayLayout(t *testing.T) {
+	htmlBytes, err := os.ReadFile("../../frontend/dist/index.html")
+	if err != nil {
+		t.Fatalf("读取 index.html 失败: %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, required := range []string{
+		`id="btnMobileTree"`,
+		`☰`,
+		`id="ocMobileTreeMask"`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html 缺少手机端项目树抽屉元素: %s", required)
+		}
+	}
+
+	cssBytes, err := os.ReadFile("../../frontend/dist/style.css")
+	if err != nil {
+		t.Fatalf("读取 style.css 失败: %v", err)
+	}
+	css := string(cssBytes)
+
+	for _, required := range []string{
+		`@media (max-width: 800px) {`,
+		`.oc-toolbar {`,
+		`display: none;`,
+		`.oc-client {`,
+		`grid-template-columns: 1fr;`,
+		`.oc-sessions {`,
+		`position: fixed;`,
+		`transform: translateX(-100%);`,
+		`width: min(70vw, 320px);`,
+		`rgba(0,0,0,0.3)`,
+		`.oc-sidepanel {`,
+		`display: none;`,
+		`.sidebar {`,
+		`display: none;`,
+		`.oc-messages {`,
+		`contain: layout paint style;`,
+		`.oc-chat-head-mobile-toggle {`,
+	} {
+		if !strings.Contains(css, required) {
+			t.Fatalf("style.css 缺少手机端抽屉样式: %s", required)
+		}
+	}
+
+	chatBytes, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	chat := string(chatBytes)
+
+	for _, required := range []string{
+		`function closeMobileTree() {`,
+		`function openMobileTree() {`,
+		`function isMobileTreeMode() {`,
+		`document.getElementById('webContainer').classList.add('mobile-tree-open');`,
+		`document.getElementById('webContainer').classList.remove('mobile-tree-open');`,
+		`closeMobileTree();`,
+		`await switchSession(sid);`,
+	} {
+		if !strings.Contains(chat, required) {
+			t.Fatalf("chat.js 缺少手机端抽屉逻辑: %s", required)
+		}
+	}
+
+	mainBytes, err := os.ReadFile("../../frontend/dist/main.js")
+	if err != nil {
+		t.Fatalf("读取 main.js 失败: %v", err)
+	}
+	mainSource := string(mainBytes)
+
+	for _, required := range []string{
+		"document.getElementById('btnMobileTree').addEventListener('click', toggleMobileTree);",
+		"document.getElementById('ocMobileTreeMask').addEventListener('click', closeMobileTree);",
+		"document.querySelector('.oc-chat').addEventListener('click', (e) => {",
+	} {
+		if !strings.Contains(mainSource, required) {
+			t.Fatalf("main.js 缺少手机端抽屉事件绑定: %s", required)
 		}
 	}
 }

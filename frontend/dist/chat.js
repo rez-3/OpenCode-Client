@@ -28,6 +28,9 @@ let sessionRefreshTimer = null;
 let attachedFiles = [];
 let questionCustomInput = ''; // question 工具自定义输入框的值（防止 DOM 重建时丢失）
 let dirBrowserCurrentPath = '';
+const MOBILE_MESSAGE_RENDER_LIMIT = 30;
+const MOBILE_MESSAGE_LOAD_MORE_STEP = 20;
+let visibleMessageCount = MOBILE_MESSAGE_RENDER_LIMIT;
 
 // 全局 agent/model 选择
 let agentList = [];
@@ -287,6 +290,7 @@ function renderTree(tree) {
                 window._sessionMap[ses.id] = { title: ses.title, directory: sesDir, updatedAt: updatedAt };
                 html += `<div class="oc-tree-node oc-tree-session" data-session-id="${escapeHtml(ses.id)}">`;
                 html += `<div class="oc-tree-indent"></div><span class="oc-tree-label" title="${escapeHtml(ses.title+'\n📂 '+sesDir+'\n⏰ '+updatedAt)}">💬 ${escapeHtml(ses.title)}</span>`;
+                html += `<div class="oc-tree-tooltip"><div class="oc-tree-tooltip-title">${escapeHtml(ses.title)}</div><div class="oc-tree-tooltip-row">📂 ${escapeHtml(sesDir)}</div><div class="oc-tree-tooltip-row">⏰ ${escapeHtml(updatedAt)}</div></div>`;
                 html += `<button class="oc-tree-del" data-del-id="${escapeHtml(ses.id)}" title="删除会话">✕</button>`;
                 html += `</div>`;
             }
@@ -313,7 +317,13 @@ function renderTree(tree) {
             if (e.target.closest('.oc-tree-del')) return;
             const sid = el.dataset.sessionId;
             if (sid && sid !== currentSessionId) {
+                if (isMobileTreeMode()) {
+                    closeMobileTree();
+                }
                 await switchSession(sid);
+            }
+            if (isMobileTreeMode()) {
+                closeMobileTree();
             }
         });
     });
@@ -911,6 +921,13 @@ function ensurePendingAssistant(sessionID) {
     });
 }
 
+function renderPendingAssistantPlaceholder(sessionID) {
+	if (!sessionID || sessionID !== currentSessionId) return;
+	const box = document.getElementById('ocMessages');
+	if (!box) return;
+	box.innerHTML = '<div class="oc-empty">正在等待模型回复...</div>';
+}
+
 async function loadSessions() {
     if (!webRunning) return;
     await buildTree();
@@ -958,6 +975,7 @@ let pendingWorkDir = '';
 async function selectSession(id) {
     if (!id) return;
     currentSessionId = id;
+    visibleMessageCount = MOBILE_MESSAGE_RENDER_LIMIT;
     expandedParts = {};
     markdownCache = {};
     lastMessageCount = 0;
@@ -975,11 +993,16 @@ async function selectSession(id) {
             if (p) api.OpenDir(p).catch(e => showToast('打开失败: ' + (e.message || e), 'error'));
         };
     }
-    await loadMessages();
-    extractSubtaskSummaries(currentSessionId);
-    renderSubtaskPanel();
-    smartScroll(document.getElementById('ocMessages'), true);
-    await loadDiff();
+    document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">正在加载会话消息...</div>';
+    loadMessages().then(() => {
+        if (id !== currentSessionId) return;
+        if (!isMobileTreeMode()) {
+            extractSubtaskSummaries(currentSessionId);
+            renderSubtaskPanel();
+            loadDiff();
+        }
+        smartScroll(document.getElementById('ocMessages'), true);
+    }).catch(() => {});
 }
 
 async function createNewSession() {
@@ -1037,12 +1060,49 @@ async function loadMessages() {
         if (seq !== messageLoadSeq) return;
         cacheMessages(currentSessionId, messages || []);
         renderMessages(getCachedMessages(currentSessionId));
-        extractSubtaskSummaries(currentSessionId);
-        renderSubtaskPanel();
+        if (!isMobileTreeMode()) {
+            extractSubtaskSummaries(currentSessionId);
+            renderSubtaskPanel();
+        }
     } catch (e) {
         if (seq !== messageLoadSeq) return;
         box.innerHTML = `<div class="oc-empty error">${escapeHtml(e.message || e)}</div>`;
     }
+}
+
+function trimMessagesForMobile(items) {
+	const list = Array.isArray(items) ? items : [];
+	if (!isMobileTreeMode()) {
+		return list;
+	}
+	if (list.length <= getVisibleMessageCount()) {
+		return list;
+	}
+	return list.slice(-getVisibleMessageCount());
+}
+
+function getVisibleMessageCount() {
+	if (!isMobileTreeMode()) {
+		return Number.MAX_SAFE_INTEGER;
+	}
+	return visibleMessageCount;
+}
+
+function renderCollapsedHistoryNotice(totalCount, hiddenCount) {
+	const box = document.getElementById('ocMessages');
+	if (!box || hiddenCount <= 0) return;
+	const notice = document.createElement('button');
+	notice.type = 'button';
+	notice.className = 'btn btn-sm oc-history-more';
+	notice.textContent = `已折叠较早消息，点击加载更多（前面还有 ${hiddenCount} 条）`;
+	notice.addEventListener('click', () => {
+		const prevHeight = box.scrollHeight;
+		visibleMessageCount += MOBILE_MESSAGE_LOAD_MORE_STEP;
+		renderMessages(getCachedMessages(currentSessionId));
+		const nextHeight = box.scrollHeight;
+		box.scrollTop += nextHeight - prevHeight;
+	});
+	box.prepend(notice);
 }
 
 function saveFocusState(el) {
@@ -1069,7 +1129,8 @@ function restoreFocusState(container, state) {
 
 function renderMessages(items) {
     const box = document.getElementById('ocMessages');
-    const list = (items || []).map(normalizeMessageItem).filter(item => !isInternalUserMessage(item));
+    const sourceList = (items || []).map(normalizeMessageItem).filter(item => !isInternalUserMessage(item));
+    const list = trimMessagesForMobile(sourceList);
 
     if (userScrolling) {
         lastMessageCount = list.length;
@@ -1166,6 +1227,9 @@ function renderMessages(items) {
     restoreScroll(box, scrollState, false);
     updateScrollBottomButton();
     renderTodos();
+    if (isMobileTreeMode()) {
+		renderCollapsedHistoryNotice(sourceList.length, sourceList.length - list.length);
+	}
 }
 
 function extractTodos() {
@@ -2176,7 +2240,11 @@ async function sendPrompt() {
         if (currentSessionId) {
             sessionStatuses[currentSessionId] = 'busy';
             ensurePendingAssistant(currentSessionId);
-            renderCachedMessages(currentSessionId);
+            if (isMobileTreeMode()) {
+                renderPendingAssistantPlaceholder(currentSessionId);
+            } else {
+                renderCachedMessages(currentSessionId);
+            }
             smartScroll(document.getElementById('ocMessages'), true);
             updateSendButton();
         }
@@ -2201,7 +2269,9 @@ async function sendPrompt() {
         }
         input.value = '';
         clearAttachments();
-        await loadMessages();
+        if (!isMobileTreeMode()) {
+            await loadMessages();
+        }
         smartScroll(document.getElementById('ocMessages'), true);
         scheduleRefresh();
         updateSendButton();
@@ -2479,10 +2549,37 @@ async function goDirBrowserUp() {
 		await loadDirBrowserList('');
 		return;
 	}
-	await loadDirBrowserList(parent);
+    await loadDirBrowserList(parent);
+}
+
+function isMobileTreeMode() {
+    return window.matchMedia('(max-width: 800px)').matches;
+}
+
+function openMobileTree() {
+    if (!isMobileTreeMode()) return;
+    document.getElementById('webContainer').classList.add('mobile-tree-open');
+}
+
+function closeMobileTree() {
+    document.getElementById('webContainer').classList.remove('mobile-tree-open');
+}
+
+function toggleMobileTree() {
+    if (!isMobileTreeMode()) return;
+    const client = document.getElementById('webContainer');
+    if (client.classList.contains('mobile-tree-open')) {
+        closeMobileTree();
+        return;
+    }
+    openMobileTree();
 }
 
 function toggleSessions() {
+    if (isMobileTreeMode()) {
+        toggleMobileTree();
+        return;
+    }
     const client = document.getElementById('webContainer');
     const btn = document.getElementById('btnToggleSessions');
     const hidden = client.classList.toggle('hide-left');
@@ -2491,6 +2588,7 @@ function toggleSessions() {
 }
 
 function toggleSidepanel() {
+    if (isMobileTreeMode()) return;
     const client = document.getElementById('webContainer');
     const btn = document.getElementById('btnToggleSidepanel');
     const hidden = client.classList.toggle('hide-right');

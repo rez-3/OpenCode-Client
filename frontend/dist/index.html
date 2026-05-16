@@ -73,7 +73,10 @@
                         </div>
                     </aside>
                     <main class="oc-chat">
-                        <div class="oc-chat-head" id="ocChatTitle">未选择会话</div>
+                        <div class="oc-chat-head">
+                            <button type="button" class="oc-chat-head-mobile-toggle" id="btnMobileTree" title="打开项目树">☰</button>
+                            <span class="oc-chat-head-title" id="ocChatTitle">未选择会话</span>
+                        </div>
                         <div class="oc-search-bar" id="ocSearchBar" style="display:none">
                             <input type="text" id="ocSearchInput" placeholder="搜索当前会话消息..." />
                             <span class="oc-search-count" id="ocSearchCount"></span>
@@ -121,6 +124,7 @@
                             </div>
                         </div>
                     </main>
+                    <div class="oc-mobile-tree-mask" id="ocMobileTreeMask"></div>
                     <button type="button" class="oc-toggle-btn oc-toggle-right" id="btnToggleSidepanel" title="隐藏信息栏">▶</button>
                     <aside class="oc-sidepanel">
                         <div class="oc-panel-section">
