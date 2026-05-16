@@ -514,6 +514,29 @@ func TestMobileSendPromptUsesLightweightPendingInsteadOfFullRerender(t *testing.
 	}
 }
 
+func TestMobileWindowedRenderUsesFullMessageCountForIncrementalBranch(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"let lastSourceMessageCount = 0;",
+		"const sameCount = sourceList.length === lastSourceMessageCount;",
+		"lastSourceMessageCount = sourceList.length;",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少全量消息计数保护线索: %s", required)
+		}
+	}
+
+	forbidden := regexp.MustCompile(`const sameCount = list\.length === lastMessageCount;`)
+	if forbidden.MatchString(source) {
+		t.Fatal("窗口化渲染下不应再用裁剪后条数判断 sameCount")
+	}
+}
+
 func TestSkillBrowserSupportsEditableTextFlow(t *testing.T) {
 	js, err := os.ReadFile("../../frontend/dist/skill-manager.js")
 	if err != nil {

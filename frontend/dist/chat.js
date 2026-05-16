@@ -18,6 +18,7 @@ let lspStatus = null;
 let expandedParts = {};
 let markdownCache = {};
 let lastMessageCount = 0;
+let lastSourceMessageCount = 0;
 let messageLoadSeq = 0;
 let messageCache = {};
 let pendingMessageRenderSession = '';
@@ -1141,13 +1142,15 @@ function renderMessages(items) {
     if (!list.length) {
         box.innerHTML = '<div class="oc-empty">该会话暂无消息</div>';
         lastMessageCount = 0;
+        lastSourceMessageCount = 0;
         updateModelInfo(null);
         updateScrollBottomButton();
         return;
     }
 
-    const sameCount = list.length === lastMessageCount;
+    const sameCount = sourceList.length === lastSourceMessageCount;
     lastMessageCount = list.length;
+    lastSourceMessageCount = sourceList.length;
 
     if (sameCount && list.length > 0 && webRunning && isSessionBusy(currentSessionId)) {
         const last = list[list.length - 1];
