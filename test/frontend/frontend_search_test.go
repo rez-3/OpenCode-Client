@@ -1,4 +1,4 @@
-package main
+package frontendtest
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestSearchNavigationUsesTemporaryExpansionWithoutPersistingExpandedParts(t *testing.T) {
-	sourceBytes, err := os.ReadFile("frontend/dist/chat.js")
+	sourceBytes, err := os.ReadFile("../../frontend/dist/chat.js")
 	if err != nil {
 		t.Fatalf("读取聊天脚本失败: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestSearchNavigationUsesTemporaryExpansionWithoutPersistingExpandedParts(t 
 }
 
 func TestSessionTooltipIncludesTitleDirectoryAndUpdatedAt(t *testing.T) {
-	chatBytes, err := os.ReadFile("frontend/dist/chat.js")
+	chatBytes, err := os.ReadFile("../../frontend/dist/chat.js")
 	if err != nil {
 		t.Fatalf("读取聊天脚本失败: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestSessionTooltipIncludesTitleDirectoryAndUpdatedAt(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := os.ReadFile("frontend/dist/style.css")
+	cssBytes, err := os.ReadFile("../../frontend/dist/style.css")
 	if err != nil {
 		t.Fatalf("读取样式表失败: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestSessionTooltipIncludesTitleDirectoryAndUpdatedAt(t *testing.T) {
 }
 
 func TestProjectTreeRefreshOnlyOnStructuralSessionEvents(t *testing.T) {
-	chatBytes, err := os.ReadFile("frontend/dist/chat.js")
+	chatBytes, err := os.ReadFile("../../frontend/dist/chat.js")
 	if err != nil {
 		t.Fatalf("读取聊天脚本失败: %v", err)
 	}
@@ -99,8 +99,8 @@ func TestProjectTreeRefreshOnlyOnStructuralSessionEvents(t *testing.T) {
 
 	forbiddenPatterns := map[string]*regexp.Regexp{
 		"session.status idle 刷新项目树": regexp.MustCompile(`(?s)if \(type === 'session\.status' && sid\) \{.*?if \(status\?\.type === 'idle'\) \{\s*loadMessages\(\);\s*debounceRefreshTree\(\);`),
-		"session.idle 刷新项目树":       regexp.MustCompile(`(?s)if \(type === 'session\.idle' && sid\) \{.*?loadMessages\(\);\s*debounceRefreshTree\(\);`),
-		"session.updated 刷新项目树":    regexp.MustCompile(`(?s)if \(type === 'session\.updated'\) \{\s*loadDiff\(\);\s*debounceRefreshTree\(\);`),
+		"session.idle 刷新项目树":        regexp.MustCompile(`(?s)if \(type === 'session\.idle' && sid\) \{.*?loadMessages\(\);\s*debounceRefreshTree\(\);`),
+		"session.updated 刷新项目树":     regexp.MustCompile(`(?s)if \(type === 'session\.updated'\) \{\s*loadDiff\(\);\s*debounceRefreshTree\(\);`),
 	}
 
 	for name, pattern := range forbiddenPatterns {
@@ -116,7 +116,7 @@ func TestProjectTreeRefreshOnlyOnStructuralSessionEvents(t *testing.T) {
 }
 
 func TestProviderSaveIncludesNpmSelection(t *testing.T) {
-	js, err := os.ReadFile("frontend/dist/provider-view.js")
+	js, err := os.ReadFile("../../frontend/dist/provider-view.js")
 	if err != nil {
 		t.Fatalf("读取供应商脚本失败: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestProviderSaveIncludesNpmSelection(t *testing.T) {
 }
 
 func TestProviderViewIncludesNpmFormatOptions(t *testing.T) {
-	js, err := os.ReadFile("frontend/dist/provider-view.js")
+	js, err := os.ReadFile("../../frontend/dist/provider-view.js")
 	if err != nil {
 		t.Fatalf("读取供应商脚本失败: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestProviderViewIncludesNpmFormatOptions(t *testing.T) {
 }
 
 func TestOmoSchemeSaveMergesHiddenFields(t *testing.T) {
-	js, err := os.ReadFile("frontend/dist/omo-config.js")
+	js, err := os.ReadFile("../../frontend/dist/omo-config.js")
 	if err != nil {
 		t.Fatalf("读取 OMO 脚本失败: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestOmoSchemeSaveMergesHiddenFields(t *testing.T) {
 }
 
 func TestOmoSchemeSwitchUpdatesSaveBaseConfig(t *testing.T) {
-	js, err := os.ReadFile("frontend/dist/omo-config.js")
+	js, err := os.ReadFile("../../frontend/dist/omo-config.js")
 	if err != nil {
 		t.Fatalf("读取 OMO 脚本失败: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestOmoSchemeSwitchUpdatesSaveBaseConfig(t *testing.T) {
 }
 
 func TestOmoSaveButtonUsesHandleSchemeApply(t *testing.T) {
-	js, err := os.ReadFile("frontend/dist/main.js")
+	js, err := os.ReadFile("../../frontend/dist/main.js")
 	if err != nil {
 		t.Fatalf("读取 main.js 失败: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestOmoSaveButtonUsesHandleSchemeApply(t *testing.T) {
 }
 
 func TestOmoSaveApplyKeepsButtonFeedback(t *testing.T) {
-	js, err := os.ReadFile("frontend/dist/omo-config.js")
+	js, err := os.ReadFile("../../frontend/dist/omo-config.js")
 	if err != nil {
 		t.Fatalf("读取 OMO 脚本失败: %v", err)
 	}
@@ -248,6 +248,27 @@ func TestOmoSaveApplyKeepsButtonFeedback(t *testing.T) {
 	} {
 		if !strings.Contains(lowerSource, strings.ToLower(required)) {
 			t.Fatalf("OMO 保存交互缺少线索: %s", required)
+		}
+	}
+}
+
+func TestOmoSchemeSwitchDoesNotSwallowLoadErrors(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/omo-config.js")
+	if err != nil {
+		t.Fatalf("读取 OMO 脚本失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"showToast('方案加载失败: ' + (e.message || e), 'error');",
+		"return true;",
+		"return false;",
+		"await loadSchemeIntoEditor(name);",
+		"if (ok) {",
+		"showToast('已加载方案: ' + name, 'success');",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("方案切换缺少失败传播或成功保护逻辑: %s", required)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package config
+package config_test
 
 import (
 	"os"
@@ -6,8 +6,25 @@ import (
 	"strings"
 	"testing"
 
+	"oc-manager/config"
 	"oc-manager/model"
 )
+
+func setupTempConfig(t *testing.T, content string) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	dir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("create config dir: %v", err)
+	}
+	path := filepath.Join(dir, "oh-my-openagent.jsonc")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	return path
+}
 
 func TestWriteConfigFileRejectsEmptyContent(t *testing.T) {
 	dir := t.TempDir()
@@ -17,7 +34,7 @@ func TestWriteConfigFileRejectsEmptyContent(t *testing.T) {
 		t.Fatalf("seed config: %v", err)
 	}
 
-	if err := writeConfigFile(path, []byte("  \n\t"), 0644); err == nil {
+	if err := config.TestWriteConfigFile(path, []byte("  \n\t"), 0644); err == nil {
 		t.Fatal("expected empty content to be rejected")
 	}
 
@@ -38,7 +55,7 @@ func TestWriteConfigFileReplacesNonEmptyContent(t *testing.T) {
 	}
 
 	next := []byte("{\n  \"categories\": {}\n}")
-	if err := writeConfigFile(path, next, 0644); err != nil {
+	if err := config.TestWriteConfigFile(path, next, 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -69,7 +86,7 @@ func TestWriteConfigFileRejectsInvalidJSONC(t *testing.T) {
 		t.Fatalf("seed config: %v", err)
 	}
 
-	if err := writeConfigFile(path, []byte(`{"agents":`), 0644); err == nil {
+	if err := config.TestWriteConfigFile(path, []byte(`{"agents":`), 0644); err == nil {
 		t.Fatal("expected invalid JSONC to be rejected")
 	}
 
@@ -104,7 +121,7 @@ func TestSaveConfigPreservesCommentsUnknownFieldsAndSiblings(t *testing.T) {
   }
 }`)
 
-	err := SaveConfig([]model.ModelEntry{
+	err := config.SaveConfig([]model.ModelEntry{
 		{Key: "oracle", Type: "agent", Model: "new/oracle"},
 		{Key: "librarian", Type: "agent", Model: "old/librarian"},
 		{Key: "quick", Type: "category", Model: "new/quick"},
@@ -146,7 +163,7 @@ func TestSaveConfigInsertsNewModelEntry(t *testing.T) {
   }
 }`)
 
-	err := SaveConfig([]model.ModelEntry{
+	err := config.SaveConfig([]model.ModelEntry{
 		{Key: "oracle", Type: "agent", Model: "new/oracle"},
 		{Key: "quick", Type: "category", Model: "old/quick"},
 		{Key: "custom-agent", Type: "agent", Model: "custom/model", Comment: "自定义 Agent"},
@@ -172,7 +189,7 @@ func TestSaveConfigInsertsNewModelEntry(t *testing.T) {
 			t.Fatalf("saved config missing %q:\n%s", want, text)
 		}
 	}
-	if err := validateJSONC(data); err != nil {
+	if err := config.TestValidateJSONC(data); err != nil {
 		t.Fatalf("saved config is invalid JSONC: %v\n%s", err, text)
 	}
 }
@@ -200,7 +217,7 @@ func TestSaveConfigDeletesRemovedModelEntry(t *testing.T) {
   }
 }`)
 
-	err := SaveConfig([]model.ModelEntry{
+	err := config.SaveConfig([]model.ModelEntry{
 		{Key: "oracle", Type: "agent", Model: "new/oracle"},
 		{Key: "librarian", Type: "agent", Model: "old/librarian"},
 		{Key: "quick", Type: "category", Model: "old/quick"},
@@ -224,7 +241,7 @@ func TestSaveConfigDeletesRemovedModelEntry(t *testing.T) {
 			t.Fatalf("saved config missing %q:\n%s", want, text)
 		}
 	}
-	if err := validateJSONC(data); err != nil {
+	if err := config.TestValidateJSONC(data); err != nil {
 		t.Fatalf("saved config is invalid JSONC: %v\n%s", err, text)
 	}
 }
@@ -241,7 +258,7 @@ func TestAddModelTypeAndDynamicSectionEntries(t *testing.T) {
   }
 }`)
 
-	if err := AddModelType("reviewers"); err != nil {
+	if err := config.AddModelType("reviewers"); err != nil {
 		t.Fatalf("add model type: %v", err)
 	}
 	data, err := os.ReadFile(configPath)
@@ -255,7 +272,7 @@ func TestAddModelTypeAndDynamicSectionEntries(t *testing.T) {
 		}
 	}
 
-	if err := SaveConfig([]model.ModelEntry{
+	if err := config.SaveConfig([]model.ModelEntry{
 		{Key: "oracle", Type: "agents", Model: "old/oracle"},
 		{Key: "lint", Type: "reviewers", Model: "review/model", Comment: "评审模型"},
 	}); err != nil {
@@ -272,7 +289,7 @@ func TestAddModelTypeAndDynamicSectionEntries(t *testing.T) {
 			t.Fatalf("config missing %q after dynamic save:\n%s", want, text)
 		}
 	}
-	if err := validateJSONC(data); err != nil {
+	if err := config.TestValidateJSONC(data); err != nil {
 		t.Fatalf("saved config is invalid JSONC: %v\n%s", err, text)
 	}
 }
@@ -297,7 +314,7 @@ func TestDeleteModelTypeRemovesWholeSection(t *testing.T) {
   }
 }`)
 
-	if err := DeleteModelType("reviewers"); err != nil {
+	if err := config.DeleteModelType("reviewers"); err != nil {
 		t.Fatalf("delete model type: %v", err)
 	}
 	data, err := os.ReadFile(configPath)
@@ -315,13 +332,13 @@ func TestDeleteModelTypeRemovesWholeSection(t *testing.T) {
 			t.Fatalf("config missing preserved content %q after delete type:\n%s", want, text)
 		}
 	}
-	if err := validateJSONC(data); err != nil {
+	if err := config.TestValidateJSONC(data); err != nil {
 		t.Fatalf("saved config is invalid JSONC: %v\n%s", err, text)
 	}
 }
 
 func TestParseModelConfigSectionsIgnoresEmptyNonModelSections(t *testing.T) {
-	cfg, err := parseModelConfigSections(stripComments(`{
+	cfg, err := config.TestParseModelConfigSections(config.TestStripComments(`{
   "agents": {},
   "reviewers": {},
   "mcp": {},
@@ -341,20 +358,4 @@ func TestParseModelConfigSectionsIgnoresEmptyNonModelSections(t *testing.T) {
 			t.Fatalf("unexpected non-model section %q in %#v", gone, cfg)
 		}
 	}
-}
-
-func setupTempConfig(t *testing.T, content string) string {
-	t.Helper()
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	dir := filepath.Join(home, ".config", "opencode")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatalf("create config dir: %v", err)
-	}
-	path := filepath.Join(dir, "oh-my-openagent.jsonc")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("seed config: %v", err)
-	}
-	return path
 }
