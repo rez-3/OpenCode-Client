@@ -381,6 +381,9 @@ func TestWebDirectoryBrowserModalIsWiredForProjectTreeAddAction(t *testing.T) {
 	source := string(js)
 	for _, required := range []string{
 		"async function openDirBrowserModal() {",
+		"return new Promise((resolve, reject) => {",
+		"dirBrowserResolver = resolve;",
+		"dirBrowserRejecter = reject;",
 		"async function loadDirBrowserList(path) {",
 		"await api.ListBrowsableDirs(path || '');",
 		"async function selectDirBrowserCurrent() {",
@@ -391,6 +394,30 @@ func TestWebDirectoryBrowserModalIsWiredForProjectTreeAddAction(t *testing.T) {
 			t.Fatalf("chat.js 缺少 Web 目录浏览器接线: %s", required)
 		}
 	}
+}
+
+func TestCreateNewSessionUsesDirectoryBrowserInWebMode(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"if (isBrowserRuntimeForMain()) {",
+		"const dir = await openDirBrowserModal();",
+		"pendingWorkDir = dir;",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少新建会话复用目录浏览器线索: %s", required)
+		}
+	}
+
+	closeAfterSelect := regexp.MustCompile(`(?s)async function createNewSession\(\) \{.*?pendingWorkDir = dir;.*?if \(isMobileTreeMode\(\)\) \{\s*closeMobileTree\(\);\s*\}`)
+	if !closeAfterSelect.MatchString(source) {
+		t.Fatal("手机端新建话题成功后应在 createNewSession 中自动收起项目树")
+	}
+
 }
 
 func TestMobileProjectTreeDrawerFullyHidesAndDoesNotBlockModals(t *testing.T) {
@@ -574,6 +601,28 @@ func TestAssistantMessageLevelErrorTextRendersEvenWhenPartsExist(t *testing.T) {
 	}
 }
 
+func TestStreamingDiagnosticsHooksExist(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+	for _, required := range []string{
+		"const STREAM_DEBUG_KEY = 'oc-stream-debug';",
+		"function logStreamDebug(kind, payload) {",
+		"window.__ocStreamDebug = streamDebugBuffer;",
+		"logStreamDebug('event:part.updated'",
+		"logStreamDebug('event:part.delta'",
+		"logStreamDebug('cache:upsertPart'",
+		"logStreamDebug('cache:applyPartDelta'",
+		"logStreamDebug('render:branch'",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少流式诊断线索: %s", required)
+		}
+	}
+}
+
 func TestRenderTextPartFallsBackToExtractPartText(t *testing.T) {
 	js, err := os.ReadFile("../../frontend/dist/chat.js")
 	if err != nil {
@@ -615,6 +664,60 @@ func TestCacheMessagesMergesInfoAndPartsDuringBusyState(t *testing.T) {
 	forbidden := regexp.MustCompile(`existing\[existingIndex\]\.info = \{ \.\.\.existing\[existingIndex\]\.info, \.\.\.item\.info \};`)
 	if forbidden.MatchString(source) {
 		t.Fatal("busy 状态下不应只合并 info 而忽略 parts")
+	}
+}
+
+func TestMergeMessagePreservesExistingPartsWhenIncomingListIsPartial(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"const mergedParts = [...existingParts];",
+		"for (const part of incomingParts) {",
+		"const existingIndex = mergedParts.findIndex(old => old.id && old.id === part.id);",
+		"mergedParts.push(part);",
+		"parts: mergedParts,",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少保留旧 parts 的合并线索: %s", required)
+		}
+	}
+}
+
+func TestStreamingIncrementalBranchOnlyReplacesWhenPartSetMatches(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"if (sameCount && list.length > 0 && webRunning && isSessionBusy(currentSessionId)) {",
+		"body.replaceChildren(...partList.map(part => renderPart(part)));",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少更严格的流式 part 集判断线索: %s", required)
+		}
+	}
+}
+
+func TestMergePartPreservesOrAppendsStreamingTextInsteadOfOverwriting(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/chat.js")
+	if err != nil {
+		t.Fatalf("读取 chat.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"if (oldText && newText && newText.length < oldText.length && !incoming.time?.end) {",
+		"merged[field] = oldText;",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("chat.js 缺少流式文本累积合并线索: %s", required)
+		}
 	}
 }
 

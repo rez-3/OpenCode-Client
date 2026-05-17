@@ -1160,7 +1160,7 @@ function restoreFocusState(container, state) {
 function renderMessages(items) {
     const box = document.getElementById('ocMessages');
     const sourceList = (items || []).map(normalizeMessageItem).filter(item => !isInternalUserMessage(item));
-    const list = trimMessagesForMobile(sourceList);
+    const list = trimMessagesForRender(sourceList);
 
     if (userScrolling) {
         lastMessageCount = list.length;
