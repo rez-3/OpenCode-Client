@@ -300,19 +300,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tabBtn || !tabBtn.dataset.cmdTab) return;
 
         const tab = tabBtn.dataset.cmdTab;
-        if (tab === cmdActiveTab && commandsLoaded) return;
+        if (tab === cmdActiveTab) return;
 
         cmdActiveTab = tab;
 
         document.querySelectorAll('.cmd-tab').forEach(t => {
             t.classList.toggle('active', t.dataset.cmdTab === tab);
         });
-
-        if (commandsLoaded) {
-            renderCommands(tab);
-        } else {
-            loadCommands();
-        }
+        renderCommandsCard(tab);
     });
 
     // ========================

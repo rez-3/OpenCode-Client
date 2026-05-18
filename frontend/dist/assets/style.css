@@ -2942,6 +2942,138 @@ input::placeholder, textarea::placeholder {
     line-height: 1.5;
 }
 
+/* ========== API 文档渲染 ========== */
+
+.api-doc-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.api-doc-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 2fr;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+}
+
+.api-doc-row:hover {
+    background: var(--bg-card-hover);
+}
+
+/* 方法标签 */
+.api-method {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    min-width: 56px;
+    text-align: center;
+}
+
+.api-method.get    { background: #d4edda; color: #155724; }
+.api-method.post   { background: #cce5ff; color: #004085; }
+.api-method.put    { background: #fff3cd; color: #856404; }
+.api-method.patch  { background: #e2d4f0; color: #5a2d82; }
+.api-method.delete { background: #f8d7da; color: #721c24; }
+
+.api-path {
+    font-size: 13px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.api-summary {
+    font-size: 12px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 展开详情 */
+.api-detail {
+    display: none;
+    grid-column: 1 / -1;
+    padding: 12px 16px;
+    margin-top: 4px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.api-doc-row.expanded .api-detail {
+    display: block;
+}
+
+.api-params ul {
+    margin: 6px 0 0 16px;
+    padding: 0;
+}
+
+.api-params li {
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.api-params code {
+    background: var(--bg-card);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.api-params em {
+    color: var(--accent);
+    font-style: normal;
+    font-weight: 600;
+}
+
+.api-request-body pre {
+    margin: 6px 0 0 0;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    max-height: 200px;
+    overflow: auto;
+}
+
+/* 分组折叠 */
+.cmd-group-title {
+    cursor: pointer;
+    user-select: none;
+}
+
+.cmd-group-title.collapsed::before {
+    content: '▶ ';
+    font-size: 11px;
+}
+
+.cmd-group-title:not(.collapsed)::before {
+    content: '▼ ';
+    font-size: 11px;
+}
+
+.api-doc-grid.collapsed {
+    display: none;
+}
+
 /* ========== 加载 / 空 / 错误状态 ========== */
 .loading, .empty, .error {
     display: flex;
