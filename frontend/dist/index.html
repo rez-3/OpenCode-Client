@@ -266,6 +266,11 @@
                     <button type="button" class="cmd-tab" data-cmd-tab="tui">TUI 命令</button>
                     <button type="button" class="cmd-tab" data-cmd-tab="api">API 文档</button>
                 </div>
+                <section class="path-bar" id="apiDocSearchBar" style="display:none">
+                    <span class="path-label">搜索：</span>
+                    <input type="text" id="apiDocSearch" placeholder="输入关键字过滤 API 文档..." style="flex:1;padding:4px 8px;" />
+                </section>
+                <div id="apiDocEmptyState" style="display:none">未找到匹配的 API 接口</div>
                 <div class="cmd-content" id="cmdContent">
                     <div class="loading"><div class="spinner"></div><p>正在加载命令列表...</p></div>
                 </div>

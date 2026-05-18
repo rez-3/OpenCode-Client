@@ -6,12 +6,28 @@ let commandsLoaded = false;
 let cmdActiveTab = 'cli';
 let apiDocData = null;
 let apiDocLoaded = false;
+let apiDocKeyword = '';
+
+function updateApiDocSearchVisibility(tab) {
+    const searchBar = document.getElementById('apiDocSearchBar');
+    if (!searchBar) return;
+    searchBar.style.display = tab === 'api' ? '' : 'none';
+}
 
 function renderCommandsCard(tab) {
+    updateApiDocSearchVisibility(tab);
     if (tab === 'api') {
-        if (apiDocLoaded) { renderApiDocs(); } else { loadApiDocs(); }
-    }else{
-         if (apiDocLoaded) { renderCommands(); } else { loadCommands(); }
+        if (apiDocLoaded) {
+            renderApiDocs();
+        } else {
+            loadApiDocs();
+        }
+        return;
+    }
+    if (commandsLoaded) {
+        renderCommands(tab);
+    } else {
+        loadCommands();
     }
 }
 
@@ -102,6 +118,21 @@ function renderCommands(tab) {
     });
 }
 
+function filterApiDocsEntries(entries) {
+    const keyword = apiDocKeyword.trim().toLowerCase();
+    if (!keyword) return entries;
+
+    return entries.filter(({ path, detail }) => {
+        const summary = (detail.summary || '').toLowerCase();
+        const description = (detail.description || '').toLowerCase();
+        const lowerPath = (path || '').toLowerCase();
+
+        return lowerPath.indexOf(keyword) >= 0
+            || summary.indexOf(keyword) >= 0
+            || description.indexOf(keyword) >= 0;
+    });
+}
+
 /**
  * 加载 opencode 服务的 API 文档（OpenAPI 3.1.0 JSON）
  * 从网络配置中读取 ip:port，访问 http://ip:port/doc
@@ -138,18 +169,33 @@ function renderApiDocs() {
 
     // 按 tag 分组
     const tags = {};
+    const entries = [];
     Object.entries(apiDocData.paths).forEach(([path, methods]) => {
         Object.entries(methods).forEach(([method, detail]) => {
             if (method === 'parameters') return;
-            detail.tags.forEach(tag => {
+            (detail.tags || ['默认']).forEach(tag => {
                 if (!tags[tag]) tags[tag] = [];
-                tags[tag].push({ path, method: method.toUpperCase(), detail });
+                const entry = { path, method: method.toUpperCase(), detail, tag };
+                tags[tag].push(entry);
+                entries.push(entry);
             });
         });
     });
 
+    const filteredEntries = filterApiDocsEntries(entries);
+    if (filteredEntries.length === 0) {
+        content.innerHTML = '<div class="empty"><p>未找到匹配的 API 接口</p></div>';
+        return;
+    }
+
+    const filteredTags = {};
+    filteredEntries.forEach(entry => {
+        if (!filteredTags[entry.tag]) filteredTags[entry.tag] = [];
+        filteredTags[entry.tag].push(entry);
+    });
+
     // 渲染每个 tag 组
-    const sortedTags = Object.keys(tags).sort();
+    const sortedTags = Object.keys(filteredTags).sort();
     sortedTags.forEach(tag => {
         const group = document.createElement('div');
         group.className = 'cmd-group';
@@ -167,7 +213,7 @@ function renderApiDocs() {
             title.classList.toggle('collapsed');
         });
 
-        tags[tag].forEach(({ path, method, detail }) => {
+        filteredTags[tag].forEach(({ path, method, detail }) => {
             const row = document.createElement('div');
             row.className = 'api-doc-row';
 
@@ -235,5 +281,3 @@ function renderApiDocs() {
         content.appendChild(group);
     });
 }
-
-

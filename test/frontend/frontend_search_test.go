@@ -396,6 +396,59 @@ func TestWebDirectoryBrowserModalIsWiredForProjectTreeAddAction(t *testing.T) {
 	}
 }
 
+func TestApiDocTabIncludesSearchBarAndEmptyState(t *testing.T) {
+	htmlBytes, err := os.ReadFile("../../frontend/dist/index.html")
+	if err != nil {
+		t.Fatalf("读取 index.html 失败: %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, required := range []string{
+		`id="apiDocSearchBar"`,
+		`id="apiDocSearch"`,
+		`placeholder="输入关键字过滤 API 文档..."`,
+		`未找到匹配的 API 接口`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("API 文档 Tab 缺少搜索栏或空态线索: %s", required)
+		}
+	}
+}
+
+func TestApiDocSearchUsesKeywordStateAndFieldFiltering(t *testing.T) {
+	js, err := os.ReadFile("../../frontend/dist/assets/commands-view.js")
+	if err != nil {
+		t.Fatalf("读取 commands-view.js 失败: %v", err)
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"let apiDocKeyword = '';",
+		"function filterApiDocsEntries(entries) {",
+		"const keyword = apiDocKeyword.trim().toLowerCase();",
+		"const summary = (detail.summary || '').toLowerCase();",
+		"const description = (detail.description || '').toLowerCase();",
+		"const lowerPath = (path || '').toLowerCase();",
+		"lowerPath.indexOf(keyword) >= 0",
+		"summary.indexOf(keyword) >= 0",
+		"description.indexOf(keyword) >= 0",
+		"未找到匹配的 API 接口",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("API 文档搜索缺少关键实现线索: %s", required)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"lowerTag.indexOf(keyword) >= 0",
+		"parameterNames.some(",
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("API 文档搜索不应再匹配非目标字段: %s", forbidden)
+		}
+	}
+}
+
 func TestCreateNewSessionUsesDirectoryBrowserInWebMode(t *testing.T) {
 	js, err := os.ReadFile("../../frontend/dist/chat.js")
 	if err != nil {

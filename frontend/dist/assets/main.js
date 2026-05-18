@@ -310,6 +310,16 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCommandsCard(tab);
     });
 
+    var apiDocSearchInput = document.getElementById('apiDocSearch');
+    if (apiDocSearchInput) {
+        apiDocSearchInput.addEventListener('input', function(e) {
+            apiDocKeyword = e.target.value || '';
+            if (cmdActiveTab === 'api' && apiDocLoaded) {
+                renderApiDocs();
+            }
+        });
+    }
+
     // ========================
     // 供应商配置事件绑定
     // ========================
