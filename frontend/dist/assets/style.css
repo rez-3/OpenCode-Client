@@ -437,6 +437,24 @@ input::placeholder, textarea::placeholder {
     flex: 1;
 }
 
+.sidebar.collapsed {
+    width: 60px;
+}
+
+.sidebar.collapsed .nav-item {
+    justify-content: center;
+    gap: 0;
+    padding: 8px 6px;
+}
+
+.sidebar.collapsed .nav-label {
+    display: none;
+}
+
+.sidebar.collapsed .nav-icon {
+    margin: 0 auto;
+}
+
 /* ========== 内容区域 ========== */
 .content-area {
     flex: 1;

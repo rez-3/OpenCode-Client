@@ -449,6 +449,68 @@ func TestApiDocSearchUsesKeywordStateAndFieldFiltering(t *testing.T) {
 	}
 }
 
+func TestSidebarCollapseIncludesDefaultCollapsedStructure(t *testing.T) {
+	htmlBytes, err := os.ReadFile("../../frontend/dist/index.html")
+	if err != nil {
+		t.Fatalf("读取 index.html 失败: %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, required := range []string{
+		`id="sidebar"`,
+		`app-title`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html 缺少侧边栏折叠基础结构: %s", required)
+		}
+	}
+
+	cssBytes, err := os.ReadFile("../../frontend/dist/assets/style.css")
+	if err != nil {
+		t.Fatalf("读取 style.css 失败: %v", err)
+	}
+	css := string(cssBytes)
+
+	if !strings.Contains(css, "collapsed") {
+		t.Fatal("style.css 缺少侧边栏默认折叠样式线索: collapsed")
+	}
+}
+
+func TestSidebarCollapseUsesLocalStorageAndTitleHints(t *testing.T) {
+	htmlBytes, err := os.ReadFile("../../frontend/dist/index.html")
+	if err != nil {
+		t.Fatalf("读取 index.html 失败: %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, required := range []string{
+		`title="工作区"`,
+		`title="供应商配置"`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html 缺少侧边栏折叠提示线索: %s", required)
+		}
+	}
+
+	js, err := os.ReadFile("../../frontend/dist/assets/navigation.js")
+	if err != nil {
+		js, err = os.ReadFile("../../frontend/dist/assets/main.js")
+		if err != nil {
+			t.Fatalf("读取 navigation.js/main.js 失败: %v", err)
+		}
+	}
+	source := string(js)
+
+	for _, required := range []string{
+		"localStorage",
+		"sidebarCollapsed",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("导航脚本缺少侧边栏折叠持久化线索: %s", required)
+		}
+	}
+}
+
 func TestCreateNewSessionUsesDirectoryBrowserInWebMode(t *testing.T) {
 	js, err := os.ReadFile("../../frontend/dist/chat.js")
 	if err != nil {

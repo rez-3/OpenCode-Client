@@ -10,7 +10,7 @@
 <body>
     <!-- ======== 顶部导航栏 ======== -->
     <header class="header">
-        <h1 class="app-title">🧩 OpenCode 工作台</h1>
+        <h1 class="app-title" id="appTitle" title="切换左侧导航展开状态">🧩 OpenCode 工作台</h1>
         <div class="header-right">
             <button type="button" class="btn btn-theme" id="btnTheme" title="切换主题">🌙</button>
         </div>
@@ -19,24 +19,24 @@
     <!-- ======== 主布局 ======== -->
     <div class="main-layout">
         <!-- 侧边栏 -->
-        <nav class="sidebar" id="sidebar">
-            <div class="nav-item active" data-view="view-opencode">
+        <nav class="sidebar collapsed" id="sidebar">
+            <div class="nav-item active" data-view="view-opencode" title="工作区">
                 <span class="nav-icon">📂</span>
                 <span class="nav-label">工作区</span>
             </div>
-            <div class="nav-item" data-view="view-providers">
+            <div class="nav-item" data-view="view-providers" title="供应商配置">
                 <span class="nav-icon">🔌</span>
                 <span class="nav-label">供应商配置</span>
             </div>
-            <div class="nav-item" data-view="view-omo">
+            <div class="nav-item" data-view="view-omo" title="OMO 配置">
                 <span class="nav-icon">⚙️</span>
                 <span class="nav-label">OMO 配置</span>
             </div>
-            <div class="nav-item" data-view="view-skills">
+            <div class="nav-item" data-view="view-skills" title="技能管理">
                 <span class="nav-icon">🔗</span>
                 <span class="nav-label">技能管理</span>
             </div>
-            <div class="nav-item" data-view="view-commands">
+            <div class="nav-item" data-view="view-commands" title="常用命令">
                 <span class="nav-icon">📋</span>
                 <span class="nav-label">常用命令</span>
             </div>
