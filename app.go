@@ -369,6 +369,11 @@ func (a *App) GetProviders() ([]model.ProviderInfo, error) {
 	return config.GetProviders(), nil
 }
 
+// GetModelList 调用供应商 API 获取可用模型列表。
+func (a *App) GetModelList(baseURL, apiKey string) []string {
+	return config.GetModleList(baseURL, apiKey)
+}
+
 // SaveProvider 保存供应商配置。
 func (a *App) SaveProvider(ps model.ProviderSave) model.SaveResult {
 	if err := config.SaveProvider(ps); err != nil {
@@ -682,6 +687,10 @@ func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interfa
 		return a.ToggleSkill(skillPath, skillName, enable), nil
 	case "GetProviders":
 		return a.GetProviders()
+	case "GetModelList":
+		var baseURL, apiKey string
+		if err := decodeArgs(args, &baseURL, &apiKey); err != nil { return nil, err }
+		return a.GetModelList(baseURL, apiKey), nil
 	case "GetAvailableModels":
 		return a.GetAvailableModels()
 	case "GetModelConfig":

@@ -47,6 +47,8 @@ export function GetFullConfig():Promise<string>;
 
 export function GetModelConfig():Promise<Array<model.ModelEntry>>;
 
+export function GetModelList(arg1:string,arg2:string):Promise<Array<string>>;
+
 export function GetOpenCodeCommands():Promise<Array<model.CmdPaletteItem>>;
 
 export function GetProjectTree(arg1:string):Promise<string>;

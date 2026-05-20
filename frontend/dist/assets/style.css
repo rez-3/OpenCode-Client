@@ -2674,7 +2674,6 @@ input::placeholder, textarea::placeholder {
     gap: 8px;
     padding: 10px 24px;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
     font-size: 12px;
     flex-shrink: 0;
 }
@@ -2937,15 +2936,35 @@ input::placeholder, textarea::placeholder {
 
 .toggle-slider {
     position: relative;
-    width: 42px;
-    height: 24px;
-    background: var(--bg-input);
-    border-radius: 12px;
-    transition: all var(--transition);
-    border: 2px solid var(--border);
+    width: 44px;
+    height: 26px;
+    background: var(--border-light);
+    border-radius: 13px;
+    transition: all 0.25s ease;
+    border: none;
+}
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: all 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.toggle input:checked + .toggle-slider {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.toggle input:checked + .toggle-slider::after {
+    background: #fff;
+    left: 21px;
 }
 
-.toggle-slider::after {
+/* .toggle-slider::after {
     content: '';
     position: absolute;
     top: 2px;
@@ -2955,7 +2974,7 @@ input::placeholder, textarea::placeholder {
     background: var(--text-muted);
     border-radius: 50%;
     transition: all var(--transition);
-}
+} */
 
 .toggle input:checked + .toggle-slider {
     background: var(--success);
@@ -2968,8 +2987,11 @@ input::placeholder, textarea::placeholder {
 }
 
 .toggle input:disabled + .toggle-slider {
-    opacity: 0.4;
+    opacity: 0.35;
     cursor: not-allowed;
+}
+.toggle:hover .toggle-slider {
+    opacity: 0.85;
 }
 
 .toggle:hover .toggle-slider {
@@ -3408,24 +3430,16 @@ input::placeholder, textarea::placeholder {
     width: 140px;
 }
 .btn-del {
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    font-size: 11px;
-    border-radius: 50%;
     background: transparent;
-    border: 1px solid var(--border);
     color: var(--text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    color: #fff;
+    border: none;
+    font-weight: 500;
+    border-radius: var(--radius-pill);
 }
 .btn-del:hover {
     background: var(--danger-bg);
     color: var(--danger);
-    border-color: var(--danger);
 }
 .btn-add {
     background: var(--accent);
@@ -3839,7 +3853,7 @@ input::placeholder, textarea::placeholder {
 }
 
 /* ======== 技能管理搜索框 ======== */
-#skillSearch { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-size: 13px; outline: none; }
+#skillSearch { flex: 1; padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-card); color: var(--text-primary); font-size: 14px; outline: none;  }
 
 /* ======== 技能源目录样式 ======== */
 .source-dir-item {
@@ -3860,18 +3874,23 @@ input::placeholder, textarea::placeholder {
     color: var(--danger) !important;
 }
 
-/* 方案管理按钮 */
-#btnApplySkillScheme { background: var(--accent); color: #fff; border: none; }
+/* 方案管理 + 来源目录按钮 Apple 风格 */
+#btnApplySkillScheme { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-pill); }
 #btnApplySkillScheme:hover { background: var(--accent-hover); }
-#btnDeleteSkillScheme { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-#btnDeleteSkillScheme:hover { background: var(--danger-ghost, rgba(239,68,68,0.1)); }
-#btnSaveSkillScheme { background: var(--accent); color: #fff; border: none; }
+#btnApplySkillScheme:active { transform: scale(0.97); }
+#btnDeleteSkillScheme { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: var(--radius-pill); }
+#btnDeleteSkillScheme:hover { background: var(--danger-bg); }
+#btnDeleteSkillScheme:active { transform: scale(0.97); }
+#btnSaveSkillScheme { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-pill); }
 #btnSaveSkillScheme:hover { background: var(--accent-hover); }
-#btnAddSourceDir { background: var(--accent); color: #fff; border: none; }
+#btnSaveSkillScheme:active { transform: scale(0.97); }
+#btnAddSourceDir { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-pill); }
 #btnAddSourceDir:hover { background: var(--accent-hover); }
-#btnRemoveSourceDir { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-#btnRemoveSourceDir:hover { background: var(--danger-ghost, rgba(239,68,68,0.1)); }
-#btnOpenSourceDir { background: var(--accent); color: #fff; border: none; }
+#btnAddSourceDir:active { transform: scale(0.97); }
+#btnRemoveSourceDir { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: var(--radius-pill); }
+#btnRemoveSourceDir:hover { background: var(--danger-bg); }
+#btnRemoveSourceDir:active { transform: scale(0.97); }
+#btnOpenSourceDir { background: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-pill); }
 #btnOpenSourceDir:hover { background: var(--accent-hover); }
 
 
@@ -3899,4 +3918,56 @@ input::placeholder, textarea::placeholder {
     border: 1px dashed var(--border);
     border-radius: var(--radius-md);
     line-height: 1.5;
+}
+
+/* ======== 模型列表弹窗 ======== */
+.model-list-body {
+    max-height: 360px;
+    overflow-y: auto;
+    margin: 8px 0;
+}
+.model-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.model-list-row:last-child {
+    border-bottom: none;
+}
+.model-list-name {
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 12px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    margin-right: 12px;
+}
+.model-list-row .btn-add {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success);
+    padding: 2px 12px;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+.model-list-row .btn-add:hover {
+    background: var(--success);
+    color: #fff;
+}
+.model-list-row .btn-del {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    padding: 2px 12px;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+.model-list-row .btn-del:hover {
+    background: var(--danger);
+    color: #fff;
 }

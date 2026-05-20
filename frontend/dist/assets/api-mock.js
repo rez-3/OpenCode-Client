@@ -287,6 +287,12 @@ const mockApi = (() => {
         ],
         SaveProvider: async (p) => ({ success: true }),
         DeleteProvider: async (key) => ({ success: true }),
+        GetModelList: async (baseURL, apiKey) => {
+            // 根据提供商返回模拟模型列表
+            if (baseURL.includes('deepseek')) return ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-pro', 'deepseek-v4-flash'];
+            if (baseURL.includes('siliconflow')) return ['Qwen/Qwen2.5-7B-Instruct', 'meta-llama/Meta-Llama-3.1-8B-Instruct', 'deepseek-ai/DeepSeek-V3'];
+            return ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'];
+        },
         GetProviderConfigPath: async () => '~/.config/opencode/opencode.jsonc',
         GetConfigPath: async () => '~/.config/opencode/oh-my-openagent.jsonc',
         GetFullConfig: async () => `{

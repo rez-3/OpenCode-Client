@@ -90,6 +90,10 @@ export function GetModelConfig() {
   return window['go']['main']['App']['GetModelConfig']();
 }
 
+export function GetModelList(arg1, arg2) {
+  return window['go']['main']['App']['GetModelList'](arg1, arg2);
+}
+
 export function GetOpenCodeCommands() {
   return window['go']['main']['App']['GetOpenCodeCommands']();
 }

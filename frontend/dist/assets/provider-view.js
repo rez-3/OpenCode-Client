@@ -88,7 +88,7 @@ function providerCardHtml(p) {
                     </label>
                 </div>
                 <div class="provider-models">
-                    <div class="provider-models-title">📦 模型 <button class="btn btn-sm btn-add btn-add-model-card" data-key="${escapeHtml(p.key)}" style="font-size:10px;padding:2px 8px">+</button></div>
+                    <div class="provider-models-title">📦 模型 <button class="btn btn-sm btn-add btn-add-model-card" data-key="${escapeHtml(p.key)}" style="font-size:10px;padding:2px 8px;">手动添加</button><button class="btn btn-sm btn-add btn-fetch-models" data-key="${escapeHtml(p.key)}" style="font-size:10px;padding:2px 8px;margin-left:4px">📡 获取模型列表</button></div>
                     <div class="card-models-list" data-key="${escapeHtml(p.key)}">
                         ${(p.models||[]).map((m,i) => `
                             <div class="model-subcard">
@@ -147,6 +147,21 @@ function bindProviderEvents(providers) {
 
     document.querySelectorAll('.btn-del-model').forEach(btn => {
         btn.addEventListener('click', () => btn.parentElement.remove());
+    });
+
+    // 获取模型列表按钮
+    document.querySelectorAll('.btn-fetch-models').forEach(btn => {
+        btn.addEventListener('click', () => {
+            var key = btn.dataset.key;
+            var card = document.querySelector('.provider-card[data-key="' + CSS.escape(key) + '"]');
+            if (!card) return;
+            var name = card.querySelector('.prov-edit-name')?.value?.trim() || key;
+            var baseURL = card.querySelector('.prov-edit-url')?.value?.trim() || '';
+            var apiKey = card.querySelector('.prov-edit-apikey')?.value?.trim() || '';
+            if (!baseURL) { showToast('请先填写请求地址', 'error'); return; }
+            if (!apiKey) { showToast('请先填写 API Key', 'error'); return; }
+            showModelListModal(key, name, baseURL, apiKey);
+        });
     });
 
     document.querySelectorAll('.btn-eye').forEach(btn => {
@@ -208,4 +223,107 @@ function saveProviderFromDom(key) {
             btn.disabled = false; btn.textContent = '💾 保存';
         }
     });
+}
+
+// ========== 获取模型列表弹窗 ==========
+
+async function showModelListModal(key, name, baseURL, apiKey) {
+    var btn = document.querySelector('.btn-fetch-models[data-key="' + CSS.escape(key) + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 获取中...'; }
+
+    var models = [];
+    try {
+        models = await api.GetModelList(baseURL, apiKey) || [];
+    } catch (e) {
+        showToast('获取模型列表失败: ' + (e.message || e), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '📡 获取模型列表'; }
+        return;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '📡 获取模型列表'; }
+
+    if (!models.length) { showToast('未获取到模型列表', 'info'); return; }
+
+    // 获取当前卡片中已有模型 ID
+    var card = document.querySelector('.provider-card[data-key="' + CSS.escape(key) + '"]');
+    var existingIds = [];
+    if (card) {
+        card.querySelectorAll('.model-edit-id').forEach(function(input) {
+            var v = input.value.trim();
+            if (v) existingIds.push(v);
+        });
+    }
+    var existingSet = {};
+    existingIds.forEach(function(id) { existingSet[id] = true; });
+
+    // 渲染弹窗
+    var html = '<div class="model-list-body">';
+    models.forEach(function(m) {
+        var escaped = escapeHtml(m);
+        html += '<div class="model-list-row">' +
+            '<span class="model-list-name">' + escaped + '</span>';
+        if (existingSet[m]) {
+            html += '<button class="btn btn-sm btn-del" data-action="del" data-model="' + escaped + '">删除</button>';
+        } else {
+            html += '<button class="btn btn-sm btn-add" data-action="add" data-model="' + escaped + '">增加</button>';
+        }
+        html += '</div>';
+    });
+    html += '</div>';
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modelListModal';
+    overlay.innerHTML = '<div class="modal proxy-modal" onclick="event.stopPropagation()" style="max-width:420px">' +
+        '<h3>' + escapeHtml(name) + '-模型</h3>' +
+        html +
+        '<div class="modal-actions"><button class="btn btn-sm" id="btnCloseModelList">关闭</button></div>' +
+    '</div>';
+    document.body.appendChild(overlay);
+    overlay.style.display = 'flex';
+
+    // 事件绑定
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeModelListModal();
+    });
+    overlay.querySelector('#btnCloseModelList').addEventListener('click', closeModelListModal);
+
+    overlay.querySelectorAll('[data-action]').forEach(function(actBtn) {
+        actBtn.addEventListener('click', function() {
+            var action = this.dataset.action;
+            var modelId = this.dataset.model;
+            var list = document.querySelector('.card-models-list[data-key="' + CSS.escape(key) + '"]');
+            if (!list) return;
+
+            if (action === 'add') {
+                var row = document.createElement('div');
+                row.className = 'model-subcard';
+                row.innerHTML = '<div style="display:flex;align-items:center;gap:8px;flex:1">' +
+                    '<span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">模型ID</span>' +
+                    '<input class="model-edit-id" value="' + escapeHtml(modelId) + '" style="font-size:12px;font-family:monospace;flex:1;width:50%" readonly />' +
+                    '<span style="font-size:10px;color:var(--text-muted);width:45px;flex-shrink:0">名称</span>' +
+                    '<input class="model-edit-name" value="' + escapeHtml(modelId) + '" style="font-size:12px;flex:1;width:50%" />' +
+                '</div>' +
+                '<button class="btn btn-del btn-del-model" title="删除">✕</button>';
+                row.querySelector('.btn-del-model').addEventListener('click', function() { row.remove(); });
+                list.appendChild(row);
+                this.textContent = '删除';
+                this.className = 'btn btn-sm btn-del';
+                this.dataset.action = 'del';
+            } else if (action === 'del') {
+                list.querySelectorAll('.model-edit-id').forEach(function(input) {
+                    if (input.value.trim() === modelId) {
+                        input.closest('.model-subcard').remove();
+                    }
+                });
+                this.textContent = '增加';
+                this.className = 'btn btn-sm btn-add';
+                this.dataset.action = 'add';
+            }
+        });
+    });
+}
+
+function closeModelListModal() {
+    var m = document.getElementById('modelListModal');
+    if (m) m.remove();
 }
