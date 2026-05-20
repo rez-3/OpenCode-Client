@@ -165,6 +165,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnDirBrowserClose').addEventListener('click', closeDirBrowserModal);
     document.getElementById('btnDirBrowserBack').addEventListener('click', goDirBrowserUp);
     document.getElementById('btnDirBrowserSelect').addEventListener('click', selectDirBrowserCurrent);
+    // 文件浏览弹窗 (Web 端)
+    document.getElementById('fileBrowserModal')?.addEventListener('click', function(e) {
+        if (e.target.id === 'fileBrowserModal') closeFileBrowserModal();
+    });
+    document.getElementById('btnCloseFileBrowser')?.addEventListener('click', closeFileBrowserModal);
+    document.getElementById('btnRefreshFiles')?.addEventListener('click', refreshFileBrowser);
+    document.getElementById('btnFileBrowserUp')?.addEventListener('click', goFileBrowserUp);
     document.getElementById('btnCancelProxy').addEventListener('click', hideProxyModal);
     document.getElementById('btnSaveProxy').addEventListener('click', applyProxyConfig);
     ['proxyEnabled', 'proxyHost', 'proxyPort', 'serviceHost', 'servicePort'].forEach(id => {

@@ -416,6 +416,36 @@
         </div>
     </div>
 
+    <!-- ===== 文件浏览弹窗 (Web 端) ===== -->
+    <div class="modal-overlay" id="fileBrowserModal" style="display:none">
+        <div class="modal file-browser-modal" onclick="event.stopPropagation()">
+            <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center">
+                <h3 id="fileBrowserTitle">文件浏览</h3>
+                <div style="display:flex;gap:8px">
+                    <button type="button" class="btn btn-sm" id="btnFileBrowserUp" title="返回上一级">⬆ 上一级</button>
+                    <button type="button" class="btn btn-sm btn-refresh" id="btnRefreshFiles">🔄 刷新</button>
+                    <button type="button" class="btn btn-sm" id="btnCloseFileBrowser">✕</button>
+                </div>
+            </div>
+            <div class="file-browser-path" id="fileBrowserPath">/</div>
+            <div class="file-browser-body">
+                <aside class="file-browser-list-panel">
+                    <div class="file-browser-empty" id="fileBrowserListEmpty">请选择目录</div>
+                    <div class="file-browser-list" id="fileBrowserList"></div>
+                </aside>
+                <section class="file-browser-preview-panel">
+                    <div class="file-browser-preview-header">
+                        <div class="file-browser-preview-title" id="filePreviewTitle">请选择文件</div>
+                        <div class="file-browser-preview-meta" id="filePreviewMeta"></div>
+                    </div>
+                    <div class="file-browser-preview-body" id="filePreviewBody">
+                        <div class="file-browser-empty">请选择左侧文件进行预览</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== 子任务详情弹窗 ===== -->
     <div class="modal-overlay" id="subtaskModal" style="display:none">
         <div class="modal subtask-modal" onclick="event.stopPropagation()">
@@ -480,6 +510,8 @@
     <script src="/assets/chat-render.js"></script>
     <script src="/assets/chat-events.js"></script>
     <script src="/assets/chat-session.js"></script>
+    <script src="/assets/file-preview.js"></script>
+    <script src="/assets/file-browser.js"></script>
     <script src="/assets/command-palette.js"></script>
     <script src="/assets/omo-config.js"></script>
     <script src="/assets/skill-manager.js"></script>

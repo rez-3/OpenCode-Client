@@ -250,3 +250,45 @@ type SchemeApplyResult struct {
 	Errors    []string `json:"errors"`    // 链接创建失败的错误信息
 	Success   bool     `json:"success"`   // 至少有一个技能被成功应用
 }
+
+// ========== 文件浏览器相关 ==========
+
+// FileBrowserItem 表示文件浏览器中的单个条目。
+type FileBrowserItem struct {
+	Name       string `json:"name"`
+	Path       string `json:"path"`       // 相对根目录的路径，以 / 开头；目录以 / 结尾
+	Type       string `json:"type"`       // dir / file
+	Ext        string `json:"ext"`        // 扩展名，如 .md
+	Size       int64  `json:"size"`       // 文件大小，目录为 0
+	ModifiedAt string `json:"modifiedAt"` // RFC3339 时间
+	Mime       string `json:"mime"`       // mime 类型或 inode/directory
+}
+
+// FileBrowserListResult 表示列目录接口返回。
+type FileBrowserListResult struct {
+	RootDir     string            `json:"rootDir"`
+	CurrentPath string            `json:"currentPath"`
+	ParentPath  string            `json:"parentPath"`
+	Items       []FileBrowserItem `json:"items"`
+}
+
+// FileBrowserStatResult 表示文件信息接口返回。
+type FileBrowserStatResult struct {
+	RootDir     string `json:"rootDir"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Type        string `json:"type"`
+	Ext         string `json:"ext"`
+	Size        int64  `json:"size"`
+	ModifiedAt  string `json:"modifiedAt"`
+	Mime        string `json:"mime"`
+}
+
+// FileBrowserReadResult 表示文本文件读取接口返回。
+type FileBrowserReadResult struct {
+	RootDir   string `json:"rootDir"`
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	Encoding  string `json:"encoding"`
+	Truncated bool   `json:"truncated"`
+}

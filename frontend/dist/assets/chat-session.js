@@ -88,12 +88,20 @@ async function selectSession(id) {
     document.getElementById('ocChatTitle').textContent = info?.title || id;
     const dirEl = document.getElementById('ocSideDirPath');
     if (dirEl) {
-        dirEl.textContent = info?.directory || id;
-        dirEl.title = info?.directory || '';
+        var dirPath = info?.directory || '';
+        dirEl.textContent = dirPath || id;
+        dirEl.title = dirPath || '';
         dirEl.style.cursor = 'pointer';
-        dirEl.onclick = () => {
-            const p = info?.directory || '';
-            if (p) api.OpenDir(p).catch(e => showToast('打开失败: ' + (e.message || e), 'error'));
+        dirEl.onclick = function() {
+            var p = info?.directory || '';
+            if (!p) return;
+            if (window.runtime) {
+                // 桌面端：打开文件管理器
+                api.OpenDir(p).catch(function(e) { showToast('打开失败: ' + (e.message || e), 'error'); });
+            } else {
+                // Web 端：直接打开站内文件浏览器，所有请求显式携带 rootDir + path
+                openFileBrowserModal(p);
+            }
         };
     }
     document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">正在加载会话消息...</div>';
