@@ -109,7 +109,14 @@ function fileBrowserHighlightCode(code, ext) {
     try {
         var lang = fileBrowserExtToLang(ext);
         var result = lang ? hljs.highlight(String(code || ''), { language: lang }) : hljs.highlightAuto(String(code || ''));
-        return result.value;
+        var html = result.value;
+        // 拆行加行号
+        var lines = html.split('\n');
+        var numbered = '';
+        for (var i = 0; i < lines.length; i++) {
+            numbered += '<div class="hljs-line"><span class="hljs-line-no">' + (i + 1) + '</span><span class="hljs-line-content">' + (lines[i] || ' ') + '</span></div>';
+        }
+        return numbered;
     } catch (e) {
         return fileBrowserEscapeHTML(code);
     }
