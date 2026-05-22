@@ -216,6 +216,23 @@ async function renderFilePreview(item) {
         }
         var ext = (meta.ext || '').toLowerCase();
 
+        if (!ext) {
+            if (state.forcedTextPreview[item.path]) {
+                var noExtReadData = await fileBrowserApiRead(state.rootDir, item.path);
+                var noExtContent = noExtReadData.content || '';
+                state.previewContent = noExtContent;
+                if (metaEl) {
+                    metaEl.textContent = ['无扩展名 · 按普通文本方式预览', fileBrowserFormatBytes(meta.size || 0), meta.modifiedAt || ''].filter(Boolean).join(' · ');
+                }
+                bodyEl.innerHTML = '<div class="file-browser-noext-hint">已按普通文本方式打开该无扩展名文件，内容可能不是可读文本。</div>' +
+                    '<pre class="file-browser-code"><code class="hljs">' + fileBrowserHighlightCode(noExtContent, '') + '</code></pre>';
+                return;
+            }
+            bodyEl.innerHTML = renderNoExtPreview(item, meta);
+            bindNoExtPreviewActions(item);
+            return;
+        }
+
         if (fileBrowserIsImage(ext)) {
             var imageRes = await fileBrowserResolveRawResource(state.rootDir, item.path);
             bodyEl.innerHTML = '<div class="file-browser-image-wrap"><img class="file-browser-image" src="' + imageRes.url + '" alt="' + fileBrowserEscapeHTML(item.name) + '"></div>';
@@ -262,6 +279,44 @@ async function renderFilePreview(item) {
     } catch (err) {
         if (metaEl) metaEl.textContent = '';
         if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty error">' + fileBrowserEscapeHTML(err.message || err) + '</div>';
+    }
+}
+
+function renderNoExtPreview(item, meta) {
+    return '<div class="file-browser-noext">' +
+        '<div class="file-browser-noext-title">无扩展名文件</div>' +
+        '<div class="file-browser-noext-hint">系统暂时无法自动判断该文件类型。你可以按普通文本方式尝试预览，或直接下载文件。</div>' +
+        '<div class="file-browser-noext-name">文件：' + fileBrowserEscapeHTML(item.name || meta.name || item.path || '') + '</div>' +
+        '<div class="file-browser-noext-actions">' +
+            '<button type="button" class="btn btn-sm btn-refresh" id="btnOpenNoExtAsText">按普通文本打开</button>' +
+            '<a class="btn btn-sm btn-add" id="btnDownloadNoExtFile">下载文件</a>' +
+        '</div>' +
+    '</div>';
+}
+
+function bindNoExtPreviewActions(item) {
+    var state = window.fileBrowserState;
+    var openBtn = document.getElementById('btnOpenNoExtAsText');
+    var downloadBtn = document.getElementById('btnDownloadNoExtFile');
+    if (openBtn) {
+        openBtn.onclick = function() {
+            window.fileBrowserState.forcedTextPreview[item.path] = true;
+            renderFilePreview(item);
+        };
+    }
+    if (downloadBtn) {
+        downloadBtn.onclick = async function(e) {
+            if (downloadBtn.dataset.ready === 'true') {
+                downloadBtn.dataset.ready = 'false';
+                return;
+            }
+            e.preventDefault();
+            var rawRes = await fileBrowserResolveRawResource(state.rootDir, item.path);
+            downloadBtn.href = rawRes.url;
+            downloadBtn.download = item.name || '';
+            downloadBtn.dataset.ready = 'true';
+            downloadBtn.click();
+        };
     }
 }
 

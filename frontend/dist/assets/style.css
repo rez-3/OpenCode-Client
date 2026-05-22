@@ -2233,7 +2233,7 @@ input::placeholder, textarea::placeholder {
     border-radius: var(--radius-lg);
     padding: 24px;
     width: 500px;
-    max-height: 85vh;
+    max-height: 100vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
 }
@@ -3954,13 +3954,13 @@ input::placeholder, textarea::placeholder {
 
 /* ======== Web 端文件浏览弹窗 ======== */
 .file-browser-modal {
-    width: 90vw;
-    height: 95vh;
+    width: 96vw;
+    height: 96vh;
     display: flex;
     flex-direction: column;
 }
 .file-browser-modal .modal-header {
-    padding: 12px 16px;
+    padding: 0px 12px 16px 16px;
     border-bottom: 1px solid var(--border);
 }
 .file-browser-modal .modal-header h3 {
@@ -4083,9 +4083,11 @@ input::placeholder, textarea::placeholder {
     padding: 6px 14px;
     cursor: pointer;
     white-space: nowrap;
+    margin-top: 0.8em;
 }
 .file-browser-git-commit-btn:hover:not(:disabled) {
     background: var(--accent-hover);
+    color: #fff;
 }
 .file-browser-git-commit-btn:disabled {
     opacity: 0.6;
@@ -4502,6 +4504,36 @@ input::placeholder, textarea::placeholder {
 .file-browser-markdown {
     user-select: text;
     -webkit-user-select: text;
+}
+.file-browser-noext {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+}
+.file-browser-noext-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.file-browser-noext-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+.file-browser-noext-name {
+    font-size: 12px;
+    color: var(--text-muted);
+    word-break: break-all;
+}
+.file-browser-noext-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 .file-browser-image-wrap {
     display: flex;

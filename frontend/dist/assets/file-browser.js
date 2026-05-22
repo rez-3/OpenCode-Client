@@ -14,6 +14,7 @@ window.fileBrowserState = {
     loadingList: false,
     loadingPreview: false,
     previewMode: 'file',
+    forcedTextPreview: {},
     git: {
         isGitRepo: false,
         files: [],
@@ -336,6 +337,7 @@ function openFileBrowserModal(rootDir) {
     window.fileBrowserState.parentPath = '/';
     window.fileBrowserState.selectedItem = null;
     window.fileBrowserState.previewMode = 'file';
+    window.fileBrowserState.forcedTextPreview = {};
     window.fileBrowserState.git = {
         isGitRepo: false,
         files: [],

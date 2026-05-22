@@ -541,7 +541,11 @@ func GitPush(dir string) (model.GitActionResult, error) {
 	// 先尝试直接 push
 	out, err := runGitCommand(dir, "push")
 	if err != nil {
-		return model.GitActionResult{Success: false, Message: strings.TrimSpace(out)}, nil
+		msg := strings.TrimSpace(out)
+		if msg == "" {
+			msg = err.Error()
+		}
+		return model.GitActionResult{Success: false, Message: msg}, nil
 	}
 	return model.GitActionResult{Success: true}, nil
 }
@@ -571,7 +575,11 @@ func GitPull(dir string) (model.GitActionResult, error) {
 	}
 	out, err := runGitCommand(dir, "pull")
 	if err != nil {
-		return model.GitActionResult{Success: false, Message: strings.TrimSpace(out)}, nil
+		msg := strings.TrimSpace(out)
+		if msg == "" {
+			msg = err.Error()
+		}
+		return model.GitActionResult{Success: false, Message: msg}, nil
 	}
 	return model.GitActionResult{Success: true}, nil
 }
