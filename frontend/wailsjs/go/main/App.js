@@ -329,3 +329,7 @@ export function UnstageFile(arg1, arg2) {
 export function UpdateModels(arg1) {
   return window['go']['main']['App']['UpdateModels'](arg1);
 }
+
+export function UploadBrowserFile(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UploadBrowserFile'](arg1, arg2, arg3, arg4, arg5);
+}

@@ -15,6 +15,15 @@ window.fileBrowserState = {
     loadingPreview: false,
     previewMode: 'file',
     forcedTextPreview: {},
+    uploading: false,
+    uploadError: '',
+    uploadConflict: false,
+    uploadConflictName: '',
+    pendingUploadFile: null,
+    pendingUploadBase64: '',
+    pendingUploadFileName: '',
+    previewDownloadPath: '',
+    previewDownloadName: '',
     git: {
         isGitRepo: false,
         files: [],
@@ -164,6 +173,138 @@ async function fileBrowserApiDiscardFile(rootDir, path) {
     });
     if (!resp.ok) throw new Error('撤销失败');
     return await resp.json();
+}
+
+async function fileBrowserApiUpload(rootDir, path, fileName, base64Data, overwrite) {
+    if (fileBrowserUseWails()) {
+        return await api.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite);
+    }
+    var resp = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rootDir: rootDir || '', path: path || '/', fileName: fileName || '', base64: base64Data || '', overwrite: !!overwrite })
+    });
+    if (!resp.ok) throw new Error('上传失败');
+    return await resp.json();
+}
+
+function setFileBrowserDownloadTarget(path, name) {
+	var btn = document.getElementById('btnFileBrowserDownload');
+	window.fileBrowserState.previewDownloadPath = path || '';
+	window.fileBrowserState.previewDownloadName = name || '';
+	if (!btn) return;
+	btn.style.display = path ? 'inline-flex' : 'none';
+	btn.disabled = !path;
+}
+
+async function downloadCurrentFilePreview() {
+	var state = window.fileBrowserState;
+	if (!state.rootDir || !state.previewDownloadPath) return;
+	var rawRes = await fileBrowserResolveRawResource(state.rootDir, state.previewDownloadPath);
+	var link = document.createElement('a');
+	link.href = rawRes.url;
+	link.download = state.previewDownloadName || rawRes.name || 'download';
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+}
+
+function fileToBase64(file) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() {
+            var result = String(reader.result || '');
+            var comma = result.indexOf(',');
+            resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = function() {
+            reject(new Error('读取文件失败'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function openFileBrowserUploadPicker() {
+    var input = document.getElementById('fileBrowserUploadInput');
+    if (input) input.click();
+}
+
+function closeFileBrowserUploadConflictModal() {
+    var modal = document.getElementById('fileBrowserUploadConflictModal');
+    var field = document.getElementById('fileBrowserUploadRenameField');
+    var input = document.getElementById('fileBrowserUploadRenameInput');
+    var error = document.getElementById('fileBrowserUploadConflictError');
+    var confirmBtn = document.getElementById('btnFileBrowserUploadRenameConfirm');
+    if (modal) modal.style.display = 'none';
+    if (field) field.style.display = 'none';
+    if (input) input.value = '';
+    if (error) error.textContent = '';
+    if (confirmBtn) confirmBtn.style.display = 'none';
+}
+
+function openFileBrowserUploadConflictModal(name) {
+    var modal = document.getElementById('fileBrowserUploadConflictModal');
+    var nameEl = document.getElementById('fileBrowserUploadConflictName');
+    var input = document.getElementById('fileBrowserUploadRenameInput');
+    var field = document.getElementById('fileBrowserUploadRenameField');
+    var error = document.getElementById('fileBrowserUploadConflictError');
+    var confirmBtn = document.getElementById('btnFileBrowserUploadRenameConfirm');
+    if (nameEl) nameEl.textContent = name;
+    if (input) input.value = name;
+    if (field) field.style.display = 'none';
+    if (error) error.textContent = '';
+    if (confirmBtn) confirmBtn.style.display = 'none';
+    if (modal) modal.style.display = 'flex';
+}
+
+function showFileBrowserRenameMode() {
+    var field = document.getElementById('fileBrowserUploadRenameField');
+    var confirmBtn = document.getElementById('btnFileBrowserUploadRenameConfirm');
+    if (field) field.style.display = 'block';
+    if (confirmBtn) confirmBtn.style.display = 'inline-flex';
+}
+
+async function submitBrowserUpload(fileName, overwrite) {
+    var state = window.fileBrowserState;
+    var result = await fileBrowserApiUpload(state.rootDir, state.currentPath || '/', fileName, state.pendingUploadBase64 || '', overwrite);
+    if (result.success) {
+        closeFileBrowserUploadConflictModal();
+        state.pendingUploadFileName = '';
+        state.pendingUploadBase64 = '';
+        showToast('上传成功', 'success');
+        await loadFileBrowserList(state.currentPath || '/');
+        return;
+    }
+    if (result.conflict) {
+        var error = document.getElementById('fileBrowserUploadConflictError');
+        if (error) error.textContent = '文件名已存在，请重新输入';
+        return;
+    }
+    throw new Error(result.error || '上传失败');
+}
+
+async function handleBrowserUploadSelected(file) {
+    if (!file) return;
+    var state = window.fileBrowserState;
+    state.pendingUploadFileName = file.name || '';
+    state.pendingUploadBase64 = await fileToBase64(file);
+    try {
+        var result = await fileBrowserApiUpload(state.rootDir, state.currentPath || '/', state.pendingUploadFileName, state.pendingUploadBase64, false);
+        if (result.success) {
+            state.pendingUploadFileName = '';
+            state.pendingUploadBase64 = '';
+            showToast('上传成功', 'success');
+            await loadFileBrowserList(state.currentPath || '/');
+            return;
+        }
+        if (result.conflict) {
+            openFileBrowserUploadConflictModal(state.pendingUploadFileName);
+            return;
+        }
+        showToast(result.error || '上传失败', 'error');
+    } catch (err) {
+        showToast(err.message || '上传失败', 'error');
+    }
 }
 
 (function initFileBrowserResize() {
@@ -354,6 +495,10 @@ function openFileBrowserModal(rootDir) {
     window.fileBrowserState.selectedItem = null;
     window.fileBrowserState.previewMode = 'file';
     window.fileBrowserState.forcedTextPreview = {};
+    window.fileBrowserState.previewDownloadPath = '';
+    window.fileBrowserState.previewDownloadName = '';
+    window.fileBrowserState.pendingUploadFileName = '';
+    window.fileBrowserState.pendingUploadBase64 = '';
     window.fileBrowserState.git = {
         isGitRepo: false,
         files: [],
@@ -389,9 +534,30 @@ function clearFileBrowserPreview() {
     var titleEl = document.getElementById('filePreviewTitle');
     var metaEl = document.getElementById('filePreviewMeta');
     var bodyEl = document.getElementById('filePreviewBody');
+    var downloadBtn = document.getElementById('btnFileBrowserDownload');
     if (titleEl) titleEl.textContent = '请选择文件';
     if (metaEl) metaEl.textContent = '';
     if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty">请选择左侧文件进行预览</div>';
+    window.fileBrowserState.previewDownloadPath = '';
+    window.fileBrowserState.previewDownloadName = '';
+	if (downloadBtn) {
+		downloadBtn.style.display = 'none';
+		downloadBtn.disabled = true;
+	}
+}
+
+async function downloadCurrentFilePreview() {
+	var state = window.fileBrowserState;
+	if (!state.rootDir || !state.previewDownloadPath) return;
+	try {
+		var rawRes = await fileBrowserResolveRawResource(state.rootDir, state.previewDownloadPath);
+		var link = document.createElement('a');
+		link.href = rawRes.url;
+		link.download = state.previewDownloadName || 'download';
+		link.click();
+	} catch (err) {
+		showToast(err.message || '下载失败', 'error');
+	}
 }
 
 async function loadFileBrowserGitStatus() {

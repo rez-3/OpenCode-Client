@@ -440,6 +440,9 @@
                         <div class="file-browser-path" id="fileBrowserPath">/</div>
                         <div class="file-browser-empty" id="fileBrowserListEmpty">请选择目录</div>
                         <div class="file-browser-list" id="fileBrowserList"></div>
+                        <div class="file-browser-files-toolbar">
+                            <button type="button" class="btn file-browser-upload-plus" id="btnFileBrowserUpload" title="上传文件">⬆上传文件</button>
+                        </div>
                     </div>
                     <div class="file-browser-git-panel" id="fileBrowserGitPanel" style="display:none">
                         <div class="file-browser-git-section file-browser-git-current-section">
@@ -470,13 +473,40 @@
                 <div class="file-browser-resize-handle" id="fileBrowserResizeHandle" aria-hidden="true"></div>
                 <section class="file-browser-preview-panel">
                     <div class="file-browser-preview-header">
-                        <div class="file-browser-preview-title" id="filePreviewTitle">请选择文件</div>
+                        <div class="file-browser-preview-header-main">
+                            <div class="file-browser-preview-title" id="filePreviewTitle">请选择文件</div>
+                            <button type="button" class="btn btn-sm" id="btnFileBrowserDownload" style="display:none">⬇ 下载</button>
+                        </div>
                         <div class="file-browser-preview-meta" id="filePreviewMeta"></div>
                     </div>
                     <div class="file-browser-preview-body" id="filePreviewBody">
                         <div class="file-browser-empty">请选择左侧文件进行预览</div>
                     </div>
                 </section>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="fileBrowserUploadConflictModal" style="display:none">
+        <div class="modal proxy-modal" onclick="event.stopPropagation()">
+            <h3>文件重名处理</h3>
+            <div class="modal-field">
+                <label>当前目录中已存在同名文件</label>
+                <div id="fileBrowserUploadConflictName" class="path-value">--</div>
+            </div>
+            <div class="file-browser-upload-conflict-note">你可以直接覆盖已有文件，或者输入一个新的文件名后重新上传。</div>
+            <div class="modal-actions file-browser-upload-conflict-actions">
+                <button type="button" class="btn btn-danger-outline" id="btnFileBrowserUploadOverwrite">覆盖</button>
+                <button type="button" class="btn btn-sm" id="btnFileBrowserUploadRenameMode">重命名</button>
+            </div>
+            <div class="modal-field" id="fileBrowserUploadRenameField" style="display:none">
+                <label for="fileBrowserUploadRenameInput">新文件名</label>
+                <input id="fileBrowserUploadRenameInput" />
+                <div class="file-browser-upload-error" id="fileBrowserUploadConflictError"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary" id="btnFileBrowserUploadRenameConfirm" style="display:none">确认重命名上传</button>
+                <button type="button" class="btn-cancel" id="btnFileBrowserUploadConflictCancel">取消</button>
             </div>
         </div>
     </div>
@@ -529,6 +559,7 @@
     </div>
 
     <input type="file" id="ocFileInput" multiple hidden />
+    <input type="file" id="fileBrowserUploadInput" hidden />
     <!-- 模块化 JS，按依赖顺序加载 -->
     <script src="/assets/theme.js"></script>
     <script src="/assets/utils.js"></script>

@@ -196,11 +196,20 @@ function fileBrowserFormatBytes(bytes) {
     return (i === 0 ? val : val.toFixed(1)) + ' ' + units[i];
 }
 
+function updateFileBrowserDownloadButton(item) {
+	var path = item && item.path ? item.path : '';
+	var name = item && item.name ? item.name : '';
+	if (typeof setFileBrowserDownloadTarget === 'function') {
+		setFileBrowserDownloadTarget(path, name);
+	}
+}
+
 async function renderFilePreview(item) {
     var state = window.fileBrowserState;
     if (!state || !item || item.type !== 'file') return;
     fileBrowserClearObjectURL();
     state.selectedItem = item;
+    updateFileBrowserDownloadButton(item);
     var titleEl = document.getElementById('filePreviewTitle');
     var metaEl = document.getElementById('filePreviewMeta');
     var bodyEl = document.getElementById('filePreviewBody');
@@ -245,11 +254,9 @@ async function renderFilePreview(item) {
         }
 
         if (fileBrowserIsSpreadsheet(ext)) {
-            var xlsRes = await fileBrowserResolveRawResource(state.rootDir, item.path);
             bodyEl.innerHTML = '<div class="file-browser-unsupported">' +
                 '<p>当前版本未启用 Excel 在线预览。</p>' +
                 '<p>文件：' + fileBrowserEscapeHTML(item.name) + '</p>' +
-                '<a class="btn btn-sm btn-add" href="' + xlsRes.url + '" download="' + fileBrowserEscapeHTML(item.name) + '">下载文件</a>' +
                 '</div>';
             return;
         }
@@ -270,11 +277,9 @@ async function renderFilePreview(item) {
             return;
         }
 
-        var rawRes = await fileBrowserResolveRawResource(state.rootDir, item.path);
         bodyEl.innerHTML = '<div class="file-browser-unsupported">' +
             '<p>该文件类型暂不支持在线预览。</p>' +
             '<p>文件：' + fileBrowserEscapeHTML(item.name) + '</p>' +
-            '<a class="btn btn-sm btn-add" href="' + rawRes.url + '" download="' + fileBrowserEscapeHTML(item.name) + '">下载文件</a>' +
             '</div>';
     } catch (err) {
         if (metaEl) metaEl.textContent = '';
@@ -285,37 +290,20 @@ async function renderFilePreview(item) {
 function renderNoExtPreview(item, meta) {
     return '<div class="file-browser-noext">' +
         '<div class="file-browser-noext-title">无扩展名文件</div>' +
-        '<div class="file-browser-noext-hint">系统暂时无法自动判断该文件类型。你可以按普通文本方式尝试预览，或直接下载文件。</div>' +
+        '<div class="file-browser-noext-hint">系统暂时无法自动判断该文件类型。你可以按普通文本方式尝试预览。</div>' +
         '<div class="file-browser-noext-name">文件：' + fileBrowserEscapeHTML(item.name || meta.name || item.path || '') + '</div>' +
         '<div class="file-browser-noext-actions">' +
             '<button type="button" class="btn btn-sm btn-refresh" id="btnOpenNoExtAsText">按普通文本打开</button>' +
-            '<a class="btn btn-sm btn-add" id="btnDownloadNoExtFile">下载文件</a>' +
         '</div>' +
     '</div>';
 }
 
 function bindNoExtPreviewActions(item) {
-    var state = window.fileBrowserState;
     var openBtn = document.getElementById('btnOpenNoExtAsText');
-    var downloadBtn = document.getElementById('btnDownloadNoExtFile');
     if (openBtn) {
         openBtn.onclick = function() {
             window.fileBrowserState.forcedTextPreview[item.path] = true;
             renderFilePreview(item);
-        };
-    }
-    if (downloadBtn) {
-        downloadBtn.onclick = async function(e) {
-            if (downloadBtn.dataset.ready === 'true') {
-                downloadBtn.dataset.ready = 'false';
-                return;
-            }
-            e.preventDefault();
-            var rawRes = await fileBrowserResolveRawResource(state.rootDir, item.path);
-            downloadBtn.href = rawRes.url;
-            downloadBtn.download = item.name || '';
-            downloadBtn.dataset.ready = 'true';
-            downloadBtn.click();
         };
     }
 }
@@ -346,6 +334,7 @@ async function renderGitFilePreview(path) {
     fileBrowserClearObjectURL();
     state.previewMode = 'git';
     state.selectedItem = null;
+    updateFileBrowserDownloadButton(null);
     var titleEl = document.getElementById('filePreviewTitle');
     var metaEl = document.getElementById('filePreviewMeta');
     var bodyEl = document.getElementById('filePreviewBody');
@@ -376,6 +365,7 @@ async function renderGitHistoryFilePreview(commitHash, path) {
     fileBrowserClearObjectURL();
     state.previewMode = 'git-history';
     state.selectedItem = null;
+    updateFileBrowserDownloadButton(null);
     var titleEl = document.getElementById('filePreviewTitle');
     var metaEl = document.getElementById('filePreviewMeta');
     var bodyEl = document.getElementById('filePreviewBody');

@@ -166,3 +166,5 @@ export function ToggleSkill(arg1:string,arg2:string,arg3:boolean):Promise<model.
 export function UnstageFile(arg1:string,arg2:string):Promise<model.GitActionResult>;
 
 export function UpdateModels(arg1:Array<model.ModelEntry>):Promise<model.ModelSaveResult>;
+
+export function UploadBrowserFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<model.FileBrowserUploadResult>;

@@ -169,9 +169,48 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fileBrowserModal')?.addEventListener('click', function(e) {
         if (e.target.id === 'fileBrowserModal') closeFileBrowserModal();
     });
+    document.getElementById('fileBrowserUploadConflictModal')?.addEventListener('click', function(e) {
+        if (e.target.id === 'fileBrowserUploadConflictModal') closeFileBrowserUploadConflictModal();
+    });
     document.getElementById('btnCloseFileBrowser')?.addEventListener('click', closeFileBrowserModal);
     document.getElementById('btnRefreshFiles')?.addEventListener('click', refreshFileBrowser);
     document.getElementById('btnFileBrowserUp')?.addEventListener('click', goFileBrowserUp);
+    document.getElementById('btnFileBrowserUpload')?.addEventListener('click', openFileBrowserUploadPicker);
+    document.getElementById('btnFileBrowserDownload')?.addEventListener('click', async function() {
+        try {
+            await downloadCurrentFilePreview();
+        } catch (e) {
+            showToast('下载失败: ' + (e.message || e), 'error');
+        }
+    });
+    document.getElementById('fileBrowserUploadInput')?.addEventListener('change', async function(e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) await handleBrowserUploadSelected(file);
+        e.target.value = '';
+    });
+    document.getElementById('btnFileBrowserUploadOverwrite')?.addEventListener('click', async function() {
+        try {
+            await submitBrowserUpload(window.fileBrowserState.pendingUploadFileName || '', true);
+        } catch (e) {
+            showToast('上传失败: ' + (e.message || e), 'error');
+        }
+    });
+    document.getElementById('btnFileBrowserUploadRenameMode')?.addEventListener('click', showFileBrowserRenameMode);
+    document.getElementById('btnFileBrowserUploadRenameConfirm')?.addEventListener('click', async function() {
+        var input = document.getElementById('fileBrowserUploadRenameInput');
+        var error = document.getElementById('fileBrowserUploadConflictError');
+        var name = input ? String(input.value || '').trim() : '';
+        if (!name) {
+            if (error) error.textContent = '文件名不能为空';
+            return;
+        }
+        try {
+            await submitBrowserUpload(name, false);
+        } catch (e) {
+            if (error) error.textContent = e.message || String(e);
+        }
+    });
+    document.getElementById('btnFileBrowserUploadConflictCancel')?.addEventListener('click', closeFileBrowserUploadConflictModal);
     document.getElementById('btnFileBrowserModeFiles')?.addEventListener('click', function() {
         switchFileBrowserMode('files');
     });

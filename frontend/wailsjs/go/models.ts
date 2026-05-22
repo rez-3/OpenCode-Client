@@ -241,6 +241,24 @@ export namespace model {
 	        this.mime = source["mime"];
 	    }
 	}
+	export class FileBrowserUploadResult {
+	    success: boolean;
+	    conflict: boolean;
+	    name?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileBrowserUploadResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.conflict = source["conflict"];
+	        this.name = source["name"];
+	        this.error = source["error"];
+	    }
+	}
 	export class GitActionResult {
 	    success: boolean;
 	    message: string;

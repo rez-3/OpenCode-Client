@@ -119,6 +119,43 @@ func ReadBrowserRawBase64(rootDir, relPath string) (model.FileBrowserRawResult, 
 	}, nil
 }
 
+// UploadBrowserFile 将单个文件上传到当前文件浏览器目录。
+// overwrite=false 且存在同名文件时，返回 Conflict=true 供前端弹出覆盖/重命名选择。
+func UploadBrowserFile(rootDir, relPath, fileName, base64Data string, overwrite bool) (model.FileBrowserUploadResult, error) {
+	relPath = normalizeBrowserRelPath(relPath)
+	if strings.TrimSpace(fileName) == "" {
+		return model.FileBrowserUploadResult{Success: false, Error: "文件名不能为空"}, nil
+	}
+	if relPath == "/" {
+		// 根目录本身允许上传，后面按目录处理
+	}
+	absDir, _, err := resolveBrowserPath(rootDir, relPath)
+	if err != nil {
+		return model.FileBrowserUploadResult{}, err
+	}
+	info, err := os.Stat(absDir)
+	if err != nil {
+		return model.FileBrowserUploadResult{}, fmt.Errorf("读取目录失败: %w", err)
+	}
+	if !info.IsDir() {
+		return model.FileBrowserUploadResult{}, fmt.Errorf("目标不是目录")
+	}
+	targetPath := filepath.Join(absDir, fileName)
+	// 若目标文件已存在且当前不允许覆盖，则返回冲突结果，由前端决定覆盖或重命名。
+	if existing, err := os.Stat(targetPath); err == nil && !existing.IsDir() && !overwrite {
+		return model.FileBrowserUploadResult{Success: false, Conflict: true, Name: fileName, Error: "文件已存在"}, nil
+	}
+	// 前端使用 base64 传输文件内容，后端在写入前先解码回原始字节。
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return model.FileBrowserUploadResult{Success: false, Error: "文件内容解析失败"}, nil
+	}
+	if err := os.WriteFile(targetPath, data, 0644); err != nil {
+		return model.FileBrowserUploadResult{}, fmt.Errorf("写入文件失败: %w", err)
+	}
+	return model.FileBrowserUploadResult{Success: true, Name: fileName}, nil
+}
+
 func (h *frontendWebHandler) handleFilesList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -273,6 +310,32 @@ func (h *frontendWebHandler) handleFilesRaw(w http.ResponseWriter, r *http.Reque
 		w.Header().Set("Content-Type", mimeType)
 	}
 	http.ServeFile(w, r, absPath)
+}
+
+// handleFilesUpload 处理 Web 端文件浏览器的单文件上传请求。
+func (h *frontendWebHandler) handleFilesUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		RootDir   string `json:"rootDir"`
+		Path      string `json:"path"`
+		FileName  string `json:"fileName"`
+		Base64    string `json:"base64"`
+		Overwrite bool   `json:"overwrite"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败", http.StatusBadRequest)
+		return
+	}
+	result, err := UploadBrowserFile(req.RootDir, req.Path, req.FileName, req.Base64, req.Overwrite)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func normalizeBrowserRelPath(rel string) string {

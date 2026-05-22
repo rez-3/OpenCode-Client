@@ -125,6 +125,11 @@ func (a *App) ReadBrowserRawBase64(rootDir, path string) (model.FileBrowserRawRe
 	return service.ReadBrowserRawBase64(rootDir, path)
 }
 
+// UploadBrowserFile 上传单个文件到当前文件浏览器目录。
+func (a *App) UploadBrowserFile(rootDir, path, fileName, base64Data string, overwrite bool) (model.FileBrowserUploadResult, error) {
+	return service.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite)
+}
+
 // GetGitStatus 返回目录 Git 变更状态。
 func (a *App) GetGitStatus(rootDir string) model.GitStatusResult {
 	return service.ListGitChanges(rootDir)
@@ -769,6 +774,11 @@ func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interfa
 		var rootDir, path string
 		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
 		return a.ReadBrowserRawBase64(rootDir, path)
+	case "UploadBrowserFile":
+		var rootDir, path, fileName, base64 string
+		var overwrite bool
+		if err := decodeArgs(args, &rootDir, &path, &fileName, &base64, &overwrite); err != nil { return nil, err }
+		return a.UploadBrowserFile(rootDir, path, fileName, base64, overwrite)
 	case "GetGitStatus":
 		var rootDir string
 		if err := decodeArgs(args, &rootDir); err != nil { return nil, err }

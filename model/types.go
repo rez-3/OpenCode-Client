@@ -302,6 +302,14 @@ type FileBrowserRawResult struct {
 	Base64  string `json:"base64"`
 }
 
+// FileBrowserUploadResult 表示文件浏览器上传结果。
+type FileBrowserUploadResult struct {
+	Success  bool   `json:"success"`
+	Conflict bool   `json:"conflict"`
+	Name     string `json:"name,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
 // ========== Git 变更查看相关 ==========
 
 // GitChangedFile 表示 Git 变更列表中的单个文件。
