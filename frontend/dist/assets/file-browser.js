@@ -248,7 +248,7 @@ async function gitPush() {
     var state = window.fileBrowserState;
     if (!state.rootDir) return;
     var btn = document.getElementById('btnFileBrowserGitPush');
-    if (btn) btn.disabled = true;
+    setGitRemoteActionLoading('push', true);
     try {
         var result = await fileBrowserApiGitPush(state.rootDir);
         if (result.success) {
@@ -260,14 +260,13 @@ async function gitPush() {
     } catch (err) {
         showToast(err.message || '推送失败', 'error');
     }
-    if (btn) btn.disabled = false;
+    setGitRemoteActionLoading('push', false);
 }
 
 async function gitPull() {
     var state = window.fileBrowserState;
     if (!state.rootDir) return;
-    var btn = document.getElementById('btnFileBrowserGitPull');
-    if (btn) btn.disabled = true;
+    setGitRemoteActionLoading('pull', true);
     try {
         var result = await fileBrowserApiGitPull(state.rootDir);
         if (result.success) {
@@ -279,7 +278,24 @@ async function gitPull() {
     } catch (err) {
         showToast(err.message || '拉取失败', 'error');
     }
-    if (btn) btn.disabled = false;
+    setGitRemoteActionLoading('pull', false);
+}
+
+function setGitRemoteActionLoading(action, loading) {
+    var pullBtn = document.getElementById('btnFileBrowserGitPull');
+    var pushBtn = document.getElementById('btnFileBrowserGitPush');
+    if (pullBtn) {
+        pullBtn.disabled = !!loading;
+        pullBtn.innerHTML = action === 'pull' && loading
+            ? '<span class="file-browser-git-btn-spinner"></span><span>拉取中...</span>'
+            : '⬇ 拉取';
+    }
+    if (pushBtn) {
+        pushBtn.disabled = !!loading;
+        pushBtn.innerHTML = action === 'push' && loading
+            ? '<span class="file-browser-git-btn-spinner"></span><span>推送中...</span>'
+            : '⬆ 推送';
+    }
 }
 
 async function discardFile(path) {

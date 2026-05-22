@@ -4257,6 +4257,9 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
     cursor: pointer;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 .file-browser-git-push-btn + .file-browser-git-push-btn {
     margin-left: 6px;
@@ -4268,6 +4271,16 @@ input::placeholder, textarea::placeholder {
 .file-browser-git-push-btn:disabled {
     opacity: 0.5;
     cursor: default;
+}
+.file-browser-git-btn-spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    flex-shrink: 0;
 }
 .file-browser-git-body {
     flex: 1;
