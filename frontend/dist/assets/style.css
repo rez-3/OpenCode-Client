@@ -4501,6 +4501,14 @@ input::placeholder, textarea::placeholder {
     cursor: pointer;
     font-size: 13px;
 }
+.file-browser-item-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.file-browser-item-row + .file-browser-item-row {
+	margin-top: 4px;
+}
 .file-browser-item:hover {
     background: var(--bg-card-hover);
 }
@@ -4516,6 +4524,28 @@ input::placeholder, textarea::placeholder {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+.file-browser-item-delete {
+	display: none;
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 11px;
+	padding: 3px 6px;
+	line-height: 1;
+	border-radius: var(--radius-sm);
+}
+
+.file-browser-item-row:hover .file-browser-item-delete {
+	display: inline;
+}
+
+.file-browser-item-delete:hover {
+	border-color: var(--danger);
+	color: var(--danger);
+	background: var(--danger-bg);
 }
 .file-browser-preview-panel {
     min-height: 0;

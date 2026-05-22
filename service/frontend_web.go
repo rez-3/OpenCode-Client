@@ -141,6 +141,7 @@ func newFrontendWebHandler(frontendFS fs.FS, bridge FrontendWebBridge) http.Hand
 	mux.HandleFunc("/api/files/read", h.handleFilesRead)
 	mux.HandleFunc("/api/files/raw", h.handleFilesRaw)
 	mux.HandleFunc("/api/files/upload", h.handleFilesUpload)
+	mux.HandleFunc("/api/files/delete", h.handleFilesDelete)
 	mux.HandleFunc("/api/git/status", h.handleGitStatus)
 	mux.HandleFunc("/api/git/preview", h.handleGitPreview)
 	mux.HandleFunc("/api/git/history", h.handleGitHistory)

@@ -17,6 +17,8 @@ export function ApplySkillScheme(arg1:string):Promise<model.SchemeApplyResult>;
 
 export function CreateSession(arg1:string):Promise<model.APIResult>;
 
+export function DeleteBrowserEntry(arg1:string,arg2:string):Promise<model.SaveResult>;
+
 export function DeleteModelEntry(arg1:string,arg2:string):Promise<model.ModelSaveResult>;
 
 export function DeleteModelType(arg1:string):Promise<model.ModelSaveResult>;

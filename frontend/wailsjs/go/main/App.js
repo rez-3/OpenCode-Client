@@ -30,6 +30,10 @@ export function CreateSession(arg1) {
   return window['go']['main']['App']['CreateSession'](arg1);
 }
 
+export function DeleteBrowserEntry(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBrowserEntry'](arg1, arg2);
+}
+
 export function DeleteModelEntry(arg1, arg2) {
   return window['go']['main']['App']['DeleteModelEntry'](arg1, arg2);
 }

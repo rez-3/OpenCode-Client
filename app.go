@@ -130,6 +130,11 @@ func (a *App) UploadBrowserFile(rootDir, path, fileName, base64Data string, over
 	return service.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite)
 }
 
+// DeleteBrowserEntry 删除文件浏览器中的文件或目录。
+func (a *App) DeleteBrowserEntry(rootDir, path string) (model.SaveResult, error) {
+	return service.DeleteBrowserEntry(rootDir, path)
+}
+
 // GetGitStatus 返回目录 Git 变更状态。
 func (a *App) GetGitStatus(rootDir string) model.GitStatusResult {
 	return service.ListGitChanges(rootDir)
@@ -779,6 +784,10 @@ func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interfa
 		var overwrite bool
 		if err := decodeArgs(args, &rootDir, &path, &fileName, &base64, &overwrite); err != nil { return nil, err }
 		return a.UploadBrowserFile(rootDir, path, fileName, base64, overwrite)
+	case "DeleteBrowserEntry":
+		var rootDir, path string
+		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
+		return a.DeleteBrowserEntry(rootDir, path)
 	case "GetGitStatus":
 		var rootDir string
 		if err := decodeArgs(args, &rootDir); err != nil { return nil, err }

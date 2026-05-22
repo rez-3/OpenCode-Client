@@ -188,6 +188,19 @@ async function fileBrowserApiUpload(rootDir, path, fileName, base64Data, overwri
     return await resp.json();
 }
 
+async function fileBrowserApiDelete(rootDir, path) {
+	if (fileBrowserUseWails()) {
+		return await api.DeleteBrowserEntry(rootDir, path);
+	}
+	var resp = await fetch('/api/files/delete', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ rootDir: rootDir || '', path: path || '' })
+	});
+	if (!resp.ok) throw new Error('删除失败');
+	return await resp.json();
+}
+
 function setFileBrowserDownloadTarget(path, name) {
 	var btn = document.getElementById('btnFileBrowserDownload');
 	window.fileBrowserState.previewDownloadPath = path || '';
@@ -284,7 +297,7 @@ async function submitBrowserUpload(fileName, overwrite) {
 }
 
 async function handleBrowserUploadSelected(file) {
-    if (!file) return;
+	if (!file) return;
     var state = window.fileBrowserState;
     state.pendingUploadFileName = file.name || '';
     state.pendingUploadBase64 = await fileToBase64(file);
@@ -302,9 +315,41 @@ async function handleBrowserUploadSelected(file) {
             return;
         }
         showToast(result.error || '上传失败', 'error');
-    } catch (err) {
-        showToast(err.message || '上传失败', 'error');
-    }
+	} catch (err) {
+		showToast(err.message || '上传失败', 'error');
+	}
+}
+
+async function fileBrowserConfirmDelete(item) {
+	var name = item && item.name ? item.name : '该条目';
+	var typeLabel = item && item.type === 'dir' ? '文件夹' : '文件';
+	var message = '确定删除' + typeLabel + '「' + name + '」吗？';
+	if (window.runtime && api.ShowConfirmDialog) {
+		return await api.ShowConfirmDialog('删除确认', message);
+	}
+	return confirm(message);
+}
+
+async function deleteBrowserItem(item) {
+	var state = window.fileBrowserState;
+	if (!item || !state.rootDir) return;
+	var confirmed = await fileBrowserConfirmDelete(item);
+	if (!confirmed) return;
+	try {
+		var result = await fileBrowserApiDelete(state.rootDir, item.path);
+		if (!result.success) {
+			showToast(result.error || '删除失败', 'error');
+			return;
+		}
+		if (state.selectedItem && state.selectedItem.path === item.path) {
+			state.selectedItem = null;
+			clearFileBrowserPreview();
+		}
+		showToast('已删除' + (item.type === 'dir' ? '文件夹' : '文件') + '：' + item.name, 'success');
+		await loadFileBrowserList(state.currentPath || '/');
+	} catch (err) {
+		showToast(err.message || '删除失败', 'error');
+	}
 }
 
 (function initFileBrowserResize() {
@@ -870,10 +915,13 @@ function renderFileBrowserList() {
     if (emptyEl) emptyEl.style.display = 'none';
     listEl.innerHTML = state.items.map(function(item) {
         var icon = item.type === 'dir' ? '📁' : '📄';
-        return '<button type="button" class="file-browser-item ' + (item.type === 'dir' ? 'dir' : 'file') + '" data-path="' + escapeHtml(item.path) + '" data-type="' + escapeHtml(item.type) + '">' +
-            '<span class="file-browser-item-icon">' + icon + '</span>' +
-            '<span class="file-browser-item-name">' + escapeHtml(item.name) + '</span>' +
-        '</button>';
+        return '<div class="file-browser-item-row">' +
+            '<button type="button" class="file-browser-item ' + (item.type === 'dir' ? 'dir' : 'file') + '" data-path="' + escapeHtml(item.path) + '" data-type="' + escapeHtml(item.type) + '">' +
+                '<span class="file-browser-item-icon">' + icon + '</span>' +
+                '<span class="file-browser-item-name">' + escapeHtml(item.name) + '</span>' +
+            '</button>' +
+            '<button type="button" class="file-browser-item-delete" data-delete-path="' + escapeHtml(item.path) + '" title="删除">✕</button>' +
+        '</div>';
     }).join('');
     listEl.querySelectorAll('.file-browser-item').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -888,6 +936,14 @@ function renderFileBrowserList() {
             }
         });
     });
+	listEl.querySelectorAll('.file-browser-item-delete').forEach(function(btn) {
+		btn.addEventListener('click', function(e) {
+			e.stopPropagation();
+			var path = this.dataset.deletePath || '/';
+			var item = state.items.find(function(entry) { return entry.path === path; }) || null;
+			deleteBrowserItem(item);
+		});
+	});
 }
 
 function renderFileBrowserSelection() {

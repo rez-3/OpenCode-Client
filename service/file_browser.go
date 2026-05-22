@@ -156,6 +156,26 @@ func UploadBrowserFile(rootDir, relPath, fileName, base64Data string, overwrite 
 	return model.FileBrowserUploadResult{Success: true, Name: fileName}, nil
 }
 
+// DeleteBrowserEntry 删除文件浏览器中的单个文件或目录。
+// 为了避免误删根目录，本函数禁止删除 relPath == "/" 的目标。
+func DeleteBrowserEntry(rootDir, relPath string) (model.SaveResult, error) {
+	relPath = normalizeBrowserRelPath(relPath)
+	if relPath == "/" {
+		return model.SaveResult{Success: false, Error: "禁止删除根目录"}, nil
+	}
+	absPath, _, err := resolveBrowserPath(rootDir, relPath)
+	if err != nil {
+		return model.SaveResult{}, err
+	}
+	if _, err := os.Stat(absPath); err != nil {
+		return model.SaveResult{}, fmt.Errorf("目标不存在: %w", err)
+	}
+	if err := os.RemoveAll(absPath); err != nil {
+		return model.SaveResult{}, fmt.Errorf("删除失败: %w", err)
+	}
+	return model.SaveResult{Success: true}, nil
+}
+
 func (h *frontendWebHandler) handleFilesList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -330,6 +350,29 @@ func (h *frontendWebHandler) handleFilesUpload(w http.ResponseWriter, r *http.Re
 		return
 	}
 	result, err := UploadBrowserFile(req.RootDir, req.Path, req.FileName, req.Base64, req.Overwrite)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// handleFilesDelete 处理 Web 端文件/目录删除请求。
+func (h *frontendWebHandler) handleFilesDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		RootDir string `json:"rootDir"`
+		Path    string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "请求体解析失败", http.StatusBadRequest)
+		return
+	}
+	result, err := DeleteBrowserEntry(req.RootDir, req.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
