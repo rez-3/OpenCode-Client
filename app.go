@@ -195,14 +195,14 @@ func (a *App) GitCommit(rootDir, message string) model.GitActionResult {
 }
 
 // GitPush 推送当前分支到远端。
-func (a *App) GitPush(rootDir string) model.GitActionResult {
-	result, _ := filebrowser.GitPush(rootDir)
+func (a *App) GitPush(rootDir string, proxy model.ProxyConfig) model.GitActionResult {
+	result, _ := filebrowser.GitPush(rootDir, proxy)
 	return result
 }
 
 // GitPull 从远端拉取当前分支。
-func (a *App) GitPull(rootDir string) model.GitActionResult {
-	result, _ := filebrowser.GitPull(rootDir)
+func (a *App) GitPull(rootDir string, proxy model.ProxyConfig) model.GitActionResult {
+	result, _ := filebrowser.GitPull(rootDir, proxy)
 	return result
 }
 

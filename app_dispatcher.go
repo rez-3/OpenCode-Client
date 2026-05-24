@@ -148,16 +148,18 @@ func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interfa
 		return a.GitCommit(rootDir, message), nil
 	case "GitPush":
 		var rootDir string
-		if err := decodeArgs(args, &rootDir); err != nil {
+		var proxy model.ProxyConfig
+		if err := decodeArgs(args, &rootDir, &proxy); err != nil {
 			return nil, err
 		}
-		return a.GitPush(rootDir), nil
+		return a.GitPush(rootDir, proxy), nil
 	case "GitPull":
 		var rootDir string
-		if err := decodeArgs(args, &rootDir); err != nil {
+		var proxy model.ProxyConfig
+		if err := decodeArgs(args, &rootDir, &proxy); err != nil {
 			return nil, err
 		}
-		return a.GitPull(rootDir), nil
+		return a.GitPull(rootDir, proxy), nil
 	case "DiscardFile":
 		var rootDir, path string
 		if err := decodeArgs(args, &rootDir, &path); err != nil {

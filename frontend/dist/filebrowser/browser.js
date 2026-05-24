@@ -76,12 +76,23 @@ async function fileBrowserApiGitCommit(rootDir, message) {
     return await api.GitCommit(rootDir, message);
 }
 
+function fileBrowserGetProxy() {
+    var enabled = document.getElementById('proxyEnabled');
+    var host = document.getElementById('proxyHost');
+    var port = document.getElementById('proxyPort');
+    return {
+        proxyEnabled: !!(enabled && enabled.checked),
+        proxyHost: host ? host.value : '',
+        proxyPort: port ? port.value : ''
+    };
+}
+
 async function fileBrowserApiGitPush(rootDir) {
-    return await api.GitPush(rootDir);
+    return await api.GitPush(rootDir, fileBrowserGetProxy());
 }
 
 async function fileBrowserApiGitPull(rootDir) {
-    return await api.GitPull(rootDir);
+    return await api.GitPull(rootDir, fileBrowserGetProxy());
 }
 
 async function fileBrowserApiDiscardFile(rootDir, path) {

@@ -361,7 +361,8 @@ func GitCommit(dir, message string) (model.GitActionResult, error) {
 }
 
 // runGitRemoteOp 执行 git push/pull 操作，包含仓库和远端检查。
-func runGitRemoteOp(dir, op string) (model.GitActionResult, error) {
+// proxy 用于配置 http.proxy/https.proxy，支持系统代理。
+func runGitRemoteOp(dir, op string, proxy model.ProxyConfig) (model.GitActionResult, error) {
 	if !IsGitRepository(dir) {
 		return model.GitActionResult{Success: false, Message: "当前目录未启用 Git 版本管理"}, nil
 	}
@@ -369,7 +370,22 @@ func runGitRemoteOp(dir, op string) (model.GitActionResult, error) {
 	if err != nil || strings.TrimSpace(remotes) == "" {
 		return model.GitActionResult{Success: false, Message: "未配置远端仓库，请先执行 git remote add origin <url>"}, nil
 	}
-	out, err := runGitCommand(dir, op)
+
+	// 构建 git 参数
+	args := []string{op}
+	if proxy.ProxyEnabled {
+		host := strings.TrimSpace(proxy.ProxyHost)
+		port := strings.TrimSpace(proxy.ProxyPort)
+		if host != "" {
+			if port == "" {
+				port = "7897"
+			}
+			proxyURL := fmt.Sprintf("http://%s:%s", host, port)
+			args = append([]string{"-c", "http.proxy=" + proxyURL, "-c", "https.proxy=" + proxyURL}, args...)
+		}
+	}
+
+	out, err := runGitCommand(dir, args...)
 	if err != nil {
 		msg := strings.TrimSpace(out)
 		if msg == "" {
@@ -380,14 +396,14 @@ func runGitRemoteOp(dir, op string) (model.GitActionResult, error) {
 	return model.GitActionResult{Success: true}, nil
 }
 
-// GitPush 推送提交到远端仓库。
-func GitPush(dir string) (model.GitActionResult, error) {
-	return runGitRemoteOp(dir, "push")
+// GitPush 推送提交到远端仓库。proxy 用于代理连接。
+func GitPush(dir string, proxy model.ProxyConfig) (model.GitActionResult, error) {
+	return runGitRemoteOp(dir, "push", proxy)
 }
 
-// GitPull 从远端仓库拉取提交。
-func GitPull(dir string) (model.GitActionResult, error) {
-	return runGitRemoteOp(dir, "pull")
+// GitPull 从远端仓库拉取提交。proxy 用于代理连接。
+func GitPull(dir string, proxy model.ProxyConfig) (model.GitActionResult, error) {
+	return runGitRemoteOp(dir, "pull", proxy)
 }
 
 // DiscardFile 丢弃指定文件的所有未提交修改，未跟踪文件将被删除。
