@@ -4889,7 +4889,7 @@ input::placeholder, textarea::placeholder {
 
 .project-config-modal {
     width: 92vw;
-    max-width: 1100px;
+    max-width: 1600px;
     height: 90vh;
     max-height: 92vh;
     display: flex;
