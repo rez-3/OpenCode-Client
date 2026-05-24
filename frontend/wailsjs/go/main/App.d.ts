@@ -3,9 +3,9 @@
 import {model} from '../models';
 import {json} from '../models';
 
-export function AddModelEntry(arg1:string,arg2:string,arg3:string):Promise<model.ModelSaveResult>;
+export function AddModelEntry(arg1:string,arg2:string,arg3:string):Promise<model.SaveResult>;
 
-export function AddModelType(arg1:string):Promise<model.ModelSaveResult>;
+export function AddModelType(arg1:string):Promise<model.SaveResult>;
 
 export function AddSkillSourceDir(arg1:string):Promise<model.SaveResult>;
 
@@ -15,13 +15,11 @@ export function AppCall(arg1:string,arg2:Array<json.RawMessage>):Promise<any>;
 
 export function ApplySkillScheme(arg1:string):Promise<model.SchemeApplyResult>;
 
-export function CreateSession(arg1:string):Promise<model.APIResult>;
-
 export function DeleteBrowserEntry(arg1:string,arg2:string):Promise<model.SaveResult>;
 
-export function DeleteModelEntry(arg1:string,arg2:string):Promise<model.ModelSaveResult>;
+export function DeleteModelEntry(arg1:string,arg2:string):Promise<model.SaveResult>;
 
-export function DeleteModelType(arg1:string):Promise<model.ModelSaveResult>;
+export function DeleteModelType(arg1:string):Promise<model.SaveResult>;
 
 export function DeleteProvider(arg1:string):Promise<model.SaveResult>;
 
@@ -36,8 +34,6 @@ export function ExportConfig(arg1:string,arg2:string,arg3:string):Promise<string
 export function GetAgentDescriptions():Promise<Record<string, string>>;
 
 export function GetAggregatedSkills():Promise<Array<model.SkillInfo>>;
-
-export function GetAvailableModels():Promise<Array<string>>;
 
 export function GetCommands():Promise<Array<model.CmdGroup>>;
 
@@ -63,8 +59,6 @@ export function GetModelConfig():Promise<Array<model.ModelEntry>>;
 
 export function GetModelList(arg1:string,arg2:string):Promise<Array<string>>;
 
-export function GetOpenCodeCommands():Promise<Array<model.CmdPaletteItem>>;
-
 export function GetProjectTree(arg1:string):Promise<string>;
 
 export function GetProviderConfigPath():Promise<string>;
@@ -72,8 +66,6 @@ export function GetProviderConfigPath():Promise<string>;
 export function GetProviders():Promise<Array<model.ProviderInfo>>;
 
 export function GetSchemeDir():Promise<string>;
-
-export function GetSessions():Promise<Array<model.SessionInfo>>;
 
 export function GetSkillConfig():Promise<model.SkillConfigResult>;
 
@@ -125,8 +117,6 @@ export function ReadSkillFile(arg1:string,arg2:string):Promise<model.SkillConten
 
 export function Refresh():Promise<void>;
 
-export function RefreshAvailableModels():Promise<Array<string>>;
-
 export function RejectQuestion(arg1:string):Promise<model.APIResult>;
 
 export function RemoveSkillSourceDir(arg1:string):Promise<model.SaveResult>;
@@ -167,6 +157,6 @@ export function ToggleSkill(arg1:string,arg2:string,arg3:boolean):Promise<model.
 
 export function UnstageFile(arg1:string,arg2:string):Promise<model.GitActionResult>;
 
-export function UpdateModels(arg1:Array<model.ModelEntry>):Promise<model.ModelSaveResult>;
+export function UpdateModels(arg1:Array<model.ModelEntry>):Promise<model.SaveResult>;
 
 export function UploadBrowserFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<model.FileBrowserUploadResult>;

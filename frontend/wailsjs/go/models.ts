@@ -85,22 +85,6 @@ export namespace model {
 		}
 	}
 	
-	export class CmdPaletteItem {
-	    name: string;
-	    description: string;
-	    source: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new CmdPaletteItem(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.source = source["source"];
-	    }
-	}
 	export class DirectoryEntry {
 	    name: string;
 	    path: string;
@@ -603,20 +587,6 @@ export namespace model {
 	        this.name = source["name"];
 	    }
 	}
-	export class ModelSaveResult {
-	    success: boolean;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ModelSaveResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.error = source["error"];
-	    }
-	}
 	export class ProviderInfo {
 	    key: string;
 	    name: string;
@@ -765,20 +735,6 @@ export namespace model {
 	        this.name = source["name"];
 	        this.fileName = source["fileName"];
 	        this.fullPath = source["fullPath"];
-	    }
-	}
-	export class SessionInfo {
-	    id: string;
-	    title: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new SessionInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.title = source["title"];
 	    }
 	}
 	export class Stats {

@@ -1,6 +1,8 @@
 // Package model 定义所有跨包共享的数据类型。
 package model
 
+import "fmt"
+
 // ========== 技能管理相关 ==========
 
 // AggregatedSourceInfo 聚合技能来源信息，记录单个技能在某来源目录中的位置。
@@ -39,6 +41,11 @@ type RemoveSourceDirResult struct {
 // Stats 统计信息。
 type Stats struct {
 	GlobalSkills int `json:"globalSkills"`
+}
+
+// String 实现 Stringer 接口，便于调试。
+func (s Stats) String() string {
+	return fmt.Sprintf("Skills: %d", s.GlobalSkills)
 }
 
 // ToggleResult 单个技能切换结果。
@@ -87,12 +94,6 @@ type ModelEntry struct {
 	Model   string `json:"model"`
 	Variant string `json:"variant"`
 	Comment string `json:"comment"`
-}
-
-// ModelSaveResult 模型保存结果。
-type ModelSaveResult struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error,omitempty"`
 }
 
 // ========== 供应商配置相关 ==========

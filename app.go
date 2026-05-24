@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	iofs "io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	iofs "io/fs"
 
-	"oc-manager/config"
+	"oc-manager/config/commands"
+	"oc-manager/config/omo"
+	"oc-manager/config/provider"
+	"oc-manager/config/skill"
 	"oc-manager/model"
-	"oc-manager/service"
-	"oc-manager/skill"
+	"oc-manager/service/filebrowser"
+	"oc-manager/service/opencode"
+	"oc-manager/service/web"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -52,7 +55,7 @@ func (a *App) shutdown(ctx context.Context) {
 
 // GetSkillConfig 返回技能管理页面需要的完整聚合数据（统一接口）。
 func (a *App) GetSkillConfig() model.SkillConfigResult {
-	dirs, _ := config.ListSourceDirs()
+	dirs, _ := skill.ListSourceDirs()
 	var skills []model.SkillInfo
 
 	if len(dirs) == 0 {
@@ -82,7 +85,7 @@ func (a *App) GetSkills() []model.SkillInfo {
 // 4. 合并返回完整列表
 // 当没有配置来源目录时，回退到原有的 GetAllSkills 扫描逻辑。
 func (a *App) GetAggregatedSkills() []model.SkillInfo {
-	dirs, err := config.ListSourceDirs()
+	dirs, err := skill.ListSourceDirs()
 	if err != nil || len(dirs) == 0 {
 		return a.sm.GetAllSkills()
 	}
@@ -102,50 +105,50 @@ func (a *App) GetDirEnabledSkills(dir string) []string {
 
 // ListBrowsableDirs 返回目录浏览器当前层的目录列表。
 func (a *App) ListBrowsableDirs(path string) ([]model.DirectoryEntry, error) {
-	return service.ListBrowsableDirs(path)
+	return filebrowser.ListBrowsableDirs(path)
 }
 
 // ListBrowserFiles 返回站内文件浏览器目录列表。
 func (a *App) ListBrowserFiles(rootDir, path string) (model.FileBrowserListResult, error) {
-	return service.ListBrowserFiles(rootDir, path)
+	return filebrowser.ListBrowserFiles(rootDir, path)
 }
 
 // StatBrowserFile 返回站内文件浏览器文件信息。
 func (a *App) StatBrowserFile(rootDir, path string) (model.FileBrowserStatResult, error) {
-	return service.StatBrowserFile(rootDir, path)
+	return filebrowser.StatBrowserFile(rootDir, path)
 }
 
 // ReadBrowserFile 返回站内文件浏览器文本文件内容。
 func (a *App) ReadBrowserFile(rootDir, path string) (model.FileBrowserReadResult, error) {
-	return service.ReadBrowserFile(rootDir, path)
+	return filebrowser.ReadBrowserFile(rootDir, path)
 }
 
 // ReadBrowserRawBase64 返回原始文件 Base64 内容，供桌面端图片/PDF/下载使用。
 func (a *App) ReadBrowserRawBase64(rootDir, path string) (model.FileBrowserRawResult, error) {
-	return service.ReadBrowserRawBase64(rootDir, path)
+	return filebrowser.ReadBrowserRawBase64(rootDir, path)
 }
 
 // UploadBrowserFile 上传单个文件到当前文件浏览器目录。
 func (a *App) UploadBrowserFile(rootDir, path, fileName, base64Data string, overwrite bool) (model.FileBrowserUploadResult, error) {
-	return service.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite)
+	return filebrowser.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite)
 }
 
 // DeleteBrowserEntry 删除文件浏览器中的文件或目录。
 func (a *App) DeleteBrowserEntry(rootDir, path string) (model.SaveResult, error) {
-	return service.DeleteBrowserEntry(rootDir, path)
+	return filebrowser.DeleteBrowserEntry(rootDir, path)
 }
 
 // GetGitStatus 返回目录 Git 变更状态。
 func (a *App) GetGitStatus(rootDir string) model.GitStatusResult {
-	return service.ListGitChanges(rootDir)
+	return filebrowser.ListGitChanges(rootDir)
 }
 
 // GetGitPreview 返回单文件 Git 预览结果。
 func (a *App) GetGitPreview(rootDir, path string) (model.GitFilePreviewResult, error) {
-	status := service.ListGitChanges(rootDir)
+	status := filebrowser.ListGitChanges(rootDir)
 	for _, changed := range status.Files {
 		if changed.Path == path {
-			return service.BuildGitFilePreview(rootDir, changed)
+			return filebrowser.BuildGitFilePreview(rootDir, changed)
 		}
 	}
 	return model.GitFilePreviewResult{}, fmt.Errorf("未找到 Git 变更文件")
@@ -153,58 +156,58 @@ func (a *App) GetGitPreview(rootDir, path string) (model.GitFilePreviewResult, e
 
 // GetGitHistory 返回目录提交历史列表。
 func (a *App) GetGitHistory(rootDir string, offset, limit int) (model.GitHistoryResult, error) {
-	return service.ListGitHistory(rootDir, offset, limit)
+	return filebrowser.ListGitHistory(rootDir, offset, limit)
 }
 
 // GetGitHistoryFiles 返回指定提交的文件列表。
 func (a *App) GetGitHistoryFiles(rootDir, commitHash string) (model.GitCommitFilesResult, error) {
-	return service.ListGitCommitFiles(rootDir, commitHash)
+	return filebrowser.ListGitCommitFiles(rootDir, commitHash)
 }
 
 // GetGitHistoryPreview 返回指定提交中文件的 diff 预览。
 func (a *App) GetGitHistoryPreview(rootDir, commitHash, path string) (model.GitCommitFilePreviewResult, error) {
-	return service.BuildGitCommitFilePreview(rootDir, commitHash, path)
+	return filebrowser.BuildGitCommitFilePreview(rootDir, commitHash, path)
 }
 
 // StageFile 暂存指定文件。
 func (a *App) StageFile(rootDir, path string) model.GitActionResult {
-	result, _ := service.StageFile(rootDir, path)
+	result, _ := filebrowser.StageFile(rootDir, path)
 	return result
 }
 
 // UnstageFile 取消暂存指定文件。
 func (a *App) UnstageFile(rootDir, path string) model.GitActionResult {
-	result, _ := service.UnstageFile(rootDir, path)
+	result, _ := filebrowser.UnstageFile(rootDir, path)
 	return result
 }
 
 // StageAllFiles 暂存所有未暂存文件。
 func (a *App) StageAllFiles(rootDir string) model.GitActionResult {
-	result, _ := service.StageAllFiles(rootDir)
+	result, _ := filebrowser.StageAllFiles(rootDir)
 	return result
 }
 
 // GitCommit 提交当前暂存区。
 func (a *App) GitCommit(rootDir, message string) model.GitActionResult {
-	result, _ := service.GitCommit(rootDir, message)
+	result, _ := filebrowser.GitCommit(rootDir, message)
 	return result
 }
 
 // GitPush 推送当前分支到远端。
 func (a *App) GitPush(rootDir string) model.GitActionResult {
-	result, _ := service.GitPush(rootDir)
+	result, _ := filebrowser.GitPush(rootDir)
 	return result
 }
 
 // GitPull 从远端拉取当前分支。
 func (a *App) GitPull(rootDir string) model.GitActionResult {
-	result, _ := service.GitPull(rootDir)
+	result, _ := filebrowser.GitPull(rootDir)
 	return result
 }
 
 // DiscardFile 撤销文件变更。
 func (a *App) DiscardFile(rootDir, path string) model.GitActionResult {
-	result, _ := service.DiscardFile(rootDir, path)
+	result, _ := filebrowser.DiscardFile(rootDir, path)
 	return result
 }
 
@@ -276,7 +279,7 @@ func (a *App) Refresh() error {
 // AddSkillSourceDir 添加技能源目录到配置。
 // 通过 a.sm.SourceDir() 获取 opencode 全局技能目录路径用于排除检查。
 func (a *App) AddSkillSourceDir(dir string) model.SaveResult {
-	if _, err := config.AddSourceDir(dir, a.sm.SourceDir()); err != nil {
+	if _, err := skill.AddSourceDir(dir, a.sm.SourceDir()); err != nil {
 		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	return model.SaveResult{Success: true}
@@ -293,7 +296,7 @@ func (a *App) RemoveSkillSourceDir(dir string) model.SaveResult {
 	}
 
 	// 从配置中移除
-	if _, err := config.RemoveSourceDir(dir); err != nil {
+	if _, err := skill.RemoveSourceDir(dir); err != nil {
 		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	return model.SaveResult{Success: true}
@@ -301,7 +304,7 @@ func (a *App) RemoveSkillSourceDir(dir string) model.SaveResult {
 
 // GetSkillSourceDirs 返回当前配置中所有技能源目录。
 func (a *App) GetSkillSourceDirs() []string {
-	dirs, err := config.ListSourceDirs()
+	dirs, err := skill.ListSourceDirs()
 	if err != nil {
 		return []string{}
 	}
@@ -319,7 +322,7 @@ func (a *App) SaveSkillScheme(name string) model.SaveResult {
 			names = append(names, s.Name)
 		}
 	}
-	if err := config.SaveSkillScheme(name, names); err != nil {
+	if err := skill.SaveSkillScheme(name, names); err != nil {
 		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	return model.SaveResult{Success: true}
@@ -328,7 +331,7 @@ func (a *App) SaveSkillScheme(name string) model.SaveResult {
 // ApplySkillScheme 应用指定名称的技能方案。
 func (a *App) ApplySkillScheme(name string) model.SchemeApplyResult {
 	// 1. 加载方案
-	scheme, err := config.LoadSkillScheme(name)
+	scheme, err := skill.LoadSkillScheme(name)
 	if err != nil {
 		return model.SchemeApplyResult{
 			Errors:  []string{err.Error()},
@@ -338,14 +341,14 @@ func (a *App) ApplySkillScheme(name string) model.SchemeApplyResult {
 	// 2. 获取聚合技能列表
 	available := a.GetAggregatedSkills()
 	// 3. 获取来源目录
-	sourceDirs, _ := config.ListSourceDirs()
+	sourceDirs, _ := skill.ListSourceDirs()
 	// 4. 应用方案
 	return a.sm.ApplySkillScheme(scheme, available, sourceDirs)
 }
 
 // ListSkillSchemes 返回所有技能方案名称列表。
 func (a *App) ListSkillSchemes() []string {
-	schemes, err := config.ListSkillSchemes()
+	schemes, err := skill.ListSkillSchemes()
 	if err != nil {
 		return []string{}
 	}
@@ -354,7 +357,7 @@ func (a *App) ListSkillSchemes() []string {
 
 // DeleteSkillScheme 删除指定技能方案。
 func (a *App) DeleteSkillScheme(name string) model.SaveResult {
-	if err := config.DeleteSkillScheme(name); err != nil {
+	if err := skill.DeleteSkillScheme(name); err != nil {
 		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	return model.SaveResult{Success: true}
@@ -364,38 +367,27 @@ func (a *App) DeleteSkillScheme(name string) model.SaveResult {
 
 // GetModelConfig 读取所有 agent/category 的模型配置。
 func (a *App) GetModelConfig() ([]model.ModelEntry, error) {
-	cfg, _, _, err := config.LoadConfig()
+	cfg, _, _, err := omo.LoadConfig()
 	if err != nil {
 		return nil, err
 	}
-	descs, _ := config.LoadAgentDescriptions()
-	return config.ConfigToEntries(cfg, descs), nil
+	descs, _ := omo.LoadAgentDescriptions()
+	return omo.ConfigToEntries(cfg, descs), nil
 }
 
 // GetAgentDescriptions 返回 agent/category 描述表。
 func (a *App) GetAgentDescriptions() map[string]string {
-	descs, err := config.LoadAgentDescriptions()
+	descs, err := omo.LoadAgentDescriptions()
 	if err != nil {
 		return nil
 	}
 	return descs
 }
 
-// GetAvailableModels 通过 opencode models 获取所有可用模型。
-func (a *App) GetAvailableModels() ([]string, error) {
-	return service.GetAvailableModels()
-}
-
-// RefreshAvailableModels 强制刷新模型列表缓存。
-func (a *App) RefreshAvailableModels() ([]string, error) {
-	service.RefreshModels()
-	return service.GetAvailableModels()
-}
-
 // UpdateModels 批量更新模型配置并保存到 JSONC 文件，同时将描述写入 agents-comments.json。
-func (a *App) UpdateModels(entries []model.ModelEntry) model.ModelSaveResult {
-	if err := config.SaveConfig(entries); err != nil {
-		return model.ModelSaveResult{Success: false, Error: err.Error()}
+func (a *App) UpdateModels(entries []model.ModelEntry) model.SaveResult {
+	if err := omo.SaveConfig(entries); err != nil {
+		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	// 同步 key-comment 到描述文件
 	descEntries := make([]struct {
@@ -406,80 +398,80 @@ func (a *App) UpdateModels(entries []model.ModelEntry) model.ModelSaveResult {
 		descEntries[i].Key = e.Key
 		descEntries[i].Comment = e.Comment
 	}
-	if err := config.ApplyDescriptions(descEntries); err != nil {
+	if err := omo.ApplyDescriptions(descEntries); err != nil {
 		// 描述写入失败不影响主流程
 		fmt.Printf("写入描述文件失败: %v\n", err)
 	}
-	return model.ModelSaveResult{Success: true}
+	return model.SaveResult{Success: true}
 }
 
 // AddModelEntry 添加 agent 或 category 条目。
-func (a *App) AddModelEntry(key, modelName, entryType string) model.ModelSaveResult {
-	if err := config.AddConfigEntry(key, modelName, entryType); err != nil {
-		return model.ModelSaveResult{Success: false, Error: err.Error()}
+func (a *App) AddModelEntry(key, modelName, entryType string) model.SaveResult {
+	if err := omo.AddConfigEntry(key, modelName, entryType); err != nil {
+		return model.SaveResult{Success: false, Error: err.Error()}
 	}
-	return model.ModelSaveResult{Success: true}
+	return model.SaveResult{Success: true}
 }
 
 // AddModelType 添加模型配置类型分组。
-func (a *App) AddModelType(entryType string) model.ModelSaveResult {
-	if err := config.AddModelType(entryType); err != nil {
-		return model.ModelSaveResult{Success: false, Error: err.Error()}
+func (a *App) AddModelType(entryType string) model.SaveResult {
+	if err := omo.AddModelType(entryType); err != nil {
+		return model.SaveResult{Success: false, Error: err.Error()}
 	}
-	return model.ModelSaveResult{Success: true}
+	return model.SaveResult{Success: true}
 }
 
 // DeleteModelType 删除整个模型配置类型分组。
-func (a *App) DeleteModelType(entryType string) model.ModelSaveResult {
-	if err := config.DeleteModelType(entryType); err != nil {
-		return model.ModelSaveResult{Success: false, Error: err.Error()}
+func (a *App) DeleteModelType(entryType string) model.SaveResult {
+	if err := omo.DeleteModelType(entryType); err != nil {
+		return model.SaveResult{Success: false, Error: err.Error()}
 	}
-	return model.ModelSaveResult{Success: true}
+	return model.SaveResult{Success: true}
 }
 
 // DeleteModelEntry 删除 agent 或 category 条目。
-func (a *App) DeleteModelEntry(key, entryType string) model.ModelSaveResult {
-	if err := config.DeleteConfigEntry(key, entryType); err != nil {
-		return model.ModelSaveResult{Success: false, Error: err.Error()}
+func (a *App) DeleteModelEntry(key, entryType string) model.SaveResult {
+	if err := omo.DeleteConfigEntry(key, entryType); err != nil {
+		return model.SaveResult{Success: false, Error: err.Error()}
 	}
-	return model.ModelSaveResult{Success: true}
+	return model.SaveResult{Success: true}
 }
 
 // GetConfigPath 返回模型配置文件路径。
 func (a *App) GetConfigPath() string {
-	return config.ConfigPath()
+	return omo.ConfigPath()
 }
 
 // GetProviderConfigPath 返回供应商配置文件路径。
 func (a *App) GetProviderConfigPath() string {
-	return config.OpenCodeConfigPath()
+	return provider.OpenCodeConfigPath()
 }
 
 // GetFullConfig 返回完整 JSONC 字符串。
 func (a *App) GetFullConfig() string {
-	return config.GetFullConfig()
+	return omo.GetFullConfig()
 }
 
 // SaveFullConfig 将前端修改后的完整 JSON 字符串直接写入文件。
 func (a *App) SaveFullConfig(jsonStr string) model.SaveResult {
-	return config.SaveFullConfig(jsonStr)
+	return omo.SaveFullConfig(jsonStr)
 }
 
 // ========== 供应商配置 ==========
 
 // GetProviders 获取所有供应商配置。
 func (a *App) GetProviders() ([]model.ProviderInfo, error) {
-	return config.GetProviders(), nil
+	return provider.GetProviders(), nil
 }
 
 // GetModelList 调用供应商 API 获取可用模型列表。
 func (a *App) GetModelList(baseURL, apiKey string) []string {
-	return config.GetModleList(baseURL, apiKey)
+	return provider.GetModelList(baseURL, apiKey)
 }
 
 // SaveProvider 保存供应商配置。
 func (a *App) SaveProvider(ps model.ProviderSave) model.SaveResult {
-	if err := config.SaveProvider(ps); err != nil {
+	if err := provider.SaveProvider(ps); err != nil {
 		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	return model.SaveResult{Success: true}
@@ -487,7 +479,7 @@ func (a *App) SaveProvider(ps model.ProviderSave) model.SaveResult {
 
 // DeleteProvider 删除供应商。
 func (a *App) DeleteProvider(key string) model.SaveResult {
-	if err := config.DeleteProvider(key); err != nil {
+	if err := provider.DeleteProvider(key); err != nil {
 		return model.SaveResult{Success: false, Error: err.Error()}
 	}
 	return model.SaveResult{Success: true}
@@ -497,7 +489,7 @@ func (a *App) DeleteProvider(key string) model.SaveResult {
 
 // GetSchemeDir 返回方案目录的绝对路径。
 func (a *App) GetSchemeDir() string {
-	dir, err := config.SchemeDir()
+	dir, err := omo.SchemeDir()
 	if err != nil {
 		return ""
 	}
@@ -506,7 +498,7 @@ func (a *App) GetSchemeDir() string {
 
 // ListSchemes 扫描方案目录并返回所有方案文件信息。
 func (a *App) ListSchemes() []model.SchemeInfo {
-	schemes, err := config.ListSchemes()
+	schemes, err := omo.ListSchemes()
 	if err != nil {
 		return []model.SchemeInfo{}
 	}
@@ -515,22 +507,22 @@ func (a *App) ListSchemes() []model.SchemeInfo {
 
 // ReadScheme 读取指定方案文件的原始内容。
 func (a *App) ReadScheme(name string) (string, error) {
-	return config.ReadScheme(name)
+	return omo.ReadScheme(name)
 }
 
 // SaveScheme 将内容保存到方案文件（原子写入，JSONC 验证）。
 func (a *App) SaveScheme(name string, content string) error {
-	return config.SaveScheme(name, content)
+	return omo.SaveScheme(name, content)
 }
 
 // DeleteScheme 删除指定方案文件。
 func (a *App) DeleteScheme(name string) error {
-	return config.DeleteScheme(name)
+	return omo.DeleteScheme(name)
 }
 
 // OpenSchemeDir 在文件资源管理器中打开方案目录。
 func (a *App) OpenSchemeDir() error {
-	dir, err := config.EnsureSchemeDir()
+	dir, err := omo.EnsureSchemeDir()
 	if err != nil {
 		return err
 	}
@@ -539,84 +531,69 @@ func (a *App) OpenSchemeDir() error {
 
 // ExportConfig 将配置内容导出到指定目录。
 func (a *App) ExportConfig(dir, filename, content string) (string, error) {
-	return service.ExportConfig(dir, filename, content)
+	return omo.ExportConfig(dir, filename, content)
 }
 
 // ========== Web 服务（委托到 service 包）==========
 
 // StartOpenCodeWeb 启动 opencode serve。
 func (a *App) StartOpenCodeWeb(port int, hostname string, proxy model.ProxyConfig) model.WebResult {
-	return service.StartOpenCodeWeb(port, hostname, proxy)
+	return opencode.StartOpenCodeWeb(port, hostname, proxy)
 }
 
 // StopOpenCodeWeb 停止 opencode web 服务。
 func (a *App) StopOpenCodeWeb() model.WebResult {
-	return service.StopOpenCodeWeb()
+	return opencode.StopOpenCodeWeb()
 }
 
 // GetWebStatus 返回当前 web 服务状态。
 func (a *App) GetWebStatus(hostname string, port int) model.WebResult {
-	return service.GetWebStatus(hostname, port)
+	return opencode.GetWebStatus(hostname, port)
 }
 
 // OpenCodeAPI 代理访问本机 opencode serve API。
 func (a *App) OpenCodeAPI(method, path, body string) model.APIResult {
-	return service.OpenCodeAPI(method, path, body)
-}
-
-// CreateSession 使用指定工作目录创建新会话。
-func (a *App) CreateSession(workDir string) model.APIResult {
-	return service.CreateSession(workDir)
+	return opencode.OpenCodeAPI(method, path, body)
 }
 
 // AnswerQuestion 回答 question 工具调用。
 func (a *App) AnswerQuestion(sessionID, answerLabel string) model.APIResult {
-	return service.AnswerQuestion(sessionID, answerLabel)
+	return opencode.AnswerQuestion(sessionID, answerLabel)
 }
 
 // RejectQuestion 忽略 question 工具调用。
 func (a *App) RejectQuestion(sessionID string) model.APIResult {
-	return service.RejectQuestion(sessionID)
+	return opencode.RejectQuestion(sessionID)
 }
 
 // GetProjectTree 获取项目→目录→会话的树形结构 JSON。
 func (a *App) GetProjectTree(knownDirs string) string {
-	return service.GetProjectTree(knownDirs)
+	return opencode.GetProjectTree(knownDirs)
 }
 
 // StartOpenCodeEvents 连接 opencode 全局 SSE。
 func (a *App) StartOpenCodeEvents() model.APIResult {
-	return service.StartOpenCodeEvents(a.ctx)
+	return opencode.StartOpenCodeEvents(a.ctx)
 }
 
 // StopOpenCodeEvents 停止 SSE 转发。
 func (a *App) StopOpenCodeEvents() model.APIResult {
-	return service.StopOpenCodeEvents()
+	return opencode.StopOpenCodeEvents()
 }
 
 // LaunchWindowsTerminal 在外部终端中打开 opencode。
 func (a *App) LaunchWindowsTerminal(mode, webURL, dir string) model.WebResult {
-	return service.LaunchWindowsTerminal(mode, webURL, dir)
+	return opencode.LaunchWindowsTerminal(mode, webURL, dir)
 }
 
 // OpenDirectoryDialog 打开目录选择对话框。
 func (a *App) OpenDirectoryDialog() string {
-	return service.OpenDirectoryDialog(a.ctx)
+	return opencode.OpenDirectoryDialog(a.ctx)
 }
 
 // ShowConfirmDialog 显示原生确认对话框，桌面端替代 window.confirm。
 func (a *App) ShowConfirmDialog(title, message string) bool {
-	return service.ShowConfirmDialog(a.ctx, title, message)
-}
-
-// GetOpenCodeCommands 从 opencode serve 获取所有可用命令。
-func (a *App) GetOpenCodeCommands() []model.CmdPaletteItem {
-	return service.GetOpenCodeCommands()
-}
-
-// GetSessions 获取最近 15 个 OpenCode 会话记录。
-func (a *App) GetSessions() ([]model.SessionInfo, error) {
-	return service.GetSessions()
+	return opencode.ShowConfirmDialog(a.ctx, title, message)
 }
 
 // StartFrontendWeb 启动页面访问服务。
@@ -625,392 +602,20 @@ func (a *App) StartFrontendWeb(port int, hostname string) model.WebResult {
 	if err != nil {
 		return model.WebResult{Error: "加载前端资源失败: " + err.Error()}
 	}
-	return service.StartFrontendWebServer(frontendFS, a, port, hostname)
+	return web.StartFrontendWebServer(frontendFS, a, port, hostname)
 }
 
 // StopFrontendWeb 停止页面访问服务。
 func (a *App) StopFrontendWeb() model.WebResult {
-	return service.StopFrontendWebServer()
+	return web.StopFrontendWebServer()
 }
 
 // GetFrontendWebStatus 返回页面访问服务状态。
 func (a *App) GetFrontendWebStatus(hostname string, port int) model.WebResult {
-	return service.FrontendWebStatus(hostname, port)
+	return web.FrontendWebStatus(hostname, port)
 }
 
-// AppCall 为前端 Web 统一分发调用。
-func (a *App) AppCall(method string, args []json.RawMessage) (interface{}, error) {
-	return a.callFrontendMethod(method, args)
-}
-
-// GetCommands 返回所有常用命令分组数据
+// GetCommands 返回所有常用命令分组数据。
 func (a *App) GetCommands() []CmdGroup {
-	return []CmdGroup{
-		// ========== CLI 命令 ==========
-		{
-			Title: "CLI - 会话",
-			Cmds: []CmdInfo{
-				{Name: "run", Sub: "", Options: "-m model, -c, -s ID, -f file, --agent", Desc: "非交互式运行提示词，适合脚本/自动化"},
-				{Name: "session", Sub: "list", Options: "-n N, --format json", Desc: "列出所有会话，支持表格/JSON格式"},
-				{Name: "stats", Sub: "", Options: "--days N, --models", Desc: "显示Token用量和费用统计"},
-				{Name: "export", Sub: "", Options: "[sessionID]", Desc: "导出会话为JSON"},
-				{Name: "import", Sub: "", Options: "file.json|url", Desc: "从JSON文件或分享链接导入会话"},
-			},
-		},
-		{
-			Title: "CLI - 代理",
-			Cmds: []CmdInfo{
-				{Name: "agent", Sub: "create, list", Options: "", Desc: "创建/列出自定义代理"},
-				{Name: "github", Sub: "install, run", Options: "--event, --token", Desc: "GitHub仓库自动化代理"},
-			},
-		},
-		{
-			Title: "CLI - 服务",
-			Cmds: []CmdInfo{
-				{Name: "serve", Sub: "", Options: "--port, --hostname", Desc: "启动无界面API服务器"},
-				{Name: "web", Sub: "", Options: "--port, --hostname", Desc: "启动Web界面"},
-				{Name: "acp", Sub: "", Options: "--port, --cwd", Desc: "启动ACP(stdin/stdout)服务器"},
-				{Name: "attach", Sub: "", Options: "url --dir --session", Desc: "连接远程OpenCode后端"},
-			},
-		},
-		{
-			Title: "CLI - 配置",
-			Cmds: []CmdInfo{
-				{Name: "auth", Sub: "login, list, logout", Options: "", Desc: "管理提供商API密钥(~/.local/share/opencode/auth.json)"},
-				{Name: "mcp", Sub: "add, list, auth, logout, debug", Options: "", Desc: "管理MCP服务器配置"},
-				{Name: "models", Sub: "", Options: "--refresh, --verbose, [provider]", Desc: "列出已配置提供商的可用模型"},
-			},
-		},
-		{
-			Title: "CLI - 维护",
-			Cmds: []CmdInfo{
-				{Name: "upgrade", Sub: "", Options: "-m curl|npm|brew, [version]", Desc: "更新到最新或指定版本"},
-				{Name: "uninstall", Sub: "", Options: "-c, -d, --force, --dry-run", Desc: "卸载并删除相关文件"},
-			},
-		},
-		// ========== TUI 命令 ==========
-		{
-			Title: "TUI - 会话管理",
-			IsTUI: true,
-			Cmds: []CmdInfo{
-				{Name: "/new", Sub: "/clear", Options: "ctrl+x n", Desc: "开始新会话"},
-				{Name: "/compact", Sub: "/summarize", Options: "ctrl+x c", Desc: "压缩会话上下文"},
-				{Name: "/undo", Sub: "", Options: "ctrl+x u", Desc: "撤销最后消息(需Git仓库)"},
-				{Name: "/redo", Sub: "", Options: "ctrl+x r", Desc: "重做撤销(需Git仓库)"},
-				{Name: "/exit", Sub: "/quit /q", Options: "ctrl+x q", Desc: "退出OpenCode"},
-			},
-		},
-		{
-			Title: "TUI - 信息查看",
-			IsTUI: true,
-			Cmds: []CmdInfo{
-				{Name: "/help", Sub: "", Options: "ctrl+x h", Desc: "显示帮助/命令面板"},
-				{Name: "/models", Sub: "", Options: "ctrl+x m", Desc: "列出可用模型"},
-				{Name: "/themes", Sub: "", Options: "ctrl+x t", Desc: "列出可用主题"},
-				{Name: "/thinking", Sub: "", Options: "", Desc: "切换思考块可见性"},
-				{Name: "/details", Sub: "", Options: "ctrl+x d", Desc: "切换工具执行详情"},
-			},
-		},
-		{
-			Title: "TUI - 操作",
-			IsTUI: true,
-			Cmds: []CmdInfo{
-				{Name: "/init", Sub: "", Options: "ctrl+x i", Desc: "创建/更新AGENTS.md"},
-				{Name: "/connect", Sub: "", Options: "", Desc: "添加提供商API密钥"},
-				{Name: "/editor", Sub: "", Options: "ctrl+x e", Desc: "用外部编辑器编写消息($EDITOR)"},
-				{Name: "/export", Sub: "", Options: "ctrl+x x", Desc: "导出对话为Markdown"},
-				{Name: "/share", Sub: "", Options: "ctrl+x s", Desc: "分享当前会话"},
-				{Name: "/unshare", Sub: "", Options: "", Desc: "取消分享"},
-				{Name: "/sessions", Sub: "/resume /continue", Options: "ctrl+x l", Desc: "列出/切换会话"},
-			},
-		},
-	}
-}
-
-func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interface{}, error) {
-	switch method {
-	case "GetCommands":
-		return a.GetCommands(), nil
-	case "StartFrontendWeb":
-		var port int
-		var hostname string
-		if err := decodeArgs(args, &port, &hostname); err != nil { return nil, err }
-		return a.StartFrontendWeb(port, hostname), nil
-	case "StopFrontendWeb":
-		return a.StopFrontendWeb(), nil
-	case "GetFrontendWebStatus":
-		var hostname string
-		var port int
-		if err := decodeArgs(args, &hostname, &port); err != nil { return nil, err }
-		return a.GetFrontendWebStatus(hostname, port), nil
-	case "GetOpenCodeCommands":
-		return a.GetOpenCodeCommands(), nil
-	case "GetSkillConfig":
-		return a.GetSkillConfig(), nil
-	case "GetDirEnabledSkills":
-		var dir string
-		if err := decodeArgs(args, &dir); err != nil { return nil, err }
-		return a.GetDirEnabledSkills(dir), nil
-	case "GetSkills":
-		return a.GetSkills(), nil
-	case "GetAggregatedSkills":
-		return a.GetAggregatedSkills(), nil
-	case "GetStats":
-		return a.GetStats(), nil
-	case "GetSourceDir":
-		return a.GetSourceDir(), nil
-	case "ListBrowsableDirs":
-		var path string
-		if err := decodeArgs(args, &path); err != nil { return nil, err }
-		return a.ListBrowsableDirs(path)
-	case "ListBrowserFiles":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.ListBrowserFiles(rootDir, path)
-	case "StatBrowserFile":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.StatBrowserFile(rootDir, path)
-	case "ReadBrowserFile":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.ReadBrowserFile(rootDir, path)
-	case "ReadBrowserRawBase64":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.ReadBrowserRawBase64(rootDir, path)
-	case "UploadBrowserFile":
-		var rootDir, path, fileName, base64 string
-		var overwrite bool
-		if err := decodeArgs(args, &rootDir, &path, &fileName, &base64, &overwrite); err != nil { return nil, err }
-		return a.UploadBrowserFile(rootDir, path, fileName, base64, overwrite)
-	case "DeleteBrowserEntry":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.DeleteBrowserEntry(rootDir, path)
-	case "GetGitStatus":
-		var rootDir string
-		if err := decodeArgs(args, &rootDir); err != nil { return nil, err }
-		return a.GetGitStatus(rootDir), nil
-	case "GetGitPreview":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.GetGitPreview(rootDir, path)
-	case "GetGitHistory":
-		var rootDir string
-		var offset, limit int
-		if err := decodeArgs(args, &rootDir, &offset, &limit); err != nil { return nil, err }
-		return a.GetGitHistory(rootDir, offset, limit)
-	case "GetGitHistoryFiles":
-		var rootDir, commitHash string
-		if err := decodeArgs(args, &rootDir, &commitHash); err != nil { return nil, err }
-		return a.GetGitHistoryFiles(rootDir, commitHash)
-	case "GetGitHistoryPreview":
-		var rootDir, commitHash, path string
-		if err := decodeArgs(args, &rootDir, &commitHash, &path); err != nil { return nil, err }
-		return a.GetGitHistoryPreview(rootDir, commitHash, path)
-	case "StageFile":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.StageFile(rootDir, path), nil
-	case "UnstageFile":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.UnstageFile(rootDir, path), nil
-	case "StageAllFiles":
-		var rootDir string
-		if err := decodeArgs(args, &rootDir); err != nil { return nil, err }
-		return a.StageAllFiles(rootDir), nil
-	case "GitCommit":
-		var rootDir, message string
-		if err := decodeArgs(args, &rootDir, &message); err != nil { return nil, err }
-		return a.GitCommit(rootDir, message), nil
-	case "GitPush":
-		var rootDir string
-		if err := decodeArgs(args, &rootDir); err != nil { return nil, err }
-		return a.GitPush(rootDir), nil
-	case "GitPull":
-		var rootDir string
-		if err := decodeArgs(args, &rootDir); err != nil { return nil, err }
-		return a.GitPull(rootDir), nil
-	case "DiscardFile":
-		var rootDir, path string
-		if err := decodeArgs(args, &rootDir, &path); err != nil { return nil, err }
-		return a.DiscardFile(rootDir, path), nil
-	case "ReadSkillContent":
-		var skillPath string
-		if err := decodeArgs(args, &skillPath); err != nil { return nil, err }
-		return a.ReadSkillContent(skillPath)
-	case "SaveSkillContent":
-		var skillPath, content string
-		if err := decodeArgs(args, &skillPath, &content); err != nil { return nil, err }
-		return map[string]bool{"success": a.SaveSkillContent(skillPath, content) == nil}, nil
-	case "ListSkillFiles":
-		var skillPath string
-		if err := decodeArgs(args, &skillPath); err != nil { return nil, err }
-		return a.ListSkillFiles(skillPath)
-	case "ReadSkillFile":
-		var skillPath, relativePath string
-		if err := decodeArgs(args, &skillPath, &relativePath); err != nil { return nil, err }
-		return a.ReadSkillFile(skillPath, relativePath)
-	case "SaveSkillFile":
-		var skillPath, relativePath, content string
-		if err := decodeArgs(args, &skillPath, &relativePath, &content); err != nil { return nil, err }
-		return map[string]bool{"success": a.SaveSkillFile(skillPath, relativePath, content) == nil}, nil
-	case "ToggleSkill":
-		var skillPath, skillName string
-		var enable bool
-		if err := decodeArgs(args, &skillPath, &skillName, &enable); err != nil { return nil, err }
-		return a.ToggleSkill(skillPath, skillName, enable), nil
-	case "GetProviders":
-		return a.GetProviders()
-	case "GetModelList":
-		var baseURL, apiKey string
-		if err := decodeArgs(args, &baseURL, &apiKey); err != nil { return nil, err }
-		return a.GetModelList(baseURL, apiKey), nil
-	case "GetAvailableModels":
-		return a.GetAvailableModels()
-	case "GetModelConfig":
-		return a.GetModelConfig()
-	case "GetProviderConfigPath":
-		return a.GetProviderConfigPath(), nil
-	case "SaveProvider":
-		var provider model.ProviderSave
-		if err := decodeArgs(args, &provider); err != nil { return nil, err }
-		return a.SaveProvider(provider), nil
-	case "DeleteProvider":
-		var key string
-		if err := decodeArgs(args, &key); err != nil { return nil, err }
-		return a.DeleteProvider(key), nil
-	case "GetFullConfig":
-		return a.GetFullConfig(), nil
-	case "GetConfigPath":
-		return a.GetConfigPath(), nil
-	case "GetAgentDescriptions":
-		return a.GetAgentDescriptions(), nil
-	case "AddModelType":
-		var entryType string
-		if err := decodeArgs(args, &entryType); err != nil { return nil, err }
-		return a.AddModelType(entryType), nil
-	case "DeleteModelType":
-		var entryType string
-		if err := decodeArgs(args, &entryType); err != nil { return nil, err }
-		return a.DeleteModelType(entryType), nil
-	case "GetSchemeDir":
-		return a.GetSchemeDir(), nil
-	case "ListSchemes":
-		return a.ListSchemes(), nil
-	case "ReadScheme":
-		var name string
-		if err := decodeArgs(args, &name); err != nil { return nil, err }
-		return a.ReadScheme(name)
-	case "SaveScheme":
-		var name, content string
-		if err := decodeArgs(args, &name, &content); err != nil { return nil, err }
-		return map[string]bool{"success": a.SaveScheme(name, content) == nil}, nil
-	case "SaveFullConfig":
-		var jsonStr string
-		if err := decodeArgs(args, &jsonStr); err != nil { return nil, err }
-		return a.SaveFullConfig(jsonStr), nil
-	case "RefreshAvailableModels":
-		return a.RefreshAvailableModels()
-	case "Refresh":
-		return map[string]bool{"success": a.Refresh() == nil}, nil
-	case "AddSkillSourceDir":
-		var dir string
-		if err := decodeArgs(args, &dir); err != nil { return nil, err }
-		return a.AddSkillSourceDir(dir), nil
-	case "RemoveSkillSourceDir":
-		var dir string
-		if err := decodeArgs(args, &dir); err != nil { return nil, err }
-		return a.RemoveSkillSourceDir(dir), nil
-	case "GetSkillSourceDirs":
-		return a.GetSkillSourceDirs(), nil
-	case "AnswerQuestion":
-		var sessionID, answerLabel string
-		if err := decodeArgs(args, &sessionID, &answerLabel); err != nil { return nil, err }
-		return a.AnswerQuestion(sessionID, answerLabel), nil
-	case "RejectQuestion":
-		var sessionID string
-		if err := decodeArgs(args, &sessionID); err != nil { return nil, err }
-		return a.RejectQuestion(sessionID), nil
-	case "OpenDirectoryDialog":
-		return a.OpenDirectoryDialog(), nil
-	case "ShowConfirmDialog":
-		var title, message string
-		if err := decodeArgs(args, &title, &message); err != nil { return nil, err }
-		return a.ShowConfirmDialog(title, message), nil
-	case "LaunchWindowsTerminal":
-		var mode, webURL, dir string
-		if err := decodeArgs(args, &mode, &webURL, &dir); err != nil { return nil, err }
-		return a.LaunchWindowsTerminal(mode, webURL, dir), nil
-	case "OpenDir":
-		var path string
-		if err := decodeArgs(args, &path); err != nil { return nil, err }
-		return map[string]bool{"success": a.OpenDir(path) == nil}, nil
-	case "OpenSchemeDir":
-		return map[string]bool{"success": a.OpenSchemeDir() == nil}, nil
-	case "ExportConfig":
-		var dir, filename, content string
-		if err := decodeArgs(args, &dir, &filename, &content); err != nil { return nil, err }
-		return a.ExportConfig(dir, filename, content)
-	case "SaveSkillScheme":
-		var name string
-		if err := decodeArgs(args, &name); err != nil { return nil, err }
-		return a.SaveSkillScheme(name), nil
-	case "ApplySkillScheme":
-		var name string
-		if err := decodeArgs(args, &name); err != nil { return nil, err }
-		return a.ApplySkillScheme(name), nil
-	case "ListSkillSchemes":
-		return a.ListSkillSchemes(), nil
-	case "DeleteSkillScheme":
-		var name string
-		if err := decodeArgs(args, &name); err != nil { return nil, err }
-		return a.DeleteSkillScheme(name), nil
-	default:
-		return nil, fmt.Errorf("unsupported method: %s", method)
-	}
-}
-
-func decodeArgs(args []json.RawMessage, targets ...interface{}) error {
-	if len(args) < len(targets) {
-		return fmt.Errorf("参数数量不足: need %d got %d", len(targets), len(args))
-	}
-	for i, target := range targets {
-		if err := json.Unmarshal(args[i], target); err != nil {
-			return fmt.Errorf("参数 %d 解析失败: %w", i, err)
-		}
-	}
-	return nil
-}
-
-// ========== 数据传输类型（保留在 main 包用于 Wails bind）==========
-
-// 类型定义已迁移至 model 子包。以下通过类型别名保持前端 bind 兼容。
-type (
-	SkillInfo          = model.SkillInfo
-	SkillContent       = model.SkillContent
-	Stats              model.Stats
-	ToggleResult       = model.ToggleResult
-	WebResult          = model.WebResult
-	APIResult          = model.APIResult
-	ProxyConfig        = model.ProxyConfig
-	ModelEntry         = model.ModelEntry
-	ModelSaveResult    = model.ModelSaveResult
-	SaveResult         = model.SaveResult
-	ProviderInfo       = model.ProviderInfo
-	ModelInfo          = model.ModelInfo
-	ProviderSave       = model.ProviderSave
-	CmdInfo            = model.CmdInfo
-	CmdGroup           = model.CmdGroup
-	CmdPaletteItem     = model.CmdPaletteItem
-	SessionInfo        = model.SessionInfo
-	SchemeInfo         = model.SchemeInfo
-	SchemeApplyResult  = model.SchemeApplyResult
-)
-
-// String 实现 Stringer 接口，便于调试。
-func (s Stats) String() string {
-	return fmt.Sprintf("Skills: %d", s.GlobalSkills)
+	return commands.GetCommands()
 }

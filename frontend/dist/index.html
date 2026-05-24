@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🧩 OpenCode 工作台</title>
-    <link rel="stylesheet" href="/assets/style.css" />
-    <link rel="stylesheet" href="/assets/github.min.css" id="highlightLight" />
-    <link rel="stylesheet" href="/assets/github-dark.min.css" id="highlightDark" disabled />
-    <script src="/assets/marked.min.js"></script>
-    <script src="/assets/highlight.min.js"></script>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/github.min.css" id="highlightLight" />
+    <link rel="stylesheet" href="/css/github-dark.min.css" id="highlightDark" disabled />
+    <script src="/lib/marked.min.js"></script>
+    <script src="/lib/highlight.min.js"></script>
 </head>
 <body>
     <!-- ======== 顶部导航栏 ======== -->
@@ -561,28 +561,34 @@
     <input type="file" id="ocFileInput" multiple hidden />
     <input type="file" id="fileBrowserUploadInput" hidden />
     <!-- 模块化 JS，按依赖顺序加载 -->
-    <script src="/assets/theme.js"></script>
-    <script src="/assets/utils.js"></script>
-    <script src="/assets/api-mock.js"></script>
-    <script src="/assets/navigation.js"></script>
-    <script src="/assets/chat-state.js"></script>
-    <script src="/assets/chat-mobile.js"></script>
-    <script src="/assets/chat-search.js"></script>
-    <script src="/assets/chat-config.js"></script>
-    <script src="/assets/chat-service.js"></script>
-    <script src="/assets/chat-tree.js"></script>
-    <script src="/assets/chat-sidepanel.js"></script>
-    <script src="/assets/chat-cache.js"></script>
-    <script src="/assets/chat-render.js"></script>
-    <script src="/assets/chat-events.js"></script>
-    <script src="/assets/chat-session.js"></script>
-    <script src="/assets/file-preview.js"></script>
-    <script src="/assets/file-browser.js"></script>
-    <script src="/assets/command-palette.js"></script>
-    <script src="/assets/omo-config.js"></script>
-    <script src="/assets/skill-manager.js"></script>
-    <script src="/assets/commands-view.js"></script>
-    <script src="/assets/provider-view.js"></script>
-    <script src="/assets/main.js"></script>
+    <!-- 核心基础层：常量、工具、全局状态、API 代理（必须最先加载） -->
+    <script src="/core/theme.js"></script>
+    <script src="/core/utils.js"></script>
+    <script src="/core/apicall.js"></script>
+    <script src="/core/state.js"></script>
+    <!-- 聊天工作区模块 -->
+    <script src="/chat/navigation.js"></script>
+    <script src="/chat/mobile.js"></script>
+    <script src="/chat/search.js"></script>
+    <script src="/chat/config.js"></script>
+    <script src="/chat/service.js"></script>
+    <script src="/chat/tree.js"></script>
+    <script src="/chat/sidepanel.js"></script>
+    <script src="/chat/cache.js"></script>
+    <script src="/chat/render.js"></script>
+    <script src="/chat/events.js"></script>
+    <script src="/chat/session.js"></script>
+    <script src="/chat/commands.js"></script>
+    <!-- 文件浏览器模块 -->
+    <script src="/filebrowser/preview.js"></script>
+    <script src="/filebrowser/browser.js"></script>
+    <script src="/filebrowser/dir.js"></script>
+    <!-- 独立功能视图 -->
+    <script src="/views/omo-config.js"></script>
+    <script src="/views/skill-manager.js"></script>
+    <script src="/views/commands.js"></script>
+    <script src="/views/provider.js"></script>
+    <!-- 主入口：全局事件绑定 + 应用启动 -->
+    <script src="/main.js"></script>
 </body>
 </html>

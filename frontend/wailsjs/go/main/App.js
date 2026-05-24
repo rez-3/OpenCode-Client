@@ -26,10 +26,6 @@ export function ApplySkillScheme(arg1) {
   return window['go']['main']['App']['ApplySkillScheme'](arg1);
 }
 
-export function CreateSession(arg1) {
-  return window['go']['main']['App']['CreateSession'](arg1);
-}
-
 export function DeleteBrowserEntry(arg1, arg2) {
   return window['go']['main']['App']['DeleteBrowserEntry'](arg1, arg2);
 }
@@ -68,10 +64,6 @@ export function GetAgentDescriptions() {
 
 export function GetAggregatedSkills() {
   return window['go']['main']['App']['GetAggregatedSkills']();
-}
-
-export function GetAvailableModels() {
-  return window['go']['main']['App']['GetAvailableModels']();
 }
 
 export function GetCommands() {
@@ -122,10 +114,6 @@ export function GetModelList(arg1, arg2) {
   return window['go']['main']['App']['GetModelList'](arg1, arg2);
 }
 
-export function GetOpenCodeCommands() {
-  return window['go']['main']['App']['GetOpenCodeCommands']();
-}
-
 export function GetProjectTree(arg1) {
   return window['go']['main']['App']['GetProjectTree'](arg1);
 }
@@ -140,10 +128,6 @@ export function GetProviders() {
 
 export function GetSchemeDir() {
   return window['go']['main']['App']['GetSchemeDir']();
-}
-
-export function GetSessions() {
-  return window['go']['main']['App']['GetSessions']();
 }
 
 export function GetSkillConfig() {
@@ -244,10 +228,6 @@ export function ReadSkillFile(arg1, arg2) {
 
 export function Refresh() {
   return window['go']['main']['App']['Refresh']();
-}
-
-export function RefreshAvailableModels() {
-  return window['go']['main']['App']['RefreshAvailableModels']();
 }
 
 export function RejectQuestion(arg1) {
