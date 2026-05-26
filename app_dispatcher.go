@@ -91,6 +91,12 @@ func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interfa
 			return nil, err
 		}
 		return a.UploadBrowserFile(rootDir, path, fileName, base64, overwrite)
+	case "CreateBrowserDir":
+		var rootDir, path, dirName string
+		if err := decodeArgs(args, &rootDir, &path, &dirName); err != nil {
+			return nil, err
+		}
+		return a.CreateBrowserDir(rootDir, path, dirName)
 	case "DeleteBrowserEntry":
 		var rootDir, path string
 		if err := decodeArgs(args, &rootDir, &path); err != nil {

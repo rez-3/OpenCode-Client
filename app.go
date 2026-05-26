@@ -139,6 +139,11 @@ func (a *App) UploadBrowserFile(rootDir, path, fileName, base64Data string, over
 	return filebrowser.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite)
 }
 
+// CreateBrowserDir 在当前文件浏览器目录下创建文件夹。
+func (a *App) CreateBrowserDir(rootDir, path, dirName string) (model.SaveResult, error) {
+	return filebrowser.CreateBrowserDir(rootDir, path, dirName)
+}
+
 // DeleteBrowserEntry 删除文件浏览器中的文件或目录。
 func (a *App) DeleteBrowserEntry(rootDir, path string) (model.SaveResult, error) {
 	return filebrowser.DeleteBrowserEntry(rootDir, path)

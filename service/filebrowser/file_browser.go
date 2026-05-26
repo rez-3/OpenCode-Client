@@ -195,6 +195,45 @@ func UploadBrowserFile(rootDir, relPath, fileName, base64Data string, overwrite 
 	return model.FileBrowserUploadResult{Success: true, Name: fileName}, nil
 }
 
+// CreateBrowserDir 在文件浏览器当前目录下创建子目录。
+func CreateBrowserDir(rootDir, relPath, dirName string) (model.SaveResult, error) {
+	relPath = normalizeBrowserRelPath(relPath)
+	dirName = strings.TrimSpace(dirName)
+	if dirName == "" {
+		return model.SaveResult{Success: false, Error: "文件夹名称不能为空"}, nil
+	}
+	if strings.ContainsAny(dirName, `\\/:*?"<>|`) {
+		return model.SaveResult{Success: false, Error: "文件夹名称包含非法字符（\\ / : * ? \" < > |）"}, nil
+	}
+	if dirName == "." || dirName == ".." {
+		return model.SaveResult{Success: false, Error: "文件夹名称不合法"}, nil
+	}
+	if strings.Contains(dirName, "/") || strings.Contains(dirName, "\\") {
+		return model.SaveResult{Success: false, Error: "文件夹名称不能包含路径分隔符"}, nil
+	}
+	absDir, _, err := resolveBrowserPath(rootDir, relPath)
+	if err != nil {
+		return model.SaveResult{}, err
+	}
+	info, err := os.Stat(absDir)
+	if err != nil {
+		return model.SaveResult{}, fmt.Errorf("读取目录失败: %w", err)
+	}
+	if !info.IsDir() {
+		return model.SaveResult{Success: false, Error: "目标不是目录"}, nil
+	}
+	targetPath := filepath.Join(absDir, dirName)
+	if _, err := os.Stat(targetPath); err == nil {
+		return model.SaveResult{Success: false, Error: "同名文件或文件夹已存在"}, nil
+	} else if !os.IsNotExist(err) {
+		return model.SaveResult{}, fmt.Errorf("检查目录失败: %w", err)
+	}
+	if err := os.Mkdir(targetPath, 0755); err != nil {
+		return model.SaveResult{}, fmt.Errorf("创建文件夹失败: %w", err)
+	}
+	return model.SaveResult{Success: true}, nil
+}
+
 // DeleteBrowserEntry 删除文件浏览器中的单个文件或目录。
 // 为了避免误删根目录，本函数禁止删除 relPath == "/" 的目标。
 func DeleteBrowserEntry(rootDir, relPath string) (model.SaveResult, error) {

@@ -432,13 +432,24 @@
                     <button type="button" class="file-browser-mode-btn active" id="btnFileBrowserModeFiles" title="文件预览">🗂️</button>
                     <button type="button" class="file-browser-mode-btn" id="btnFileBrowserModeGit" title="Git 变更">🔀</button>
                 </div>
-                <aside class="file-browser-list-panel">
-                    <div class="file-browser-files-panel" id="fileBrowserFilesPanel">
-                        <div class="file-browser-path" id="fileBrowserPath">/</div>
-                        <div class="file-browser-empty" id="fileBrowserListEmpty">请选择目录</div>
-                        <div class="file-browser-list" id="fileBrowserList"></div>
-                        <div class="file-browser-files-toolbar">
-                            <button type="button" class="btn file-browser-upload-plus" id="btnFileBrowserUpload" title="上传文件">⬆上传文件</button>
+                    <aside class="file-browser-list-panel">
+                        <div class="file-browser-files-panel" id="fileBrowserFilesPanel">
+                            <div class="file-browser-list-header">
+                                <div class="file-browser-list-header-title">文件列表</div>
+                                <button type="button" class="btn btn-sm file-browser-create-dir-btn" id="btnFileBrowserCreateDir" title="新建文件夹">
+                                    <img src="/assets/新建文件夹.svg" alt="新建文件夹" aria-hidden="true" class="file-browser-create-dir-icon"/>
+                                </button>
+                            </div>
+                            <div class="file-browser-create-dir-inline" id="fileBrowserCreateDirInline" style="display:none">
+                                <input type="text" id="fileBrowserCreateDirInput" placeholder="输入文件夹名称" maxlength="120" />
+                                <button type="button" class="btn btn-sm file-browser-create-dir-confirm" id="btnFileBrowserCreateDirConfirm">创建</button>
+                                <button type="button" class="btn btn-sm" id="btnFileBrowserCreateDirCancel">取消</button>
+                            </div>
+                            <div class="file-browser-path" id="fileBrowserPath">/</div>
+                            <div class="file-browser-empty" id="fileBrowserListEmpty">请选择目录</div>
+                            <div class="file-browser-list" id="fileBrowserList"></div>
+                            <div class="file-browser-files-toolbar">
+                                <button type="button" class="btn file-browser-upload-plus" id="btnFileBrowserUpload" title="上传文件">⬆上传文件</button>
                         </div>
                     </div>
                     <div class="file-browser-git-panel" id="fileBrowserGitPanel" style="display:none">

@@ -4125,6 +4125,53 @@ input::placeholder, textarea::placeholder {
     min-height: 0;
     flex-direction: column;
 }
+.file-browser-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+.file-browser-list-header-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: -0.01em;
+}
+.file-browser-create-dir-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    cursor: pointer;
+    background-color: transparent;
+}
+
+.file-browser-create-dir-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+    flex-shrink: 0;
+}
+.file-browser-create-dir-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+.file-browser-create-dir-inline input {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    padding: 6px 10px;
+}
+.file-browser-create-dir-confirm {
+    color: var(--accent);
+}
 .file-browser-files-toolbar {
 	display: flex;
 	justify-content: center;
@@ -4146,6 +4193,7 @@ input::placeholder, textarea::placeholder {
     color: var(--text-secondary);
     border: 1px solid var(--border);
     flex-shrink: 0;
+    background-image: url('./assets/上传文件.svg');
 }
 
 .file-browser-upload-plus:hover:not(:disabled) {

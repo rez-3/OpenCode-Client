@@ -15,6 +15,8 @@ export function AppCall(arg1:string,arg2:Array<json.RawMessage>):Promise<any>;
 
 export function ApplySkillScheme(arg1:string):Promise<model.SchemeApplyResult>;
 
+export function CreateBrowserDir(arg1:string,arg2:string,arg3:string):Promise<model.SaveResult>;
+
 export function CreateProjectEntry(arg1:string,arg2:string,arg3:string):Promise<model.ProjectConfigFileEntry>;
 
 export function DeleteBrowserEntry(arg1:string,arg2:string):Promise<model.SaveResult>;

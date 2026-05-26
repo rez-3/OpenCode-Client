@@ -110,6 +110,10 @@ async function fileBrowserApiUpload(rootDir, path, fileName, base64Data, overwri
     return await api.UploadBrowserFile(rootDir, path, fileName, base64Data, overwrite);
 }
 
+async function fileBrowserApiCreateDir(rootDir, path, dirName) {
+    return await api.CreateBrowserDir(rootDir, path, dirName);
+}
+
 async function fileBrowserApiDelete(rootDir, path) {
     return await api.DeleteBrowserEntry(rootDir, path);
 }
@@ -145,6 +149,63 @@ function fileToBase64(file) {
 function openFileBrowserUploadPicker() {
     var input = document.getElementById('fileBrowserUploadInput');
     if (input) input.click();
+}
+
+function setFileBrowserCreateDirLoading(loading) {
+    var btn = document.getElementById('btnFileBrowserCreateDir');
+    var confirmBtn = document.getElementById('btnFileBrowserCreateDirConfirm');
+    var cancelBtn = document.getElementById('btnFileBrowserCreateDirCancel');
+    var input = document.getElementById('fileBrowserCreateDirInput');
+    if (btn) btn.disabled = !!loading;
+    if (confirmBtn) confirmBtn.disabled = !!loading;
+    if (cancelBtn) cancelBtn.disabled = !!loading;
+    if (input) input.disabled = !!loading;
+}
+
+function closeFileBrowserCreateDirInline() {
+    var wrap = document.getElementById('fileBrowserCreateDirInline');
+    var input = document.getElementById('fileBrowserCreateDirInput');
+    setFileBrowserCreateDirLoading(false);
+    if (input) input.value = '';
+    if (wrap) wrap.style.display = 'none';
+}
+
+function openFileBrowserCreateDirInline() {
+    var wrap = document.getElementById('fileBrowserCreateDirInline');
+    var input = document.getElementById('fileBrowserCreateDirInput');
+    if (wrap) wrap.style.display = 'flex';
+    if (input) {
+        input.value = '';
+        input.focus();
+        input.select();
+    }
+}
+
+async function submitFileBrowserCreateDir() {
+    var state = window.fileBrowserState;
+    var input = document.getElementById('fileBrowserCreateDirInput');
+    var dirName = input ? String(input.value || '').trim() : '';
+    if (!dirName) {
+        showToast('请输入文件夹名称', 'error');
+        if (input) input.focus();
+        return;
+    }
+    setFileBrowserCreateDirLoading(true);
+    try {
+        var result = await fileBrowserApiCreateDir(state.rootDir, state.currentPath || '/', dirName);
+        if (!result.success) {
+            showToast(result.error || '创建文件夹失败', 'error');
+            if (input) input.focus();
+            return;
+        }
+        closeFileBrowserCreateDirInline();
+        showToast('已创建文件夹：' + dirName, 'success');
+        await loadFileBrowserList(state.currentPath || '/');
+    } catch (err) {
+        showToast(err.message || '创建文件夹失败', 'error');
+    } finally {
+        setFileBrowserCreateDirLoading(false);
+    }
 }
 
 function closeFileBrowserUploadConflictModal() {
@@ -517,6 +578,7 @@ function closeFileBrowserModal() {
     if (modal) modal.style.display = 'none';
     if (typeof fileBrowserClearObjectURL === 'function') fileBrowserClearObjectURL();
     if (typeof destroyFileBrowserEditor === 'function') destroyFileBrowserEditor();
+    closeFileBrowserCreateDirInline();
     clearFileBrowserPreview();
 }
 
@@ -618,6 +680,7 @@ async function loadFileBrowserList(path) {
     var listEl = document.getElementById('fileBrowserList');
     var emptyEl = document.getElementById('fileBrowserListEmpty');
     if (!listEl || !state.rootDir) return;
+    closeFileBrowserCreateDirInline();
     state.loadingList = true;
     state.currentPath = path || '/';
     if (listEl) listEl.innerHTML = '<div class="file-browser-empty">正在读取目录...</div>';
@@ -1131,6 +1194,46 @@ function refreshFileBrowser() {
     if (uploadBtn && !uploadBtn.dataset.bound) {
         uploadBtn.dataset.bound = 'true';
         uploadBtn.addEventListener('click', openFileBrowserUploadPicker);
+    }
+
+    var createDirBtn = document.getElementById('btnFileBrowserCreateDir');
+    if (createDirBtn && !createDirBtn.dataset.bound) {
+        createDirBtn.dataset.bound = 'true';
+        createDirBtn.addEventListener('click', function() {
+            openFileBrowserCreateDirInline();
+        });
+    }
+
+    var createDirConfirmBtn = document.getElementById('btnFileBrowserCreateDirConfirm');
+    if (createDirConfirmBtn && !createDirConfirmBtn.dataset.bound) {
+        createDirConfirmBtn.dataset.bound = 'true';
+        createDirConfirmBtn.addEventListener('click', function() {
+            submitFileBrowserCreateDir();
+        });
+    }
+
+    var createDirCancelBtn = document.getElementById('btnFileBrowserCreateDirCancel');
+    if (createDirCancelBtn && !createDirCancelBtn.dataset.bound) {
+        createDirCancelBtn.dataset.bound = 'true';
+        createDirCancelBtn.addEventListener('click', function() {
+            closeFileBrowserCreateDirInline();
+        });
+    }
+
+    var createDirInput = document.getElementById('fileBrowserCreateDirInput');
+    if (createDirInput && !createDirInput.dataset.bound) {
+        createDirInput.dataset.bound = 'true';
+        createDirInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitFileBrowserCreateDir();
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeFileBrowserCreateDirInline();
+            }
+        });
     }
 
     var uploadInput = document.getElementById('fileBrowserUploadInput');
