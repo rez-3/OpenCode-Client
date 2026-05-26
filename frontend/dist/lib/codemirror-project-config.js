@@ -36389,6 +36389,19 @@
       init_toml();
       init_css();
       init_spreadsheet();
+      var zhPhrases = {
+        "Find": "\u67E5\u627E",
+        "Replace": "\u66FF\u6362",
+        "next": "\u4E0B\u4E00\u4E2A",
+        "previous": "\u4E0A\u4E00\u4E2A",
+        "all": "\u5168\u90E8",
+        "match case": "\u533A\u5206\u5927\u5C0F\u5199",
+        "regexp": "\u6B63\u5219",
+        "by word": "\u6574\u8BCD",
+        "replace": "\u66FF\u6362",
+        "replace all": "\u5168\u90E8\u66FF\u6362",
+        "close": "\u5173\u95ED"
+      };
       function getLanguageExtension(fileName) {
         var ext = ((fileName || "").split(".").pop() || "").toLowerCase();
         switch (ext) {
@@ -36527,6 +36540,7 @@
                 ...closeBracketsKeymap,
                 ...completionKeymap
               ]),
+              EditorState.phrases.of(zhPhrases),
               EditorView.lineWrapping,
               languageCompartment.of(getLanguageExtension(fileName)),
               themeCompartment.of(getThemeExtension(startTheme)),
