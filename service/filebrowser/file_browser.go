@@ -29,7 +29,7 @@ func ListBrowserFiles(rootDir, relPath string) (model.FileBrowserListResult, err
 	if !info.IsDir() {
 		return model.FileBrowserListResult{}, fmt.Errorf("目标不是目录")
 	}
-	items, err := listBrowserDir(rootAbs, absPath, relPath)
+	items, err := listBrowserDir(absPath, relPath)
 	if err != nil {
 		return model.FileBrowserListResult{}, err
 	}
@@ -54,13 +54,15 @@ func StatBrowserFile(rootDir, relPath string) (model.FileBrowserStatResult, erro
 	mimeType := detectBrowserMime(absPath, false)
 	previewKind := ""
 	previewable := false
+	editable := false
+	defaultMode := "preview"
 	if info.IsDir() {
 		itemType = "dir"
 		mimeType = "inode/directory"
 	} else {
-		previewKind, previewable = detectPreviewMeta(absPath)
+		previewKind, previewable, defaultMode, editable = detectPreviewMeta(absPath)
 	}
-	return model.FileBrowserStatResult{RootDir: rootAbs, Name: info.Name(), Path: relPath, Type: itemType, Ext: strings.ToLower(filepath.Ext(info.Name())), Size: info.Size(), ModifiedAt: info.ModTime().Format(time.RFC3339), Mime: mimeType, PreviewKind: previewKind, Previewable: previewable}, nil
+	return model.FileBrowserStatResult{RootDir: rootAbs, Name: info.Name(), Path: relPath, Type: itemType, Ext: strings.ToLower(filepath.Ext(info.Name())), Size: info.Size(), ModifiedAt: info.ModTime().Format(time.RFC3339), Mime: mimeType, PreviewKind: previewKind, Previewable: previewable, Editable: editable, DefaultMode: defaultMode}, nil
 }
 
 // ReadBrowserFile 以文本方式读取文件内容，超过 2MB 的文件将被截断。
@@ -80,19 +82,12 @@ func ReadBrowserFile(rootDir, relPath string) (model.FileBrowserReadResult, erro
 	if info.IsDir() {
 		return model.FileBrowserReadResult{}, fmt.Errorf("目标不是文件")
 	}
-	previewKind, previewable := detectPreviewMeta(absPath)
-	if filepath.Ext(absPath) == "" {
-		previewable = true
-	}
+	previewKind, previewable, _, editable := detectPreviewMeta(absPath)
 	if !previewable {
 		return model.FileBrowserReadResult{}, fmt.Errorf("该文件类型不支持文本读取")
 	}
-	if filepath.Ext(absPath) != "" {
-		switch previewKind {
-		case "markdown", "text", "code", "csv":
-		default:
-			return model.FileBrowserReadResult{}, fmt.Errorf("该文件类型不支持文本读取")
-		}
+	if !editable && previewKind != "markdown" && previewKind != "text" && previewKind != "code" && previewKind != "csv" {
+		return model.FileBrowserReadResult{}, fmt.Errorf("该文件类型不支持文本读取")
 	}
 	data, err := os.ReadFile(absPath)
 	if err != nil {
@@ -104,6 +99,33 @@ func ReadBrowserFile(rootDir, relPath string) (model.FileBrowserReadResult, erro
 		truncated = true
 	}
 	return model.FileBrowserReadResult{RootDir: rootAbs, Path: relPath, Content: string(data), Encoding: "utf-8", Truncated: truncated}, nil
+}
+
+// SaveBrowserFile 保存文件浏览器中的文本文件内容。
+func SaveBrowserFile(rootDir, relPath, content string) (model.SaveResult, error) {
+	relPath = normalizeBrowserRelPath(relPath)
+	if relPath == "/" {
+		return model.SaveResult{Success: false, Error: "路径必须指向文件而非目录"}, nil
+	}
+	absPath, _, err := resolveBrowserPath(rootDir, relPath)
+	if err != nil {
+		return model.SaveResult{}, err
+	}
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return model.SaveResult{}, fmt.Errorf("读取文件失败: %w", err)
+	}
+	if info.IsDir() {
+		return model.SaveResult{Success: false, Error: "目标不是文件"}, nil
+	}
+	_, _, _, editable := detectPreviewMeta(absPath)
+	if !editable {
+		return model.SaveResult{Success: false, Error: "该文件类型不支持编辑保存"}, nil
+	}
+	if err := os.WriteFile(absPath, []byte(content), info.Mode().Perm()); err != nil {
+		return model.SaveResult{}, fmt.Errorf("写入文件失败: %w", err)
+	}
+	return model.SaveResult{Success: true}, nil
 }
 
 // ReadBrowserRawBase64 以 base64 编码返回文件的原始字节，用于图片/PDF 等二进制预览。
@@ -239,7 +261,7 @@ func resolveBrowserPath(rootDir, relPath string) (string, string, error) {
 	return absPath, rootAbs, nil
 }
 
-func listBrowserDir(rootAbs, absPath, relPath string) ([]model.FileBrowserItem, error) {
+func listBrowserDir(absPath, relPath string) ([]model.FileBrowserItem, error) {
 	entries, err := os.ReadDir(absPath)
 	if err != nil {
 		return nil, err
@@ -323,13 +345,4 @@ func detectBrowserMime(path string, isDir bool) string {
 		return mt
 	}
 	return "application/octet-stream"
-}
-
-func isTextPreviewFile(path string) bool {
-	_, previewable := detectPreviewMeta(path)
-	if previewable {
-		return true
-	}
-	// 无扩展名文件按文本处理
-	return filepath.Ext(path) == ""
 }

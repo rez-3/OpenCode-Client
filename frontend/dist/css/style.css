@@ -3546,6 +3546,89 @@ input::placeholder, textarea::placeholder {
 .btn-del-card:active {
     transform: scale(0.97);
 }
+
+/* ============================================================
+   文件浏览器预览/编辑
+   ============================================================ */
+
+.file-browser-preview-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.file-browser-preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.active-file-preview-action {
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+    background: var(--accent-ghost) !important;
+}
+
+.file-browser-editor-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+}
+
+.file-browser-editor-hint {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.file-browser-editor-hint.error {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+    background: var(--danger-bg);
+}
+
+.file-browser-code-editor {
+    width: 100%;
+    flex: 1;
+    min-height: 320px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.file-browser-code-editor:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.file-browser-code-editor {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.file-browser-code-editor .cm-editor {
+    height: 100%;
+    background: var(--bg-card);
+}
+
+.file-browser-code-editor .cm-scroller {
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+    line-height: 1.6;
+}
 .btn-eye {
     width: 34px;
     padding: 0;
@@ -4558,16 +4641,43 @@ input::placeholder, textarea::placeholder {
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
 }
+.file-browser-preview-header-main {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.file-browser-preview-title-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	flex: 1;
+}
+.file-browser-preview-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
 .file-browser-preview-title {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .file-browser-preview-meta {
     font-size: 11px;
     color: var(--text-muted);
     font-family: "SF Mono", "Cascadia Code", monospace;
+}
+.active-file-preview-action {
+	background: var(--accent-ghost) !important;
+	color: var(--accent) !important;
+	border-color: var(--accent) !important;
 }
 .file-browser-preview-body {
     flex: 1;
@@ -5106,6 +5216,122 @@ input::placeholder, textarea::placeholder {
     overflow: auto;
 }
 
+.pc-editor-cm-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg);
+}
+
+.pc-code-editor {
+    width: 100%;
+    height: 100%;
+}
+
+.pc-editor-status-dirty {
+    color: var(--warning);
+    font-size: 11px;
+    font-weight: 500;
+    margin-left: 6px;
+}
+
+.pc-editor-search-btn {
+    min-width: 64px;
+}
+
+.pc-editor-search-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.pc-code-editor .cm-panels,
+.file-browser-code-editor .cm-panels {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+.pc-code-editor .cm-panel.cm-search,
+.file-browser-code-editor .cm-panel.cm-search {
+    padding: 8px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.pc-code-editor .cm-panel.cm-search .cm-textfield,
+.file-browser-code-editor .cm-panel.cm-search .cm-textfield {
+    min-width: 220px;
+    height: 30px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+}
+
+.pc-code-editor .cm-panel.cm-search .cm-textfield:focus,
+.file-browser-code-editor .cm-panel.cm-search .cm-textfield:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.pc-code-editor .cm-panel.cm-search .cm-button,
+.pc-code-editor .cm-panel.cm-search button,
+.file-browser-code-editor .cm-panel.cm-search .cm-button,
+.file-browser-code-editor .cm-panel.cm-search button {
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.pc-code-editor .cm-panel.cm-search .cm-button:hover,
+.pc-code-editor .cm-panel.cm-search button:hover,
+.file-browser-code-editor .cm-panel.cm-search .cm-button:hover,
+.file-browser-code-editor .cm-panel.cm-search button:hover {
+    background: var(--bg-card-hover);
+}
+
+.pc-code-editor .cm-panel.cm-search label,
+.file-browser-code-editor .cm-panel.cm-search label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.pc-code-editor .cm-panel.cm-search [name=close],
+.file-browser-code-editor .cm-panel.cm-search [name=close] {
+    margin-left: auto;
+    min-width: 28px;
+    padding: 0;
+    background: transparent;
+}
+
+.pc-code-editor .cm-searchMatch,
+.file-browser-code-editor .cm-searchMatch {
+    background: rgba(255, 214, 10, 0.25);
+    border-radius: 2px;
+}
+
+.pc-code-editor .cm-searchMatch.cm-searchMatch-selected,
+.file-browser-code-editor .cm-searchMatch.cm-searchMatch-selected {
+    background: rgba(255, 122, 26, 0.32);
+    outline: 1px solid rgba(255, 122, 26, 0.42);
+}
+
 /* ===== 预览模式（文件浏览器的 hljs-line grid） ===== */
 
 .pc-editor-viewer {
@@ -5126,7 +5352,7 @@ input::placeholder, textarea::placeholder {
     text-align: right;
     color: var(--text-muted);
     user-select: none;
-    border-right: 1px solid rgba(128,128,128,.15);
+    border-right: 1px solid rgba(0,0,0,0.06);
     margin-right: .8em;
     font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
     font-size: 13px;

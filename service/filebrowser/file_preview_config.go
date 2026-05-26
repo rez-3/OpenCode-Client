@@ -13,6 +13,7 @@ type FilePreviewTypeConfig struct {
 	Name        string   `json:"name"`
 	PreviewKind string   `json:"previewKind"`
 	Previewable bool     `json:"previewable"`
+	DefaultMode string   `json:"defaultMode"`
 	Extensions  []string `json:"extensions"`
 }
 
@@ -57,30 +58,31 @@ func loadFilePreviewConfig() map[string]FilePreviewTypeConfig {
 	return filePreviewTypeByExt
 }
 
-// detectPreviewMeta 根据扩展名返回统一的预览类别与是否可预览。
-func detectPreviewMeta(path string) (string, bool) {
+// detectPreviewMeta 根据扩展名返回统一的预览类别、是否可预览、默认模式与是否可编辑。
+func detectPreviewMeta(path string) (string, bool, string, bool) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == "" {
-		return "", false
+		return "text", true, "edit", true
 	}
 	if item, ok := loadFilePreviewConfig()[ext]; ok {
-		return item.PreviewKind, item.Previewable
+		defaultMode := normalizeFileDefaultMode(item.DefaultMode, item.PreviewKind, item.Previewable)
+		return item.PreviewKind, item.Previewable, defaultMode, isEditablePreviewKind(item.PreviewKind)
 	}
-	return "binary", false
+	return "binary", false, "preview", false
 }
 
 // defaultFilePreviewTypeMap 提供配置缺失时的内置默认规则。
 func defaultFilePreviewTypeMap() map[string]FilePreviewTypeConfig {
 	items := []FilePreviewTypeConfig{
-		{Name: "markdown", PreviewKind: "markdown", Previewable: true, Extensions: []string{".md", ".markdown"}},
-		{Name: "text", PreviewKind: "text", Previewable: true, Extensions: []string{".txt", ".log", ".ini", ".env", ".yaml", ".yml", ".xml", ".toml", ".conf"}},
-		{Name: "code", PreviewKind: "code", Previewable: true, Extensions: []string{".js", ".jsx", ".ts", ".tsx", ".go", ".sum", ".mod", ".py", ".java", ".c", ".cpp", ".cc", ".rs", ".sh", ".bash", ".bat", ".vbs", ".css", ".scss", ".less", ".html", ".htm", ".sql"}},
-		{Name: "json", PreviewKind: "code", Previewable: true, Extensions: []string{".json", ".jsonc"}},
-		{Name: "csv", PreviewKind: "csv", Previewable: true, Extensions: []string{".csv"}},
-		{Name: "spreadsheet", PreviewKind: "spreadsheet", Previewable: true, Extensions: []string{".xlsx", ".xls"}},
-		{Name: "image", PreviewKind: "image", Previewable: true, Extensions: []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}},
-		{Name: "pdf", PreviewKind: "pdf", Previewable: true, Extensions: []string{".pdf"}},
-		{Name: "binary", PreviewKind: "binary", Previewable: false, Extensions: []string{".zip", ".rar", ".7z", ".exe", ".dll", ".so", ".bin"}},
+		{Name: "markdown", PreviewKind: "markdown", Previewable: true, DefaultMode: "edit", Extensions: []string{".md", ".markdown"}},
+		{Name: "text", PreviewKind: "text", Previewable: true, DefaultMode: "edit", Extensions: []string{".txt", ".log", ".ini", ".env", ".yaml", ".yml", ".xml", ".toml", ".conf"}},
+		{Name: "code", PreviewKind: "code", Previewable: true, DefaultMode: "edit", Extensions: []string{".js", ".jsx", ".ts", ".tsx", ".go", ".sum", ".mod", ".py", ".java", ".c", ".cpp", ".cc", ".rs", ".sh", ".bash", ".bat", ".vbs", ".css", ".scss", ".less", ".html", ".htm", ".sql"}},
+		{Name: "json", PreviewKind: "code", Previewable: true, DefaultMode: "edit", Extensions: []string{".json", ".jsonc"}},
+		{Name: "csv", PreviewKind: "csv", Previewable: true, DefaultMode: "edit", Extensions: []string{".csv"}},
+		{Name: "spreadsheet", PreviewKind: "spreadsheet", Previewable: true, DefaultMode: "preview", Extensions: []string{".xlsx", ".xls"}},
+		{Name: "image", PreviewKind: "image", Previewable: true, DefaultMode: "preview", Extensions: []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}},
+		{Name: "pdf", PreviewKind: "pdf", Previewable: true, DefaultMode: "preview", Extensions: []string{".pdf"}},
+		{Name: "binary", PreviewKind: "binary", Previewable: false, DefaultMode: "preview", Extensions: []string{".zip", ".rar", ".7z", ".exe", ".dll", ".so", ".bin"}},
 	}
 	result := make(map[string]FilePreviewTypeConfig)
 	for _, item := range items {
@@ -89,4 +91,30 @@ func defaultFilePreviewTypeMap() map[string]FilePreviewTypeConfig {
 		}
 	}
 	return result
+}
+
+func normalizeFileDefaultMode(mode, previewKind string, previewable bool) string {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "edit" && isEditablePreviewKind(previewKind) {
+		return "edit"
+	}
+	if mode == "preview" {
+		return "preview"
+	}
+	if isEditablePreviewKind(previewKind) {
+		return "edit"
+	}
+	if previewable {
+		return "preview"
+	}
+	return "preview"
+}
+
+func isEditablePreviewKind(previewKind string) bool {
+	switch previewKind {
+	case "markdown", "text", "code", "csv":
+		return true
+	default:
+		return false
+	}
 }

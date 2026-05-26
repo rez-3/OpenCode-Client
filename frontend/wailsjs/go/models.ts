@@ -210,6 +210,8 @@ export namespace model {
 	    mime: string;
 	    previewKind: string;
 	    previewable: boolean;
+	    editable: boolean;
+	    defaultMode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new FileBrowserStatResult(source);
@@ -227,6 +229,8 @@ export namespace model {
 	        this.mime = source["mime"];
 	        this.previewKind = source["previewKind"];
 	        this.previewable = source["previewable"];
+	        this.editable = source["editable"];
+	        this.defaultMode = source["defaultMode"];
 	    }
 	}
 	export class FileBrowserUploadResult {

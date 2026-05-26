@@ -270,6 +270,10 @@ export function RemoveSkillSourceDir(arg1) {
   return window['go']['main']['App']['RemoveSkillSourceDir'](arg1);
 }
 
+export function SaveBrowserFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveBrowserFile'](arg1, arg2, arg3);
+}
+
 export function SaveFullConfig(arg1) {
   return window['go']['main']['App']['SaveFullConfig'](arg1);
 }

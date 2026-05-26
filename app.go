@@ -124,6 +124,11 @@ func (a *App) ReadBrowserFile(rootDir, path string) (model.FileBrowserReadResult
 	return filebrowser.ReadBrowserFile(rootDir, path)
 }
 
+// SaveBrowserFile 保存站内文件浏览器文本文件内容。
+func (a *App) SaveBrowserFile(rootDir, path, content string) (model.SaveResult, error) {
+	return filebrowser.SaveBrowserFile(rootDir, path, content)
+}
+
 // ReadBrowserRawBase64 返回原始文件 Base64 内容，供桌面端图片/PDF/下载使用。
 func (a *App) ReadBrowserRawBase64(rootDir, path string) (model.FileBrowserRawResult, error) {
 	return filebrowser.ReadBrowserRawBase64(rootDir, path)

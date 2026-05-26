@@ -10,6 +10,10 @@ async function fileBrowserApiRead(rootDir, relPath) {
     return await api.ReadBrowserFile(rootDir, relPath);
 }
 
+async function fileBrowserApiSave(rootDir, relPath, content) {
+    return await api.SaveBrowserFile(rootDir, relPath, content);
+}
+
 async function fileBrowserApiGitPreview(rootDir, relPath) {
     return await api.GetGitPreview(rootDir, relPath);
 }
@@ -50,44 +54,12 @@ function fileBrowserEscapeHTML(text) {
 }
 
 function fileBrowserHighlightCode(code, ext) {
-    if (typeof hljs === 'undefined') return fileBrowserEscapeHTML(code);
-    try {
-        var lang = fileBrowserExtToLang(ext);
-        var result = lang ? hljs.highlight(String(code || ''), { language: lang }) : hljs.highlightAuto(String(code || ''));
-        var html = result.value;
-        // 拆行加行号
-        var lines = html.split('\n');
-        var numbered = '';
-        for (var i = 0; i < lines.length; i++) {
-            numbered += '<div class="hljs-line"><span class="hljs-line-no">' + (i + 1) + '</span><span class="hljs-line-content">' + (lines[i] || ' ') + '</span></div>';
-        }
-        return numbered;
-    } catch (e) {
-        return fileBrowserEscapeHTML(code);
+    var lines = String(code || '').split('\n');
+    var numbered = '';
+    for (var i = 0; i < lines.length; i++) {
+        numbered += '<div class="hljs-line"><span class="hljs-line-no">' + (i + 1) + '</span><span class="hljs-line-content">' + (fileBrowserEscapeHTML(lines[i]) || ' ') + '</span></div>';
     }
-}
-
-function fileBrowserExtToLang(ext) {
-    var map = {
-        '.js': 'javascript', '.jsx': 'javascript','mjs':'javascript','cjs':'javascript',
-        '.ts': 'typescript', '.tsx': 'typescript',
-        '.go': 'go', '.mod': 'go', '.sum': 'go',
-        '.py': 'python',
-        '.java': 'java','.jsp': 'java',
-        '.c': 'c', '.cpp': 'cpp', '.cc': 'cpp', '.h': 'c',
-        'cs':'csharp',
-        '.rs': 'rust',
-        '.sh': 'bash', '.bash': 'bash','.cmd': 'bash',
-        '.css': 'css', '.scss': 'scss', '.less': 'less',
-        '.html': 'xml', '.htm': 'xml', '.xml': 'xml',
-        '.json': 'json','.jsonc': 'json',
-        '.yaml': 'yaml', '.yml': 'yaml','.toml': 'toml',
-        '.sql': 'sql',
-        '.ini': 'ini', '.env': 'ini',
-        '.bat': 'shell',
-        '.md': 'markdown', '.markdown': 'markdown',
-    };
-    return map[(ext || '').toLowerCase()] || null;
+    return numbered;
 }
 
 function fileBrowserSanitizeMarkedHtml(html) {
@@ -150,11 +122,252 @@ function updateFileBrowserDownloadButton(item) {
     }
 }
 
-async function renderFilePreview(item) {
+function fileBrowserCanEdit(meta) {
+    return !!(meta && meta.editable);
+}
+
+function isFileBrowserDarkTheme(theme) {
+    var current = theme || document.documentElement.getAttribute('data-theme') || 'dark';
+    return current === 'dark';
+}
+
+function destroyFileBrowserEditor() {
     var state = window.fileBrowserState;
+    stopFileBrowserSearchButtonSync();
+    if (state && state.previewEditorInstance && window.ProjectConfigCodeEditor) {
+        window.ProjectConfigCodeEditor.destroy(state.previewEditorInstance);
+    }
+    if (state) {
+        state.previewEditorInstance = null;
+    }
+}
+
+function syncFileBrowserEditorTheme(theme) {
+    var state = window.fileBrowserState;
+    if (state && state.previewEditorInstance && window.ProjectConfigCodeEditor) {
+        window.ProjectConfigCodeEditor.setTheme(state.previewEditorInstance, isFileBrowserDarkTheme(theme));
+    }
+}
+
+window.syncFileBrowserEditorTheme = syncFileBrowserEditorTheme;
+
+function fileBrowserIsSearchOpen() {
+    var state = window.fileBrowserState;
+    return !!(state && state.previewEditorInstance && window.ProjectConfigCodeEditor && window.ProjectConfigCodeEditor.isSearchOpen(state.previewEditorInstance));
+}
+
+function refreshFileBrowserSearchButtonState() {
+    var searchBtn = document.getElementById('btnFilePreviewSearch');
+    if (!searchBtn) return;
+    var isOpen = fileBrowserIsSearchOpen();
+    searchBtn.classList.toggle('active', isOpen);
+    searchBtn.textContent = isOpen ? '关闭搜索' : '搜索';
+}
+
+function stopFileBrowserSearchButtonSync() {
+    var state = window.fileBrowserState;
+    if (state && state.previewSearchSyncTimer) {
+        clearInterval(state.previewSearchSyncTimer);
+        state.previewSearchSyncTimer = null;
+    }
+}
+
+function startFileBrowserSearchButtonSync() {
+    var state = window.fileBrowserState;
+    stopFileBrowserSearchButtonSync();
+    if (!state || !state.previewEditorInstance) return;
+    state.previewSearchSyncTimer = setInterval(refreshFileBrowserSearchButtonState, 200);
+}
+
+function fileBrowserCanPreview(meta) {
+    if (!meta) return false;
+    if (meta.previewKind === 'binary') return false;
+    if (meta.previewKind === 'markdown') return true;
+    if (fileBrowserCanEdit(meta)) return false;
+    return !!meta.previewable || !meta.ext;
+}
+
+function fileBrowserGetPreferredRenderMode(meta) {
+    if (!meta) return 'preview';
+    if (fileBrowserCanEdit(meta)) return 'edit';
+    return 'preview';
+}
+
+function fileBrowserIsDirty() {
+    var state = window.fileBrowserState;
+    return (state.previewEditorValue || '') !== (state.previewOriginalContent || '');
+}
+
+function renderFilePreviewToolbar() {
+    var state = window.fileBrowserState;
+    var actionsEl = document.getElementById('filePreviewActions');
+    if (!actionsEl) return;
+
+    var meta = state.previewMeta;
+    if (!meta || state.previewMode !== 'file' || !state.selectedItem || state.selectedItem.type !== 'file') {
+        actionsEl.innerHTML = '';
+        return;
+    }
+
+    var canEdit = fileBrowserCanEdit(meta);
+    var canPreview = fileBrowserCanPreview(meta);
+    var allowModeToggle = !!(meta && meta.previewKind === 'markdown');
+    var buttons = '';
+
+    if (allowModeToggle && canPreview) {
+        buttons += '<button type="button" class="btn btn-sm' + (state.previewRenderMode === 'preview' ? ' active-file-preview-action' : '') + '" id="btnFilePreviewModePreview">预览</button>';
+    }
+    if (canEdit) {
+        if (allowModeToggle) {
+            buttons += '<button type="button" class="btn btn-sm' + (state.previewRenderMode === 'edit' ? ' active-file-preview-action' : '') + '" id="btnFilePreviewModeEdit">编辑</button>';
+        }
+        if (state.previewRenderMode === 'edit') {
+            buttons += '<button type="button" class="btn btn-sm pc-editor-search-btn' + (fileBrowserIsSearchOpen() ? ' active' : '') + '" id="btnFilePreviewSearch">' + (fileBrowserIsSearchOpen() ? '关闭搜索' : '搜索') + '</button>';
+        }
+        buttons += '<button type="button" class="btn btn-sm btn-primary" id="btnFilePreviewSave"' + ((!fileBrowserIsDirty() || state.savingPreview || (state.previewReadResult && state.previewReadResult.truncated)) ? ' disabled' : '') + '>' + (state.savingPreview ? '保存中...' : '保存') + '</button>';
+    }
+
+    actionsEl.innerHTML = buttons;
+
+    var previewBtn = document.getElementById('btnFilePreviewModePreview');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function() {
+            switchFilePreviewRenderMode('preview');
+        });
+    }
+    var editBtn = document.getElementById('btnFilePreviewModeEdit');
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            switchFilePreviewRenderMode('edit');
+        });
+    }
+    var searchBtn = document.getElementById('btnFilePreviewSearch');
+    if (searchBtn) {
+        refreshFileBrowserSearchButtonState();
+        searchBtn.addEventListener('click', function() {
+            if (state.previewEditorInstance && window.ProjectConfigCodeEditor) {
+                window.ProjectConfigCodeEditor.toggleSearch(state.previewEditorInstance);
+                refreshFileBrowserSearchButtonState();
+            }
+        });
+    }
+    var saveBtn = document.getElementById('btnFilePreviewSave');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveCurrentFilePreview);
+    }
+}
+
+function renderFilePreviewEditor(item, meta, readData) {
+    var state = window.fileBrowserState;
+    var bodyEl = document.getElementById('filePreviewBody');
+    if (!bodyEl) return;
+    destroyFileBrowserEditor();
+    var truncatedHint = readData && readData.truncated
+        ? '<div class="file-browser-editor-hint error">当前仅加载前 2MB 内容，已禁止保存，请使用外部编辑器处理大文件。</div>':'';
+    bodyEl.innerHTML = '<div class="file-browser-editor-wrap">' +
+        truncatedHint +
+        '<div class="file-browser-code-editor" id="fileBrowserEditor"></div>' +
+    '</div>';
+    var editorMount = document.getElementById('fileBrowserEditor');
+    if (!editorMount || !window.ProjectConfigCodeEditor) return;
+    state.previewEditorInstance = window.ProjectConfigCodeEditor.create(editorMount, {
+        fileName: item.name || meta.name || '',
+        content: state.previewEditorValue || '',
+        isDark: isFileBrowserDarkTheme(),
+        onChange: function(value) {
+            state.previewEditorValue = value || '';
+            renderFilePreviewToolbar();
+        }
+    });
+    if ((state.previewEditorValue || '') === (state.previewOriginalContent || '')) {
+        window.ProjectConfigCodeEditor.markClean(state.previewEditorInstance);
+    }
+    window.ProjectConfigCodeEditor.focus(state.previewEditorInstance);
+    startFileBrowserSearchButtonSync();
+    renderFilePreviewToolbar();
+}
+
+function renderTextualFilePreview(item, meta, readData, ext) {
+    var state = window.fileBrowserState;
+    var bodyEl = document.getElementById('filePreviewBody');
+    if (!bodyEl) return;
+    if (state.previewRenderMode === 'edit' && fileBrowserCanEdit(meta)) {
+        renderFilePreviewEditor(item, meta, readData);
+        return;
+    }
+    if (meta.previewKind === 'markdown') {
+        bodyEl.innerHTML = '<div class="oc-text file-browser-markdown">' + fileBrowserSanitizeMarkedHtml(marked.parse(readData.content || '')) + '</div>';
+        return;
+    }
+    if (meta.previewKind === 'csv') {
+        bodyEl.innerHTML = renderCSVPreview(readData.content || '');
+        return;
+    }
+    bodyEl.innerHTML = '<pre class="file-browser-code"><code class="hljs">' + fileBrowserHighlightCode(readData.content || '', ext) + '</code></pre>';
+}
+
+function switchFilePreviewRenderMode(mode) {
+    var state = window.fileBrowserState;
+    var meta = state.previewMeta;
+    if (!meta) return;
+    if (mode === 'edit' && !fileBrowserCanEdit(meta)) return;
+    if (mode === 'preview' && !fileBrowserCanPreview(meta)) return;
+    if (mode === 'preview') {
+        destroyFileBrowserEditor();
+    }
+    state.previewRenderMode = mode === 'edit' ? 'edit' : 'preview';
+    renderFilePreviewToolbar();
+    if (state.selectedItem) {
+        renderFilePreview(state.selectedItem, { keepMode: true, skipMetaReload: true });
+    }
+}
+
+async function saveCurrentFilePreview() {
+    var state = window.fileBrowserState;
+    var meta = state.previewMeta;
+    var item = state.selectedItem;
+    if (!item || !meta || !fileBrowserCanEdit(meta) || state.savingPreview) return;
+    if (state.previewReadResult && state.previewReadResult.truncated) {
+        showToast('当前文件已截断，禁止保存', 'error');
+        return;
+    }
+    state.savingPreview = true;
+    renderFilePreviewToolbar();
+    try {
+        var result = await fileBrowserApiSave(state.rootDir, item.path, state.previewEditorValue || '');
+        if (!result.success) {
+            showToast(result.error || '保存失败', 'error');
+            return;
+        }
+        state.previewOriginalContent = state.previewEditorValue || '';
+        state.previewContent = state.previewEditorValue || '';
+        if (state.previewEditorInstance && window.ProjectConfigCodeEditor) {
+            window.ProjectConfigCodeEditor.markClean(state.previewEditorInstance);
+        }
+        showToast('保存成功', 'success');
+        renderFilePreviewToolbar();
+        await loadFileBrowserList(state.currentPath || '/');
+        state.selectedItem = state.items.find(function(entry) { return entry.path === item.path; }) || item;
+        renderFileBrowserSelection();
+        await renderFilePreview(state.selectedItem, { keepMode: true });
+    } catch (err) {
+        showToast(err.message || '保存失败', 'error');
+    } finally {
+        state.savingPreview = false;
+        renderFilePreviewToolbar();
+    }
+}
+
+async function renderFilePreview(item, options) {
+    var state = window.fileBrowserState;
+    options = options || {};
     if (!state || !item || item.type !== 'file') return;
+    if (!(options.keepMode && state.previewRenderMode === 'edit')) {
+        destroyFileBrowserEditor();
+    }
     fileBrowserClearObjectURL();
     state.selectedItem = item;
+    state.previewMode = 'file';
     updateFileBrowserDownloadButton(item);
     var titleEl = document.getElementById('filePreviewTitle');
     var metaEl = document.getElementById('filePreviewMeta');
@@ -162,13 +375,18 @@ async function renderFilePreview(item) {
     if (titleEl) titleEl.textContent = item.name;
     if (metaEl) metaEl.textContent = '加载中...';
     if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty">正在读取文件...</div>';
+    renderFilePreviewToolbar();
 
     try {
-        var meta = await fileBrowserApiStat(state.rootDir, item.path);
+        var meta = options.skipMetaReload && state.previewMeta ? state.previewMeta : await fileBrowserApiStat(state.rootDir, item.path);
         state.previewMeta = meta;
+        if (!options.keepMode) {
+            state.previewRenderMode = fileBrowserGetPreferredRenderMode(meta);
+        }
         if (metaEl) {
             metaEl.textContent = [meta.ext || '', fileBrowserFormatBytes(meta.size || 0), meta.modifiedAt || ''].filter(Boolean).join(' · ');
         }
+        renderFilePreviewToolbar();
         var ext = (meta.ext || '').toLowerCase();
         var previewKind = meta.previewKind || '';
 
@@ -191,33 +409,37 @@ async function renderFilePreview(item) {
         }
         if (previewKind === 'markdown' || previewKind === 'csv' || previewKind === 'text' || previewKind === 'code') {
             var previewReadData = await fileBrowserApiRead(state.rootDir, item.path);
+            state.previewReadResult = previewReadData;
             state.previewContent = previewReadData.content || '';
-            if (previewKind === 'markdown') {
-                bodyEl.innerHTML = '<div class="oc-text file-browser-markdown">' + fileBrowserSanitizeMarkedHtml(marked.parse(previewReadData.content || '')) + '</div>';
-                return;
+            if (!options.keepMode || state.previewEditorValue === '' || !fileBrowserIsDirty()) {
+                state.previewEditorValue = previewReadData.content || '';
+                state.previewOriginalContent = previewReadData.content || '';
             }
-            if (previewKind === 'csv') {
-                bodyEl.innerHTML = renderCSVPreview(previewReadData.content || '');
-                return;
-            }
-            bodyEl.innerHTML = '<pre class="file-browser-code"><code class="hljs">' + fileBrowserHighlightCode(previewReadData.content || '', ext) + '</code></pre>';
+            renderTextualFilePreview(item, meta, previewReadData, ext);
+            renderFilePreviewToolbar();
             return;
         }
 
         if (!ext) {
-            if (state.forcedTextPreview[item.path]) {
+            if (state.previewRenderMode === 'edit' || state.forcedTextPreview[item.path]) {
                 var noExtReadData = await fileBrowserApiRead(state.rootDir, item.path);
                 var noExtContent = noExtReadData.content || '';
+                state.previewReadResult = noExtReadData;
                 state.previewContent = noExtContent;
-                if (metaEl) {
-                    metaEl.textContent = ['无扩展名 · 按普通文本方式预览', fileBrowserFormatBytes(meta.size || 0), meta.modifiedAt || ''].filter(Boolean).join(' · ');
+                if (!options.keepMode || state.previewEditorValue === '' || !fileBrowserIsDirty()) {
+                    state.previewEditorValue = noExtContent;
+                    state.previewOriginalContent = noExtContent;
                 }
-                bodyEl.innerHTML = '<div class="file-browser-noext-hint">已按普通文本方式打开该无扩展名文件，内容可能不是可读文本。</div>' +
-                    '<pre class="file-browser-code"><code class="hljs">' + fileBrowserHighlightCode(noExtContent, '') + '</code></pre>';
+                if (metaEl) {
+                    metaEl.textContent = ['无扩展名 · 按普通文本方式打开', fileBrowserFormatBytes(meta.size || 0), meta.modifiedAt || ''].filter(Boolean).join(' · ');
+                }
+                renderTextualFilePreview(item, meta, noExtReadData, '');
+                renderFilePreviewToolbar();
                 return;
             }
             bodyEl.innerHTML = renderNoExtPreview(item, meta);
             bindNoExtPreviewActions(item);
+            renderFilePreviewToolbar();
             return;
         }
 
@@ -225,9 +447,11 @@ async function renderFilePreview(item) {
             '<p>该文件类型暂不支持在线预览。</p>' +
             '<p>文件：' + fileBrowserEscapeHTML(item.name) + '</p>' +
             '</div>';
+        renderFilePreviewToolbar();
     } catch (err) {
         if (metaEl) metaEl.textContent = '';
         if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty error">' + fileBrowserEscapeHTML(err.message || err) + '</div>';
+        renderFilePreviewToolbar();
     }
 }
 
@@ -247,6 +471,7 @@ function bindNoExtPreviewActions(item) {
     if (openBtn) {
         openBtn.onclick = function() {
             window.fileBrowserState.forcedTextPreview[item.path] = true;
+            window.fileBrowserState.previewRenderMode = 'edit';
             renderFilePreview(item);
         };
     }
@@ -285,6 +510,7 @@ async function renderGitFilePreview(path) {
     if (titleEl) titleEl.textContent = path.replace(/^\//, '');
     if (metaEl) metaEl.textContent = 'Git 变更预览';
     if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty">正在读取 Git 变更...</div>';
+    renderFilePreviewToolbar();
     try {
         var data = await fileBrowserApiGitPreview(state.rootDir, path);
         if (!data.tracked) {
@@ -316,6 +542,7 @@ async function renderGitHistoryFilePreview(commitHash, path) {
     if (titleEl) titleEl.textContent = path;
     if (metaEl) metaEl.textContent = '提交历史 · ' + commitHash.slice(0, 7);
     if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty">正在读取提交历史文件变更...</div>';
+    renderFilePreviewToolbar();
     try {
         var data = await fileBrowserApiGitHistoryPreview(state.rootDir, commitHash, path);
         var blocks = data.blocks || [];

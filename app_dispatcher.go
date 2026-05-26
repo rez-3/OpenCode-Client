@@ -72,6 +72,12 @@ func (a *App) callFrontendMethod(method string, args []json.RawMessage) (interfa
 			return nil, err
 		}
 		return a.ReadBrowserFile(rootDir, path)
+	case "SaveBrowserFile":
+		var rootDir, path, content string
+		if err := decodeArgs(args, &rootDir, &path, &content); err != nil {
+			return nil, err
+		}
+		return a.SaveBrowserFile(rootDir, path, content)
 	case "ReadBrowserRawBase64":
 		var rootDir, path string
 		if err := decodeArgs(args, &rootDir, &path); err != nil {

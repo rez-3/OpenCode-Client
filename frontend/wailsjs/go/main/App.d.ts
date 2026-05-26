@@ -137,6 +137,8 @@ export function RejectQuestion(arg1:string):Promise<model.APIResult>;
 
 export function RemoveSkillSourceDir(arg1:string):Promise<model.SaveResult>;
 
+export function SaveBrowserFile(arg1:string,arg2:string,arg3:string):Promise<model.SaveResult>;
+
 export function SaveFullConfig(arg1:string):Promise<model.SaveResult>;
 
 export function SaveProjectConfigFile(arg1:string,arg2:string,arg3:string,arg4:string):Promise<model.ProjectConfigFileResult>;

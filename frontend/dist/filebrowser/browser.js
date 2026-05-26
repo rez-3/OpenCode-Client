@@ -11,6 +11,13 @@ window.fileBrowserState = {
     selectedItem: null,
     previewMeta: null,
     previewContent: null,
+    previewReadResult: null,
+    previewRenderMode: 'preview',
+    previewEditorValue: '',
+    previewOriginalContent: '',
+    previewEditorInstance: null,
+    previewSearchSyncTimer: null,
+    savingPreview: false,
     loadingList: false,
     loadingPreview: false,
     previewMode: 'file',
@@ -105,6 +112,10 @@ async function fileBrowserApiUpload(rootDir, path, fileName, base64Data, overwri
 
 async function fileBrowserApiDelete(rootDir, path) {
     return await api.DeleteBrowserEntry(rootDir, path);
+}
+
+async function fileBrowserApiSave(rootDir, path, content) {
+    return await api.SaveBrowserFile(rootDir, path, content);
 }
 
 function setFileBrowserDownloadTarget(path, name) {
@@ -465,6 +476,13 @@ function openFileBrowserModal(rootDir) {
     window.fileBrowserState.parentPath = '/';
     window.fileBrowserState.selectedItem = null;
     window.fileBrowserState.previewMode = 'file';
+    window.fileBrowserState.previewRenderMode = 'preview';
+    window.fileBrowserState.previewEditorValue = '';
+    window.fileBrowserState.previewOriginalContent = '';
+    window.fileBrowserState.previewEditorInstance = null;
+    window.fileBrowserState.previewSearchSyncTimer = null;
+    window.fileBrowserState.previewReadResult = null;
+    window.fileBrowserState.savingPreview = false;
     window.fileBrowserState.forcedTextPreview = {};
     window.fileBrowserState.previewDownloadPath = '';
     window.fileBrowserState.previewDownloadName = '';
@@ -498,6 +516,7 @@ function closeFileBrowserModal() {
     var modal = document.getElementById('fileBrowserModal');
     if (modal) modal.style.display = 'none';
     if (typeof fileBrowserClearObjectURL === 'function') fileBrowserClearObjectURL();
+    if (typeof destroyFileBrowserEditor === 'function') destroyFileBrowserEditor();
     clearFileBrowserPreview();
 }
 
@@ -509,12 +528,23 @@ function clearFileBrowserPreview() {
     if (titleEl) titleEl.textContent = '请选择文件';
     if (metaEl) metaEl.textContent = '';
     if (bodyEl) bodyEl.innerHTML = '<div class="file-browser-empty">请选择左侧文件进行预览</div>';
+    if (typeof destroyFileBrowserEditor === 'function') destroyFileBrowserEditor();
+    window.fileBrowserState.previewMeta = null;
+    window.fileBrowserState.previewContent = null;
+    window.fileBrowserState.previewReadResult = null;
+    window.fileBrowserState.previewRenderMode = 'preview';
+    window.fileBrowserState.previewEditorValue = '';
+    window.fileBrowserState.previewOriginalContent = '';
+    window.fileBrowserState.previewEditorInstance = null;
+    window.fileBrowserState.previewSearchSyncTimer = null;
+    window.fileBrowserState.savingPreview = false;
     window.fileBrowserState.previewDownloadPath = '';
     window.fileBrowserState.previewDownloadName = '';
     if (downloadBtn) {
         downloadBtn.style.display = 'none';
         downloadBtn.disabled = true;
     }
+    if (typeof renderFilePreviewToolbar === 'function') renderFilePreviewToolbar();
 }
 
 async function downloadCurrentFilePreview() {
@@ -1055,3 +1085,101 @@ function refreshFileBrowser() {
         loadFileBrowserGitHistory(false);
     }
 }
+
+(function initFileBrowserActions() {
+    var closeBtn = document.getElementById('btnCloseFileBrowser');
+    if (closeBtn && !closeBtn.dataset.bound) {
+        closeBtn.dataset.bound = 'true';
+        closeBtn.addEventListener('click', closeFileBrowserModal);
+    }
+
+    var refreshBtn = document.getElementById('btnRefreshFiles');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+        refreshBtn.dataset.bound = 'true';
+        refreshBtn.addEventListener('click', refreshFileBrowser);
+    }
+
+    var upBtn = document.getElementById('btnFileBrowserUp');
+    if (upBtn && !upBtn.dataset.bound) {
+        upBtn.dataset.bound = 'true';
+        upBtn.addEventListener('click', goFileBrowserUp);
+    }
+
+    var downloadBtn = document.getElementById('btnFileBrowserDownload');
+    if (downloadBtn && !downloadBtn.dataset.bound) {
+        downloadBtn.dataset.bound = 'true';
+        downloadBtn.addEventListener('click', downloadCurrentFilePreview);
+    }
+
+    var filesModeBtn = document.getElementById('btnFileBrowserModeFiles');
+    if (filesModeBtn && !filesModeBtn.dataset.bound) {
+        filesModeBtn.dataset.bound = 'true';
+        filesModeBtn.addEventListener('click', function() {
+            switchFileBrowserMode('files');
+        });
+    }
+
+    var gitModeBtn = document.getElementById('btnFileBrowserModeGit');
+    if (gitModeBtn && !gitModeBtn.dataset.bound) {
+        gitModeBtn.dataset.bound = 'true';
+        gitModeBtn.addEventListener('click', function() {
+            switchFileBrowserMode('git');
+        });
+    }
+
+    var uploadBtn = document.getElementById('btnFileBrowserUpload');
+    if (uploadBtn && !uploadBtn.dataset.bound) {
+        uploadBtn.dataset.bound = 'true';
+        uploadBtn.addEventListener('click', openFileBrowserUploadPicker);
+    }
+
+    var uploadInput = document.getElementById('fileBrowserUploadInput');
+    if (uploadInput && !uploadInput.dataset.bound) {
+        uploadInput.dataset.bound = 'true';
+        uploadInput.addEventListener('change', function() {
+            var file = this.files && this.files[0] ? this.files[0] : null;
+            handleBrowserUploadSelected(file).finally(function() {
+                uploadInput.value = '';
+            });
+        });
+    }
+
+    var overwriteBtn = document.getElementById('btnFileBrowserUploadOverwrite');
+    if (overwriteBtn && !overwriteBtn.dataset.bound) {
+        overwriteBtn.dataset.bound = 'true';
+        overwriteBtn.addEventListener('click', function() {
+            submitBrowserUpload(window.fileBrowserState.pendingUploadFileName || '', true).catch(function(err) {
+                showToast(err.message || '上传失败', 'error');
+            });
+        });
+    }
+
+    var renameModeBtn = document.getElementById('btnFileBrowserUploadRenameMode');
+    if (renameModeBtn && !renameModeBtn.dataset.bound) {
+        renameModeBtn.dataset.bound = 'true';
+        renameModeBtn.addEventListener('click', showFileBrowserRenameMode);
+    }
+
+    var renameConfirmBtn = document.getElementById('btnFileBrowserUploadRenameConfirm');
+    if (renameConfirmBtn && !renameConfirmBtn.dataset.bound) {
+        renameConfirmBtn.dataset.bound = 'true';
+        renameConfirmBtn.addEventListener('click', function() {
+            var input = document.getElementById('fileBrowserUploadRenameInput');
+            var name = input ? String(input.value || '').trim() : '';
+            if (!name) {
+                var error = document.getElementById('fileBrowserUploadConflictError');
+                if (error) error.textContent = '请输入新的文件名';
+                return;
+            }
+            submitBrowserUpload(name, false).catch(function(err) {
+                showToast(err.message || '上传失败', 'error');
+            });
+        });
+    }
+
+    var uploadCancelBtn = document.getElementById('btnFileBrowserUploadConflictCancel');
+    if (uploadCancelBtn && !uploadCancelBtn.dataset.bound) {
+        uploadCancelBtn.dataset.bound = 'true';
+        uploadCancelBtn.addEventListener('click', closeFileBrowserUploadConflictModal);
+    }
+})();

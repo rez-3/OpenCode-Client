@@ -7,8 +7,137 @@ window._projectConfig = {
     summary: null,
     currentTab: 'coreConfig',
     editingFile: null,
-    browseStack: []   // 导航栈：{category, path}，用于返回上级目录
+    browseStack: [],   // 导航栈：{category, path}，用于返回上级目录
+    editorInstance: null,
+    editorMode: 'preview',
+    editorInitialContent: '',
+    searchButtonSyncTimer: null
 };
+
+function stopProjectConfigSearchButtonSync() {
+    var state = window._projectConfig;
+    if (state.searchButtonSyncTimer) {
+        clearInterval(state.searchButtonSyncTimer);
+        state.searchButtonSyncTimer = null;
+    }
+}
+
+function isProjectConfigDarkTheme(theme) {
+    var current = theme || document.documentElement.getAttribute('data-theme') || 'dark';
+    return current === 'dark';
+}
+
+function updateProjectConfigDirtyBadge() {
+    var dirtyBadge = document.getElementById('pcEditorDirtyBadge');
+    if (!dirtyBadge) {
+        return;
+    }
+    dirtyBadge.style.display = isProjectConfigEditorDirty() ? 'inline' : 'none';
+}
+
+function destroyProjectConfigEditor() {
+    var state = window._projectConfig;
+    stopProjectConfigSearchButtonSync();
+    if (state.editorInstance && window.ProjectConfigCodeEditor) {
+        window.ProjectConfigCodeEditor.destroy(state.editorInstance);
+    }
+    state.editorInstance = null;
+    state.editorMode = 'preview';
+    state.editorInitialContent = '';
+}
+
+function getProjectConfigEditorContent() {
+    var state = window._projectConfig;
+    if (state.editorInstance && window.ProjectConfigCodeEditor) {
+        return window.ProjectConfigCodeEditor.getValue(state.editorInstance);
+    }
+    var textarea = document.getElementById('pcEditorTextarea');
+    return textarea ? textarea.value : '';
+}
+
+function isProjectConfigEditorDirty() {
+    var state = window._projectConfig;
+    if (state.editorInstance && window.ProjectConfigCodeEditor) {
+        return window.ProjectConfigCodeEditor.isDirty(state.editorInstance);
+    }
+    var textarea = document.getElementById('pcEditorTextarea');
+    if (textarea) {
+        return textarea.value !== state.editorInitialContent;
+    }
+    return false;
+}
+
+function confirmProjectConfigDiscardChanges() {
+    if (!isProjectConfigEditorDirty()) {
+        return true;
+    }
+    return confirm('当前文件有未保存修改，确定要放弃吗？');
+}
+
+function ensureProjectConfigCanLeaveEditMode() {
+    if (!window._projectConfig.editorInstance) {
+        return true;
+    }
+    if (!confirmProjectConfigDiscardChanges()) {
+        return false;
+    }
+    destroyProjectConfigEditor();
+    return true;
+}
+
+function createProjectConfigEditor(fileName, content) {
+    var mount = document.getElementById('pcCodeEditor');
+    if (!mount || !window.ProjectConfigCodeEditor) {
+        return false;
+    }
+    destroyProjectConfigEditor();
+    window._projectConfig.editorInstance = window.ProjectConfigCodeEditor.create(mount, {
+        fileName: fileName,
+        content: content,
+        isDark: isProjectConfigDarkTheme(),
+        onChange: function(value) {
+            if (window._projectConfig.editingFile) {
+                window._projectConfig.editingFile.content = value;
+            }
+            updateProjectConfigDirtyBadge();
+        }
+    });
+    window._projectConfig.editorInitialContent = content;
+    window.ProjectConfigCodeEditor.markClean(window._projectConfig.editorInstance);
+    window._projectConfig.editorMode = 'edit';
+    window.ProjectConfigCodeEditor.focus(window._projectConfig.editorInstance);
+    startProjectConfigSearchButtonSync();
+    return true;
+}
+
+function syncProjectConfigEditorTheme(theme) {
+    var state = window._projectConfig;
+    if (state.editorInstance && window.ProjectConfigCodeEditor) {
+        window.ProjectConfigCodeEditor.setTheme(state.editorInstance, isProjectConfigDarkTheme(theme));
+    }
+}
+
+function refreshProjectConfigSearchButtonState() {
+    var searchBtn = document.querySelector('.pc-btn-search');
+    if (!searchBtn) {
+        return;
+    }
+    var state = window._projectConfig;
+    var isOpen = !!(state.editorInstance && window.ProjectConfigCodeEditor && window.ProjectConfigCodeEditor.isSearchOpen(state.editorInstance));
+    searchBtn.classList.toggle('active', isOpen);
+    searchBtn.textContent = isOpen ? '关闭搜索' : '搜索';
+}
+
+function startProjectConfigSearchButtonSync() {
+    var state = window._projectConfig;
+    stopProjectConfigSearchButtonSync();
+    if (!state.editorInstance) {
+        return;
+    }
+    state.searchButtonSyncTimer = setInterval(refreshProjectConfigSearchButtonState, 200);
+}
+
+window.syncProjectConfigEditorTheme = syncProjectConfigEditorTheme;
 
 // ============================
 // 弹窗开关
@@ -16,10 +145,12 @@ window._projectConfig = {
 
 function openProjectConfig(rootDir) {
     var state = window._projectConfig;
+    destroyProjectConfigEditor();
     state.rootDir = rootDir;
     state.summary = null;
     state.currentTab = 'coreConfig';
     state.editingFile = null;
+    state.browseStack = [];
 
     document.getElementById('projectConfigTitle').textContent = '项目配置 — ' + rootDir;
 
@@ -31,8 +162,13 @@ function openProjectConfig(rootDir) {
 }
 
 function closeProjectConfig() {
+    if (!ensureProjectConfigCanLeaveEditMode()) {
+        return;
+    }
     document.getElementById('projectConfigModal').style.display = 'none';
     window._projectConfig.rootDir = '';
+    window._projectConfig.editingFile = null;
+    window._projectConfig.browseStack = [];
 }
 
 // ============================
@@ -58,6 +194,9 @@ async function loadProjectConfigSummary() {
 // ============================
 
 function switchProjectConfigTab(tabName) {
+    if (!ensureProjectConfigCanLeaveEditMode()) {
+        return;
+    }
     var state = window._projectConfig;
     state.currentTab = tabName;
     state.editingFile = null;
@@ -70,6 +209,8 @@ function renderCurrentTab() {
     var state = window._projectConfig;
     var summary = state.summary;
     if (!summary) return;
+
+    destroyProjectConfigEditor();
 
     switch (state.currentTab) {
         case 'coreConfig': renderCoreConfigTab(summary.coreConfig); break;
@@ -389,7 +530,13 @@ function openFileEditor(category, relPath) {
 
     api.ReadProjectConfigFile(window._projectConfig.rootDir, category, relPath).then(function(result) {
         window._projectConfig.editingFile = { category: category, path: relPath, content: result.content };
-        renderPreview(result.path, result.content, false);
+        var ext = '.' + (result.path || '').split('.').pop().toLowerCase();
+        var isMarkdown = ext === '.md' || ext === '.markdown';
+        if (isMarkdown) {
+            renderPreview(result.path, result.content, false);
+            return;
+        }
+        switchToEditMode(result.path, result.content);
     }).catch(function(e) {
         body.innerHTML = '<div class="pc-empty error">加载失败: ' + escapeHtml(e.message || e) + '</div>';
     });
@@ -400,6 +547,7 @@ function openFileEditor(category, relPath) {
 // ============================
 
 function renderPreview(fileName, content, readOnly) {
+    destroyProjectConfigEditor();
     var body = document.getElementById('projectConfigBody');
     var ext = '.' + (fileName || '').split('.').pop().toLowerCase();
 
@@ -409,8 +557,10 @@ function renderPreview(fileName, content, readOnly) {
     var label = readOnly ? '全局配置 · 只读' : escapeHtml(fileName);
     var actions = readOnly
         ? '<button class="btn btn-sm btn-ghost pc-btn-back">← 返回</button>'
-        : '<button class="btn btn-sm btn-primary pc-btn-edit">编辑</button>' +
-          '<button class="btn btn-sm btn-ghost pc-btn-back">← 返回</button>';
+        : (isMarkdown
+            ? '<button class="btn btn-sm btn-primary pc-btn-edit">编辑</button>' +
+              '<button class="btn btn-sm btn-ghost pc-btn-back">← 返回</button>'
+            : '<button class="btn btn-sm btn-ghost pc-btn-back">← 返回</button>');
 
     var previewHtml = '';
     if (isMarkdown && typeof marked !== 'undefined') {
@@ -437,10 +587,15 @@ function renderPreview(fileName, content, readOnly) {
     '</div>';
 
     // 编辑按钮
-    var editBtn = document.querySelector('.pc-btn-edit');
-    if (editBtn) editBtn.addEventListener('click', function() {
-        switchToEditMode(fileName, content);
-    });
+    if (isMarkdown) {
+        var editBtn = document.querySelector('.pc-btn-edit');
+        if (editBtn) editBtn.addEventListener('click', function() {
+            var latestContent = window._projectConfig.editingFile && typeof window._projectConfig.editingFile.content === 'string'
+                ? window._projectConfig.editingFile.content
+                : content;
+            switchToEditMode(fileName, latestContent);
+        });
+    }
 
     // 返回按钮 → 导航栈回退
     var backBtn = document.querySelector('.pc-btn-back');
@@ -451,34 +606,24 @@ function renderPreview(fileName, content, readOnly) {
 }
 
 function editorGoBack() {
+    destroyProjectConfigEditor();
     var state = window._projectConfig;
     if (state.browseStack.length > 0) {
-        state.browseStack.pop();
-        if (state.browseStack.length > 0) {
-            var prev = state.browseStack[state.browseStack.length - 1];
-            browseSubDir(prev.category, prev.path);
-            return;
-        }
+        var current = state.browseStack.pop();
+        browseSubDir(current.category, current.path);
+        return;
     }
     renderCurrentTab();
 }
 
 /** 降级高亮：当 fileBrowserHighlightCode 不可用时 */
 function pcHighlightFallback(code, ext) {
-    if (typeof hljs === 'undefined') return escapeHtml(code);
-    try {
-        var langMap = { '.md': 'markdown', '.json': 'json', '.jsonc': 'json', '.yaml': 'yaml', '.yml': 'yaml', '.toml': 'ini', '.js': 'javascript', '.ts': 'typescript', '.css': 'css', '.sh': 'bash', '.py': 'python', '.go': 'go', '.rs': 'rust' };
-        var lang = langMap[ext] || '';
-        var result = lang ? hljs.highlight(String(code || ''), { language: lang }) : hljs.highlightAuto(String(code || ''));
-        var lines = result.value.split('\n');
-        var numbered = '';
-        for (var i = 0; i < lines.length; i++) {
-            numbered += '<div class="hljs-line"><span class="hljs-line-no">' + (i + 1) + '</span><span class="hljs-line-content">' + (lines[i] || ' ') + '</span></div>';
-        }
-        return numbered;
-    } catch (_) {
-        return escapeHtml(code);
+    var lines = String(code || '').split('\n');
+    var numbered = '';
+    for (var i = 0; i < lines.length; i++) {
+        numbered += '<div class="hljs-line"><span class="hljs-line-no">' + (i + 1) + '</span><span class="hljs-line-content">' + (escapeHtml(lines[i]) || ' ') + '</span></div>';
     }
+    return numbered;
 }
 
 // ============================
@@ -488,49 +633,89 @@ function pcHighlightFallback(code, ext) {
 function switchToEditMode(fileName, content) {
     var body = document.getElementById('projectConfigBody');
     window._projectConfig.editingFile.content = content;
+    window._projectConfig.editorInitialContent = content;
+    var ext = '.' + (fileName || '').split('.').pop().toLowerCase();
+    var allowPreviewToggle = ext === '.md' || ext === '.markdown';
 
     body.innerHTML = '<div class="pc-editor">' +
         '<div class="pc-editor-toolbar">' +
-            '<span class="pc-editor-filename">' + escapeHtml(fileName) + ' <span style="color:var(--warning);font-size:11px">编辑中</span></span>' +
+            '<span class="pc-editor-filename">' + escapeHtml(fileName) + ' <span style="color:var(--warning);font-size:11px">编辑中</span><span class="pc-editor-status-dirty" id="pcEditorDirtyBadge" style="display:none">未保存</span></span>' +
             '<div class="pc-editor-actions">' +
+                '<button class="btn btn-sm btn-ghost pc-btn-back">← 返回</button>' +
+                '<button class="btn btn-sm btn-ghost pc-editor-search-btn pc-btn-search">搜索</button>' +
                 '<button class="btn btn-sm btn-primary pc-btn-save">保存</button>' +
-                '<button class="btn btn-sm btn-ghost pc-btn-preview">预览</button>' +
+                (allowPreviewToggle ? '<button class="btn btn-sm btn-ghost pc-btn-preview">预览</button>' : '') +
             '</div>' +
         '</div>' +
-        '<textarea class="pc-editor-textarea-simple" id="pcEditorTextarea" spellcheck="false">' + escapeHtml(content) + '</textarea>' +
+        '<div class="pc-editor-cm-wrap"><div class="pc-code-editor" id="pcCodeEditor"></div></div>' +
     '</div>';
+
+    if (!createProjectConfigEditor(fileName, content)) {
+        body.innerHTML = '<div class="pc-editor">' +
+            '<div class="pc-editor-toolbar">' +
+                '<span class="pc-editor-filename">' + escapeHtml(fileName) + ' <span style="color:var(--warning);font-size:11px">编辑中</span></span>' +
+                '<div class="pc-editor-actions">' +
+                    '<button class="btn btn-sm btn-ghost pc-btn-back">← 返回</button>' +
+                    '<button class="btn btn-sm btn-primary pc-btn-save">保存</button>' +
+                    (allowPreviewToggle ? '<button class="btn btn-sm btn-ghost pc-btn-preview">预览</button>' : '') +
+                '</div>' +
+            '</div>' +
+            '<textarea class="pc-editor-textarea-simple" id="pcEditorTextarea" spellcheck="false">' + escapeHtml(content) + '</textarea>' +
+        '</div>';
+    }
 
     setupEditMode();
 }
 
 function setupEditMode() {
     var textarea = document.getElementById('pcEditorTextarea');
-    if (!textarea) return;
+    var state = window._projectConfig;
 
-    textarea.focus();
-
-    textarea.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            var s = textarea.selectionStart, end = textarea.selectionEnd;
-            textarea.value = textarea.value.substring(0, s) + '\t' + textarea.value.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = s + 1;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            saveCurrentFile();
-        }
-    });
+    if (textarea) {
+        textarea.focus();
+        textarea.addEventListener('input', updateProjectConfigDirtyBadge);
+        textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                var s = textarea.selectionStart, end = textarea.selectionEnd;
+                textarea.value = textarea.value.substring(0, s) + '\t' + textarea.value.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = s + 1;
+                updateProjectConfigDirtyBadge();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveCurrentFile();
+            }
+        });
+    }
 
     var saveBtn = document.querySelector('.pc-btn-save');
     if (saveBtn) saveBtn.addEventListener('click', saveCurrentFile);
 
+    var backBtn = document.querySelector('.pc-btn-back');
+    if (backBtn) backBtn.addEventListener('click', function() {
+        editorGoBack();
+    });
+
+    var searchBtn = document.querySelector('.pc-btn-search');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', function() {
+            if (state.editorInstance && window.ProjectConfigCodeEditor) {
+                window.ProjectConfigCodeEditor.toggleSearch(state.editorInstance);
+                refreshProjectConfigSearchButtonState();
+            }
+        });
+    }
+
     var previewBtn = document.querySelector('.pc-btn-preview');
     if (previewBtn) previewBtn.addEventListener('click', function() {
-        var newContent = textarea.value;
+        var newContent = getProjectConfigEditorContent();
         window._projectConfig.editingFile.content = newContent;
         renderPreview(window._projectConfig.editingFile.path, newContent, false);
     });
+
+    updateProjectConfigDirtyBadge();
+    refreshProjectConfigSearchButtonState();
 }
 
 // ============================
@@ -538,21 +723,14 @@ function setupEditMode() {
 // ============================
 
 function pcHighlightLines(code, lang) {
-    if (typeof hljs === 'undefined') return escapeHtml(code);
-    try {
-        var result = lang ? hljs.highlight(String(code || ''), { language: lang }) : hljs.highlightAuto(String(code || ''));
-        return result.value;
-    } catch (_) {
-        return escapeHtml(code);
-    }
+    return escapeHtml(code);
 }
 
 async function saveCurrentFile() {
     var state = window._projectConfig;
     var editing = state.editingFile;
     if (!editing) return;
-    var textarea = document.getElementById('pcEditorTextarea');
-    var content = textarea ? textarea.value : '';
+    var content = getProjectConfigEditorContent();
     var saveBtn = document.querySelector('.pc-btn-save');
 
     try {
@@ -560,8 +738,17 @@ async function saveCurrentFile() {
         await api.SaveProjectConfigFile(state.rootDir, editing.category, editing.path, content);
         showToast('保存成功', 'success');
         state.editingFile.content = content;
-        // 保存后回到预览
-        renderPreview(editing.path, content, false);
+        state.editorInitialContent = content;
+        if (state.editorInstance && window.ProjectConfigCodeEditor) {
+            window.ProjectConfigCodeEditor.markClean(state.editorInstance);
+        }
+        var ext = '.' + (editing.path || '').split('.').pop().toLowerCase();
+        var isMarkdown = ext === '.md' || ext === '.markdown';
+        if (isMarkdown) {
+            renderPreview(editing.path, content, false);
+        } else {
+            updateProjectConfigDirtyBadge();
+        }
     } catch (e) {
         showToast('保存失败: ' + (e.message || e), 'error');
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '保存'; }
