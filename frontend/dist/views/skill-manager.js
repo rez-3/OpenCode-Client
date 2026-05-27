@@ -340,7 +340,7 @@ function toggleSkillDirCollapse(path) {
 function sanitizeMarkedHtml(html) {
     var template = document.createElement('template');
     template.innerHTML = html;
-    var allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'CODE', 'PRE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR']);
+    var allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'CODE', 'PRE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR', 'IMG']);
     sanitizeMarkedNodeTree(template.content, allowedTags);
     return template.innerHTML;
 }
@@ -371,6 +371,9 @@ function sanitizeMarkedNodeTree(root, allowedTags) {
                 } else {
                     node.removeAttribute(attr.name);
                 }
+                return;
+            }
+            if (node.tagName === 'IMG' && (attrName === 'src' || attrName === 'alt')) {
                 return;
             }
             node.removeAttribute(attr.name);

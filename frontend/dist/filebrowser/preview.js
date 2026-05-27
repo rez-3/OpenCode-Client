@@ -65,7 +65,7 @@ function fileBrowserHighlightCode(code, ext) {
 function fileBrowserSanitizeMarkedHtml(html) {
     var template = document.createElement('template');
     template.innerHTML = html;
-    var allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'CODE', 'PRE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
+    var allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'CODE', 'PRE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG']);
     sanitizeNodeTree(template.content, allowedTags);
     return template.innerHTML;
 }
@@ -94,6 +94,9 @@ function sanitizeNodeTree(root, allowedTags) {
                 } else {
                     node.removeAttribute(attr.name);
                 }
+                return;
+            }
+            if (node.tagName === 'IMG' && (attrName === 'src' || attrName === 'alt')) {
                 return;
             }
             node.removeAttribute(attr.name);
@@ -287,7 +290,50 @@ function renderFilePreviewEditor(item, meta, readData) {
     renderFilePreviewToolbar();
 }
 
-function renderTextualFilePreview(item, meta, readData, ext) {
+// 规范化相对路径（处理 ../ 和 ./ ）
+function normalizeRelativePath(p) {
+    var parts = p.replace(/\\/g, '/').split('/');
+    var result = [];
+    for (var i = 0; i < parts.length; i++) {
+        var part = parts[i];
+        if (part === '' || part === '.') continue;
+        if (part === '..') {
+            result.pop();
+        } else {
+            result.push(part);
+        }
+    }
+    return result.join('/');
+}
+
+// 解析 markdown HTML 中图片的相对路径，替换为 blob URL
+async function resolveMarkdownImages(rawHtml, rootDir, mdFilePath) {
+    var template = document.createElement('template');
+    template.innerHTML = rawHtml;
+    var imgs = template.content.querySelectorAll('img');
+    if (imgs.length === 0) return rawHtml;
+    var mdDir = mdFilePath.substring(0, mdFilePath.lastIndexOf('/') + 1);
+    var tasks = [];
+    imgs.forEach(function(img) {
+        var src = (img.getAttribute('src') || '').trim();
+        if (!src || /^(https?:|data:|blob:|\/\/)/i.test(src)) return;
+        // marked 可能对中文路径做 URL 编码，需要先解码
+        try { src = decodeURI(src); } catch(e) {}
+        var resolvedPath = normalizeRelativePath(mdDir + src);
+        var task = fileBrowserResolveRawResource(rootDir, resolvedPath).then(function(res) {
+            img.setAttribute('src', res.url);
+        }).catch(function() {
+            // 图片读取失败，保留原始 src
+        });
+        tasks.push(task);
+    });
+    if (tasks.length > 0) {
+        await Promise.all(tasks);
+    }
+    return template.innerHTML;
+}
+
+async function renderTextualFilePreview(item, meta, readData, ext) {
     var state = window.fileBrowserState;
     var bodyEl = document.getElementById('filePreviewBody');
     if (!bodyEl) return;
@@ -296,7 +342,9 @@ function renderTextualFilePreview(item, meta, readData, ext) {
         return;
     }
     if (meta.previewKind === 'markdown') {
-        bodyEl.innerHTML = '<div class="oc-text file-browser-markdown">' + fileBrowserSanitizeMarkedHtml(marked.parse(readData.content || '')) + '</div>';
+        var rawHtml = marked.parse(readData.content || '');
+        var resolvedHtml = await resolveMarkdownImages(rawHtml, state.rootDir, item.path);
+        bodyEl.innerHTML = '<div class="oc-text file-browser-markdown">' + fileBrowserSanitizeMarkedHtml(resolvedHtml) + '</div>';
         return;
     }
     if (meta.previewKind === 'csv') {
@@ -415,7 +463,7 @@ async function renderFilePreview(item, options) {
                 state.previewEditorValue = previewReadData.content || '';
                 state.previewOriginalContent = previewReadData.content || '';
             }
-            renderTextualFilePreview(item, meta, previewReadData, ext);
+            await renderTextualFilePreview(item, meta, previewReadData, ext);
             renderFilePreviewToolbar();
             return;
         }
@@ -433,7 +481,7 @@ async function renderFilePreview(item, options) {
                 if (metaEl) {
                     metaEl.textContent = ['无扩展名 · 按普通文本方式打开', fileBrowserFormatBytes(meta.size || 0), meta.modifiedAt || ''].filter(Boolean).join(' · ');
                 }
-                renderTextualFilePreview(item, meta, noExtReadData, '');
+                await renderTextualFilePreview(item, meta, noExtReadData, '');
                 renderFilePreviewToolbar();
                 return;
             }
