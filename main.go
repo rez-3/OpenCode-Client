@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"oc-manager/internal/logger"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -12,6 +13,9 @@ import (
 var assets embed.FS
 
 func main() {
+	logger.CreateSysLog()
+	defer logger.Log.Close()
+
 	app := NewApp()
 
 	err := wails.Run(&options.App{

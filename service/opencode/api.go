@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
+	"oc-manager/internal/logger"
 	"oc-manager/model"
 )
 
@@ -174,7 +176,14 @@ func GetProjectTree(knownDirs string) string {
 	if err != nil {
 		return "[]"
 	}
-	client := http.Client{Timeout: 10 * time.Second}
+	client := http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        20,
+			MaxIdleConnsPerHost: 20,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 
 	var projects []ProjectInfo
 	var extraDirs []string
@@ -195,43 +204,60 @@ func GetProjectTree(knownDirs string) string {
 	var allSessions []treeSession
 	seen := map[string]bool{}
 
-	// 获取所有项目会话（all=true 会返回当前实例目录所属项目的全部会话）
-	// 当前实例目录是 exe 所在目录，属于 git 项目，因此能获取 git 项目的所有会话
-	resp, err := client.Get(base + "/session?all=true&roots=true&limit=500")
-	if err == nil {
-		defer resp.Body.Close()
-		var batch []treeSession
-		body, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(body, &batch)
-		for _, s := range batch {
-			if !seen[s.ID] {
-				seen[s.ID] = true
-				allSessions = append(allSessions, s)
+	for _, project := range projects {
+		extraDirs = append(extraDirs, project.Worktree)
+	}
+	logger.Log.Printf("要查询得目录为：%v", extraDirs)
+	//去重
+	deduplicateInPlace := func(s []string) []string {
+		if len(s) == 0 {
+			return s
+		}
+		seen := make(map[string]struct{}, len(s)) // 预分配容量，避免 map 扩容
+		j := 0
+		for i := 0; i < len(s); i++ {
+			v := s[i]
+			if _, ok := seen[v]; !ok {
+				seen[v] = struct{}{}
+				s[j] = v
+				j++
 			}
 		}
+		return s[:j]
 	}
+	extraDirs = deduplicateInPlace(extraDirs)
+	logger.Log.Printf("去重后的目录为：%v", extraDirs)
 
-	// 查询已知 global 目录下的会话
+	// 并发查询已知 global 目录下的会话
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, dir := range extraDirs {
-		dir = strings.TrimSpace(dir)
+		dir := strings.TrimSpace(dir)
 		if dir == "" {
 			continue
 		}
-		resp, err := client.Get(base + "/session?directory=" + url.QueryEscape(dir) + "&roots=true&limit=200")
-		if err != nil {
-			continue
-		}
-		defer resp.Body.Close()
-		var batch []treeSession
-		body, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(body, &batch)
-		for _, s := range batch {
-			if !seen[s.ID] {
-				seen[s.ID] = true
-				allSessions = append(allSessions, s)
+		wg.Add(1)
+		go func(d string) {
+			defer wg.Done()
+			resp, err := client.Get(base + "/session?directory=" + url.QueryEscape(d) + "&roots=true&limit=200")
+			if err != nil {
+				return
 			}
-		}
+			defer resp.Body.Close()
+			var batch []treeSession
+			body, _ := io.ReadAll(resp.Body)
+			json.Unmarshal(body, &batch)
+			mu.Lock()
+			for _, s := range batch {
+				if !seen[s.ID] {
+					seen[s.ID] = true
+					allSessions = append(allSessions, s)
+				}
+			}
+			mu.Unlock()
+		}(dir)
 	}
+	wg.Wait()
 
 	return buildTreeJSON(projects, allSessions)
 }
