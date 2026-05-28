@@ -119,7 +119,7 @@ async function createSessionWithDir(dir) {
     else{
         visibleMessageCount = PC_MESSAGE_RENDER_LIMIT;
     }
-    const session = await api.OpenCodeCall('POST', '/session?directory=' + dir);
+    const session = await api.OpenCodeCall('POST', '/session?directory=' + encodeURIComponent(dir));
     rememberKnownDir(dir);
     return session;
 }
@@ -610,7 +610,7 @@ async function abortSession() {
 // 发送消息
 // ============================
 
-/** 发送消息主函数：新会话创建 → 构建 body → prompt_async → 轮询刷新 */
+/** 发送消息主函数：新会话创建 → 构建 body → 同步发送 → 刷新消息 */
 async function sendPrompt() {
     if (!webRunning) return;
     const input = document.getElementById('ocPrompt');
@@ -626,10 +626,12 @@ async function sendPrompt() {
                 sessionDir = pendingWorkDir;
                 pendingWorkDir = '';
                 const session = await createSessionWithDir(sessionDir);
+                //设置当前目录
+                document.getElementById('ocSideDirPath').textContent = sessionDir;
                 currentSessionId = session.id || session.ID;
             } else {
-                const session = await api.OpenCodeCall('POST', '/session');
-                currentSessionId = session.id || session.ID;
+                 showToast('请先新建会话，设置会话目录', 'error');
+                 return;
             }
             await buildTree();
         }
@@ -656,12 +658,20 @@ async function sendPrompt() {
             }
         }
         if (selectedVariant) body.variant = selectedVariant;
-        await api.OpenCodeCall('POST', `/session/${encodeURIComponent(currentSessionId)}/prompt_async`, body);
+        const dirEl = document.getElementById('ocSideDirPath');
+        const requestDir = (dirEl?.textContent || window._sessionMap?.[currentSessionId]?.directory || sessionDir || '').trim();
+        const directoryQuery = requestDir ? `?directory=${encodeURIComponent(requestDir)}` : '';
+        await api.OpenCodeCall('POST', `/session/${encodeURIComponent(currentSessionId)}/prompt_async${directoryQuery}`, body);
         if (isNew) {
             const title = text.slice(0, 15) + (text.length > 15 ? '...' : '');
             await api.OpenCodeCall('PATCH', `/session/${encodeURIComponent(currentSessionId)}`, { title })
                 .catch(() => {});
             await buildTree();
+            //更新会话标题，绑定路径响应函数
+            document.getElementById('ocChatTitle').textContent = title;
+            dirEl.onclick = function() {
+                openFileBrowserModal(requestDir, { features: ['git'] });
+            };
         }
         input.value = '';
         clearAttachments();

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"oc-manager/internal/logger"
 	"oc-manager/model"
 )
 
@@ -25,7 +24,6 @@ func getWebSessionBase() (string, error) {
 }
 
 // OpenCodeAPI 代理访问本机 opencode serve API，避免前端跨域限制。
-// body 为 JSON 对象时自动提取 "directory" 字段设为 x-opencode-directory 请求头。
 func OpenCodeAPI(method, path, body string) model.APIResult {
 	sess := getWebSession()
 	if sess == nil {
@@ -35,13 +33,13 @@ func OpenCodeAPI(method, path, body string) model.APIResult {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	url := fmt.Sprintf("http://%s:%d%s", sess.hostname, sess.port, path)
+	urlstr := fmt.Sprintf("http://%s:%d%s", sess.hostname, sess.port, path)
 
 	var reader io.Reader
 	if body != "" {
 		reader = strings.NewReader(body)
 	}
-	req, err := http.NewRequest(method, url, reader)
+	req, err := http.NewRequest(method, urlstr, reader)
 	if err != nil {
 		return model.APIResult{Error: err.Error()}
 	}
@@ -61,7 +59,6 @@ func OpenCodeAPI(method, path, body string) model.APIResult {
 	}
 	return model.APIResult{Success: resp.StatusCode >= 200 && resp.StatusCode < 300, Status: resp.StatusCode, Body: string(data)}
 }
-
 
 // findQuestionID 从 /question API 查找匹配 sessionID 的待回答问题 ID。
 func findQuestionID(base, sessionID string) (string, error) {
@@ -207,7 +204,6 @@ func GetProjectTree(knownDirs string) string {
 	for _, project := range projects {
 		extraDirs = append(extraDirs, project.Worktree)
 	}
-	logger.Log.Printf("要查询得目录为：%v", extraDirs)
 	//去重
 	deduplicateInPlace := func(s []string) []string {
 		if len(s) == 0 {
@@ -226,7 +222,6 @@ func GetProjectTree(knownDirs string) string {
 		return s[:j]
 	}
 	extraDirs = deduplicateInPlace(extraDirs)
-	logger.Log.Printf("去重后的目录为：%v", extraDirs)
 
 	// 并发查询已知 global 目录下的会话
 	var mu sync.Mutex
