@@ -65,7 +65,7 @@ function fileBrowserHighlightCode(code, ext) {
 function fileBrowserSanitizeMarkedHtml(html) {
     var template = document.createElement('template');
     template.innerHTML = html;
-    var allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'CODE', 'PRE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG']);
+    var allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'CODE', 'PRE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'IMG', 'DETAILS', 'SUMMARY']);
     sanitizeNodeTree(template.content, allowedTags);
     return template.innerHTML;
 }
@@ -97,6 +97,9 @@ function sanitizeNodeTree(root, allowedTags) {
                 return;
             }
             if (node.tagName === 'IMG' && (attrName === 'src' || attrName === 'alt')) {
+                return;
+            }
+            if (node.tagName === 'DETAILS' && attrName === 'open') {
                 return;
             }
             node.removeAttribute(attr.name);
@@ -394,10 +397,6 @@ async function saveCurrentFilePreview() {
         }
         showToast('保存成功', 'success');
         renderFilePreviewToolbar();
-        await loadFileBrowserList(state.currentPath || '/');
-        state.selectedItem = state.items.find(function(entry) { return entry.path === item.path; }) || item;
-        renderFileBrowserSelection();
-        await renderFilePreview(state.selectedItem, { keepMode: true });
     } catch (err) {
         showToast(err.message || '保存失败', 'error');
     } finally {
