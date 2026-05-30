@@ -110,7 +110,6 @@ function renderTree(tree) {
             const sid = btn.dataset.delId;
             if (!sid) return;
             await deleteSession(sid);
-            await buildTree();
         });
     });
     container.querySelectorAll('.oc-tree-config').forEach(btn => {
@@ -154,23 +153,13 @@ function treeHasSessionsForDir(tree, dir) {
 async function addDirectoryToProject() {
     if (!webRunning) return;
     try {
+        let dir = ''
         if (isBrowserRuntimeForMain()) {
-            const dir = await openDirBrowserModal();
-            if (!dir) return;
-            rememberKnownDir(dir);
-            const ok = await buildTree();
-            if (!ok || !treeHasSessionsForDir(window._lastProjectTree, dir)) {
-                document.getElementById('ocChatTitle').textContent = '工作目录 @ ' + dir;
-                document.getElementById('ocMessages').innerHTML = '<div class="oc-empty">该目录下没有会话记录，请先在该目录下新建会话</div>';
-                showToast('该目录下没有会话记录，请先在该目录下新建会话', 'warning');
-                return;
-            }
-            showToast('已加载目录会话: ' + dir, 'success');
-            return;
+            dir = await openDirBrowserModal();
+        }else{
+            dir = await api.OpenDirectoryDialog();
         }
-        const dir = await api.OpenDirectoryDialog();
         if (!dir) return;
-        rememberKnownDir(dir);
         const ok = await buildTree();
         if (!ok || !treeHasSessionsForDir(window._lastProjectTree, dir)) {
             document.getElementById('ocChatTitle').textContent = '工作目录 @ ' + dir;
@@ -178,6 +167,7 @@ async function addDirectoryToProject() {
             showToast('该目录下没有会话记录，请先在该目录下新建会话', 'warning');
             return;
         }
+        rememberKnownDir(dir);
         showToast('已加载目录会话: ' + dir, 'success');
     } catch (e) {
         showToast('选择目录失败: ' + (e.message || e), 'error');
@@ -192,14 +182,6 @@ async function addDirectoryToProject() {
 async function loadSessions() {
     if (!webRunning) return;
     await buildTree();
-}
-
-/** 防抖刷新项目树（2s 内多次触发只执行最后一次） */
-function debounceRefreshTree() {
-    clearTimeout(sessionRefreshTimer);
-    sessionRefreshTimer = setTimeout(() => {
-        if (webRunning) buildTree();
-    }, 2000);
 }
 
 /** 删除指定会话及相关缓存 */
@@ -252,21 +234,4 @@ async function createNewSession() {
         showToast('选择目录失败: ' + (e.message || e), 'error');
     }
 }
-
-/** 用目录创建新会话（Wails API 版本，立即创建）*/
-async function newSessionWithDir() {
-    if (!webRunning) return;
-    try {
-        const dir = await api.OpenDirectoryDialog();
-        if (!dir) return;
-        const session = await createSessionWithDir(dir);
-        currentSessionId = session.id || session.ID;
-        await buildTree();
-        await loadMessages();
-        showToast('会话已创建: ' + dir, 'success');
-    } catch (e) {
-        showToast('创建失败: ' + (e.message || e), 'error');
-    }
-}
-
 

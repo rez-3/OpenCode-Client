@@ -737,7 +737,6 @@ async function sendPrompt() {
                  showToast('请先新建会话，设置会话目录', 'error');
                  return;
             }
-            await buildTree();
         }
         if (currentSessionId) {
             sessionStatuses[currentSessionId] = 'busy';
