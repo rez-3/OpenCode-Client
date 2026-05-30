@@ -160,6 +160,7 @@ async function addDirectoryToProject() {
             dir = await api.OpenDirectoryDialog();
         }
         if (!dir) return;
+        rememberKnownDir(dir)
         const ok = await buildTree();
         if (!ok || !treeHasSessionsForDir(window._lastProjectTree, dir)) {
             document.getElementById('ocChatTitle').textContent = '工作目录 @ ' + dir;
@@ -167,7 +168,6 @@ async function addDirectoryToProject() {
             showToast('该目录下没有会话记录，请先在该目录下新建会话', 'warning');
             return;
         }
-        rememberKnownDir(dir);
         showToast('已加载目录会话: ' + dir, 'success');
     } catch (e) {
         showToast('选择目录失败: ' + (e.message || e), 'error');
