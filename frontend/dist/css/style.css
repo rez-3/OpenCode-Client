@@ -1158,6 +1158,92 @@ input::placeholder, textarea::placeholder {
     color: var(--accent);
     transform: translateY(-1px) scale(1.04);
 }
+/* ── 用户消息导航按钮 ── */
+.oc-user-nav {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.16s ease, border-color 0.16s ease;
+}
+.oc-user-nav.visible {
+    opacity: 0.92;
+    pointer-events: auto;
+}
+.oc-user-nav:hover {
+    border-color: var(--accent);
+}
+.oc-user-nav-btn {
+    width: 28px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.14s ease, background 0.14s ease;
+}
+.oc-user-nav-btn:hover:not(:disabled) {
+    color: var(--accent);
+    background: var(--accent-ghost);
+}
+.oc-user-nav-btn:disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+.oc-user-nav-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    min-width: 24px;
+    text-align: center;
+    line-height: 1;
+    user-select: none;
+}
+/* ── 用户消息高亮脉冲动画 ── */
+@keyframes userMsgPulse {
+    0%   { box-shadow: 0 0 0 0 var(--accent-glow); border-color: var(--accent); }
+    50%  { box-shadow: 0 0 0 4px var(--accent-glow); border-color: var(--accent); }
+    100% { box-shadow: 0 0 0 0 var(--accent-glow); border-color: var(--accent); }
+}
+.oc-message.user.oc-user-highlight {
+    animation: userMsgPulse 1.5s ease;
+    border-color: var(--accent);
+}
+/* 移动端导航按钮适配 */
+@media (max-width: 768px) {
+    .oc-user-nav {
+        right: 6px;
+        padding: 3px 1px;
+        gap: 1px;
+    }
+    .oc-user-nav-btn {
+        width: 24px;
+        height: 20px;
+        font-size: 9px;
+    }
+    .oc-user-nav-count {
+        font-size: 9px;
+    }
+}
 .oc-history-more {
     width: 100%;
     margin-bottom: 12px;

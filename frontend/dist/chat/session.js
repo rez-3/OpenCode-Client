@@ -187,6 +187,7 @@ async function selectSession(id) {
     lastMessageCount = 0;
     messageLoadSeq++;
     questionCustomInput = ''; // 清除 question 自定义输入
+    resetUserNav(); // 重置用户消息导航状态
     const info = window._sessionMap?.[id];
     document.getElementById('ocChatTitle').textContent = info?.title || id;
     const dirEl = document.getElementById('ocSideDirPath');

@@ -214,3 +214,198 @@ function closeSearch() {
     if (input) input.value = '';
     searchResults = [];
 }
+
+// ============================================================
+// 用户消息快速导航
+// 在消息列表中快速跳转到各条用户输入卡片
+// ============================================================
+
+/** 用户消息导航：当前高亮的消息索引（-1 表示无高亮） */
+var userNavIndex = -1;
+/** 用户消息导航：高亮移除定时器句柄 */
+var userNavHighlightTimer = null;
+/** 用户消息导航：滚动检测防抖定时器 */
+var userNavScrollTimer = null;
+
+/**
+ * 初始化用户消息导航按钮
+ * 绑定 ▲ ▼ 按钮的点击事件，在页面加载后调用一次
+ */
+function initUserNav() {
+    var prevBtn = document.getElementById('btnUserNavPrev');
+    var nextBtn = document.getElementById('btnUserNavNext');
+    if (prevBtn) prevBtn.addEventListener('click', function() { navigateUserMessage(-1); });
+    if (nextBtn) nextBtn.addEventListener('click', function() { navigateUserMessage(1); });
+
+    // 监听消息区滚动，自动同步当前用户消息位置
+    var msgBox = document.getElementById('ocMessages');
+    if (msgBox) msgBox.addEventListener('scroll', onUserNavScroll);
+}
+
+/**
+ * 用户滚动时自动更新导航位置
+ * 100ms 防抖，检测当前可视区域内最接近顶部的用户消息
+ */
+function onUserNavScroll() {
+    if (userNavScrollTimer) clearTimeout(userNavScrollTimer);
+    userNavScrollTimer = setTimeout(function() {
+        var container = document.getElementById('ocMessages');
+        if (!container) return;
+
+        var msgs = collectUserMessages();
+        if (msgs.length <= 1) return;
+
+        // 可视区域顶部（相对于容器的 scrollTop）
+        var viewTop = container.scrollTop;
+        // 可视区域底部
+        var viewBottom = viewTop + container.clientHeight;
+
+        var closestIndex = -1;
+        var closestDistance = Infinity;
+
+        for (var i = 0; i < msgs.length; i++) {
+            var msgTop = msgs[i].offsetTop;
+            var msgBottom = msgTop + msgs[i].offsetHeight;
+
+            // 优先选择在可视区域内且最接近顶部的消息
+            if (msgBottom > viewTop && msgTop < viewBottom) {
+                var dist = Math.abs(msgTop - viewTop);
+                if (dist < closestDistance) {
+                    closestDistance = dist;
+                    closestIndex = i;
+                }
+            }
+        }
+
+        // 如果可视区域内没有用户消息，找距离可视区域最近的那条
+        if (closestIndex < 0) {
+            for (var j = 0; j < msgs.length; j++) {
+                var msgTop2 = msgs[j].offsetTop;
+                var dist2 = Math.abs(msgTop2 - viewTop);
+                if (dist2 < closestDistance) {
+                    closestDistance = dist2;
+                    closestIndex = j;
+                }
+            }
+        }
+
+        if (closestIndex >= 0 && closestIndex !== userNavIndex) {
+            userNavIndex = closestIndex;
+            updateUserNav();
+        }
+    }, 100);
+}
+
+/**
+ * 收集当前 DOM 中所有用户消息卡片节点
+ * @returns {HTMLElement[]}
+ */
+function collectUserMessages() {
+    var container = document.getElementById('ocMessages');
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('.oc-message.user'));
+}
+
+/**
+ * 导航到上一条/下一条用户消息
+ * @param {number} dir - 方向：1=下一条，-1=上一条
+ */
+function navigateUserMessage(dir) {
+    var msgs = collectUserMessages();
+    if (!msgs.length) return;
+
+    // 计算新索引
+    if (userNavIndex < 0) {
+        // 当前无高亮，从第一条开始
+        userNavIndex = dir > 0 ? 0 : msgs.length - 1;
+    } else {
+        userNavIndex = Math.max(0, Math.min(msgs.length - 1, userNavIndex + dir));
+    }
+
+    // 清除旧高亮
+    clearUserNavHighlight();
+
+    // 高亮并滚动到目标消息
+    var target = msgs[userNavIndex];
+    target.classList.add('oc-user-highlight');
+
+    // 滚动到可视区域中间偏上位置
+    var container = document.getElementById('ocMessages');
+    if (container) {
+        var targetTop = target.offsetTop - container.offsetTop;
+        var targetScroll = targetTop - container.clientHeight * 0.3;
+        var maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        container.scrollTo({
+            top: Math.max(0, Math.min(maxScroll, targetScroll)),
+            behavior: 'smooth'
+        });
+    }
+
+    // 1.5 秒后自动清除高亮
+    if (userNavHighlightTimer) clearTimeout(userNavHighlightTimer);
+    userNavHighlightTimer = setTimeout(function() {
+        if (target) target.classList.remove('oc-user-highlight');
+        userNavHighlightTimer = null;
+    }, 1500);
+
+    updateUserNav();
+}
+
+/** 立即清除用户消息高亮和定时器 */
+function clearUserNavHighlight() {
+    if (userNavHighlightTimer) {
+        clearTimeout(userNavHighlightTimer);
+        userNavHighlightTimer = null;
+    }
+    var prev = document.querySelector('.oc-message.user.oc-user-highlight');
+    if (prev) prev.classList.remove('oc-user-highlight');
+}
+
+/**
+ * 刷新用户导航按钮状态
+ * 在消息渲染后调用，更新计数和按钮可用性，控制导航条显隐
+ */
+function updateUserNav() {
+    var navEl = document.getElementById('ocUserNav');
+    var prevBtn = document.getElementById('btnUserNavPrev');
+    var nextBtn = document.getElementById('btnUserNavNext');
+    var countEl = document.getElementById('ocUserNavCount');
+    if (!navEl || !prevBtn || !nextBtn || !countEl) return;
+
+    var msgs = collectUserMessages();
+    var total = msgs.length;
+
+    if (total <= 1) {
+        // 0 或 1 条用户消息，隐藏导航条
+        navEl.classList.remove('visible');
+        userNavIndex = -1;
+        return;
+    }
+
+    navEl.classList.add('visible');
+
+    // 首次加载（未高亮任何消息）：自动定位到最后一条用户消息
+    // 打开会话后默认显示最新消息，导航从最后一条开始，按 ▲ 向上滚动
+    if (userNavIndex < 0) {
+        userNavIndex = total - 1;
+    }
+
+    // 边界钳位
+    userNavIndex = Math.max(0, Math.min(total - 1, userNavIndex));
+
+    // 更新计数显示（当前索引从 0 开始，显示时 +1）
+    countEl.textContent = (userNavIndex + 1) + '/' + total;
+
+    // 边界禁用按钮
+    prevBtn.disabled = (userNavIndex <= 0);
+    nextBtn.disabled = (userNavIndex >= total - 1);
+}
+
+/**
+ * 重置用户导航状态（切换会话、清空消息时调用）
+ */
+function resetUserNav() {
+    clearUserNavHighlight();
+    userNavIndex = -1;
+    updateUserNav();
+}

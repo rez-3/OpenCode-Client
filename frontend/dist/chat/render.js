@@ -171,6 +171,7 @@ function renderMessages(items) {
     updateScrollBottomButton();
     renderTodos();
 	renderCollapsedHistoryNotice(sourceList.length, sourceList.length - list.length);
+    updateUserNav();
 
 }
 
@@ -357,10 +358,10 @@ function formatNumber(num) {
     return num.toFixed(0);
   } else if (num < 1000000) {
     // 1000 ~ 999,999 → 显示 xx.xx k
-    return (num / 1000).toFixed(2) + ' k';
+    return (num / 1000).toFixed(2) + 'k';
   } else {
     // ≥1,000,000 → 显示 xx.xx M
-    return (num / 1000000).toFixed(2) + ' M';
+    return (num / 1000000).toFixed(2) + 'M';
   }
 }
 
@@ -374,7 +375,7 @@ function renderStepDivider(part, phase) {
         const input = (t.input || 0) + (t.cache?.read || 0) + (t.cache?.write || 0)
         const ouput = (t.output||0) + (t.reasoning||0);
         const total = t.total || (t.input || 0) + (t.output || 0) + (t.reasoning || 0);
-        el.innerHTML = `<span class="oc-step-label">步骤结束</span><span class="oc-step-cost">输入:${input} 输出:${ouput} 统计:${formatNumber(total)}tokens</span>`;
+        el.innerHTML = `<span class="oc-step-label">步骤结束</span><span class="oc-step-cost">输入:${input} 输出:${ouput} 统计:${formatNumber(total)} tokens</span>`;
     } else {
         el.innerHTML = '<span class="oc-step-label">步骤开始</span>';
     }

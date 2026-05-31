@@ -29,7 +29,7 @@ async function checkWebStatus() {
         serverStatus = normalizeServerStatus(null);
         renderServiceStatus();
     }
-    setTimeout(function() { initSearch(); }, 500);
+    setTimeout(function() { initSearch(); initUserNav(); }, 500);
 }
 
 // ============================
