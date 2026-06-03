@@ -28,6 +28,19 @@ function fileBrowserClearObjectURL() {
         URL.revokeObjectURL(state.previewObjectURL);
         state.previewObjectURL = '';
     }
+    // 清理 HTML 预览专用的 blob URL
+    if (state && state.htmlPreviewBlobURL) {
+        try { URL.revokeObjectURL(state.htmlPreviewBlobURL); } catch (_) {}
+        state.htmlPreviewBlobURL = null;
+    }
+    if (state && Array.isArray(state.previewObjectURLs) && state.previewObjectURLs.length) {
+        state.previewObjectURLs.forEach(function(url) {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (_) {}
+        });
+        state.previewObjectURLs = [];
+    }
 }
 
 function base64ToBlob(base64, mime) {
@@ -43,6 +56,23 @@ async function fileBrowserResolveRawResource(rootDir, relPath) {
     var blob = base64ToBlob(raw.base64 || '', raw.mime || 'application/octet-stream');
     var url = URL.createObjectURL(blob);
     window.fileBrowserState.previewObjectURL = url;
+    return { url: url, name: raw.name || '', mime: raw.mime || 'application/octet-stream' };
+}
+
+function fileBrowserTrackObjectURL(url) {
+    var state = window.fileBrowserState;
+    if (!state || !url) return url;
+    if (!Array.isArray(state.previewObjectURLs)) {
+        state.previewObjectURLs = [];
+    }
+    state.previewObjectURLs.push(url);
+    return url;
+}
+
+async function fileBrowserResolveRawResourceMulti(rootDir, relPath) {
+    var raw = await api.ReadBrowserRawBase64(rootDir, relPath);
+    var blob = base64ToBlob(raw.base64 || '', raw.mime || 'application/octet-stream');
+    var url = fileBrowserTrackObjectURL(URL.createObjectURL(blob));
     return { url: url, name: raw.name || '', mime: raw.mime || 'application/octet-stream' };
 }
 
@@ -189,8 +219,14 @@ function fileBrowserCanPreview(meta) {
     if (!meta) return false;
     if (meta.previewKind === 'binary') return false;
     if (meta.previewKind === 'markdown') return true;
+    if (meta.previewKind === 'code' && isHtmlExtension(meta.ext || '')) return true;
     if (fileBrowserCanEdit(meta)) return false;
     return !!meta.previewable || !meta.ext;
+}
+
+function isHtmlExtension(ext) {
+    var normalized = (ext || '').toLowerCase();
+    return normalized === '.html' || normalized === '.htm';
 }
 
 function fileBrowserGetPreferredRenderMode(meta) {
@@ -217,7 +253,7 @@ function renderFilePreviewToolbar() {
 
     var canEdit = fileBrowserCanEdit(meta);
     var canPreview = fileBrowserCanPreview(meta);
-    var allowModeToggle = !!(meta && meta.previewKind === 'markdown');
+    var allowModeToggle = !!(meta && (meta.previewKind === 'markdown' || (meta.previewKind === 'code' && isHtmlExtension(meta.ext || ''))));
     var buttons = '';
 
     if (allowModeToggle && canPreview) {
@@ -336,6 +372,182 @@ async function resolveMarkdownImages(rawHtml, rootDir, mdFilePath) {
     return template.innerHTML;
 }
 
+async function resolveHtmlResources(rawHtml, rootDir, htmlFilePath) {
+    var template = document.createElement('template');
+    template.innerHTML = rawHtml;
+    var htmlDir = htmlFilePath.substring(0, htmlFilePath.lastIndexOf('/') + 1);
+    var tasks = [];
+
+    template.content.querySelectorAll('img[src]').forEach(function(img) {
+        var src = (img.getAttribute('src') || '').trim();
+        if (!src || /^(https?:|data:|blob:|\/\/|#)/i.test(src)) return;
+        try { src = decodeURI(src); } catch (_) {}
+        var resolvedPath = normalizeRelativePath(htmlDir + src);
+        tasks.push(fileBrowserResolveRawResourceMulti(rootDir, resolvedPath).then(function(res) {
+            img.setAttribute('src', res.url);
+        }).catch(function() {
+            // 资源读取失败时保留原始路径，方便用户发现问题。
+        }));
+    });
+
+    template.content.querySelectorAll('link[href]').forEach(function(link) {
+        var rel = (link.getAttribute('rel') || '').toLowerCase();
+        if (rel.indexOf('stylesheet') < 0) return;
+        var href = (link.getAttribute('href') || '').trim();
+        if (!href || /^(https?:|data:|blob:|\/\/|#)/i.test(href)) return;
+        try { href = decodeURI(href); } catch (_) {}
+        var resolvedPath = normalizeRelativePath(htmlDir + href);
+        tasks.push(fileBrowserResolveRawResourceMulti(rootDir, resolvedPath).then(function(res) {
+            link.setAttribute('href', res.url);
+        }).catch(function() {
+            // 样式读取失败时保留原始路径。
+        }));
+    });
+
+    template.content.querySelectorAll('script[src]').forEach(function(script) {
+        var src = (script.getAttribute('src') || '').trim();
+        if (!src || /^(https?:|data:|blob:|\/\/|#)/i.test(src)) return;
+        try { src = decodeURI(src); } catch (_) {}
+        var resolvedPath = normalizeRelativePath(htmlDir + src);
+        tasks.push(fileBrowserResolveRawResourceMulti(rootDir, resolvedPath).then(function(res) {
+            script.setAttribute('src', res.url);
+        }).catch(function() {
+            // 脚本读取失败时保留原始路径。
+        }));
+    });
+
+    // 预处理 <meta http-equiv="refresh"> 相对跳转 URL
+    template.content.querySelectorAll('meta[http-equiv="refresh"i]').forEach(function(meta) {
+        var content = (meta.getAttribute('content') || '').trim();
+        if (!content) return;
+        // content 格式: "秒数;url=相对路径" 或 "秒数; url=相对路径"
+        var match = content.match(/url\s*=\s*(.+)$/i);
+        if (!match) return;
+        var targetUrl = match[1].trim();
+        if (!targetUrl || /^(https?:|data:|blob:|\/\/|#)/i.test(targetUrl)) return;
+        try { targetUrl = decodeURI(targetUrl); } catch (_) {}
+        var resolvedPath = normalizeRelativePath(htmlDir + targetUrl);
+        tasks.push(fileBrowserResolveRawResourceMulti(rootDir, resolvedPath).then(function(res) {
+            var newContent = content.replace(/url\s*=\s*.+$/i, 'url=' + res.url);
+            meta.setAttribute('content', newContent);
+        }).catch(function() {
+            // 目标文件读取失败，保留原始路径
+        }));
+    });
+
+    if (tasks.length > 0) {
+        await Promise.all(tasks);
+    }
+    return template.innerHTML;
+}
+
+async function renderHtmlPreview(item, readData) {
+    var state = window.fileBrowserState;
+    var bodyEl = document.getElementById('filePreviewBody');
+    if (!bodyEl || !state) return;
+    var resolvedHtml = await resolveHtmlResources(readData.content || '', state.rootDir, item.path);
+
+    // 注入导航拦截脚本：在页面内最前面运行，拦截所有相对路径跳转
+    // （window.location.href / replace / assign 以及 <a href> 点击）
+    // 通过 postMessage 与父页面通信，将相对路径解析为 blob URL 后再导航
+    var htmlDir = item.path.substring(0, item.path.lastIndexOf('/') + 1);
+    var navInterceptScript = '<script>' +
+        '(function(){' +
+            // 通过 postMessage 请求父页面解析相对路径
+            'function resolvePath(path, next){' +
+                'var handler=function(e){' +
+                    'if(e.data&&e.data.type==="oc-html-nav-resolved"){' +
+                        'window.removeEventListener("message",handler);' +
+                        'next(e.data.url||null);' +
+                    '}' +
+                '};' +
+                'window.addEventListener("message",handler);' +
+                'window.parent.postMessage({type:"oc-html-nav",path:path}, "*");' +
+            '}' +
+            // 拦截 window.location.href 赋值
+            'var _loc=window.location;' +
+            'var _origDesc=Object.getOwnPropertyDescriptor(Location.prototype,"href")||' +
+                'Object.getOwnPropertyDescriptor(window.__proto__.__proto__.__proto__,"href");' +
+            'try{' +
+                'if(_origDesc&&_origDesc.set){' +
+                    'var _origSet=_origDesc.set;' +
+                    'Object.defineProperty(Location.prototype,"href",{' +
+                        'get:function(){return _origDesc.get? _origDesc.get.call(this):""},' +
+                        'set:function(val){' +
+                            'if(typeof val==="string"&&/^\\.\\.?\\//.test(val)&&!/^(https?:|data:|blob:|#)/i.test(val)){' +
+                                'resolvePath(val,function(resolved){' +
+                                    'if(resolved) _origSet.call(_loc,resolved);' +
+                                '});' +
+                                'return;' +
+                            '}' +
+                            '_origSet.call(this,val);' +
+                        '}' +
+                    '});' +
+                '}' +
+            '}catch(_){}' +
+            // 拦截 <a href> 点击（非锚点相对路径）
+            'document.addEventListener("click",function(e){' +
+                'var a=e.target.closest("a[href]");' +
+                'if(!a)return;' +
+                'var href=a.getAttribute("href")||"";' +
+                'if(!/^\\.\\.?\\//.test(href)||/^(https?:|data:|blob:|#)/i.test(href))return;' +
+                'e.preventDefault();e.stopPropagation();' +
+                'resolvePath(href,function(resolved){' +
+                    'if(resolved) window.location.href=resolved;' +
+                '});' +
+            '},true);' +
+        '})();' +
+    '</script>';
+    // 注入到 <head> 之后（保证在所有其他脚本之前运行）
+    if (/<head[^>]*>/i.test(resolvedHtml)) {
+        resolvedHtml = resolvedHtml.replace(/<head[^>]*>/i, '$&' + navInterceptScript);
+    } else {
+        resolvedHtml = navInterceptScript + resolvedHtml;
+    }
+
+    // 清理上一次 HTML 预览的 blob URL
+    if (state.htmlPreviewBlobURL) {
+        try { URL.revokeObjectURL(state.htmlPreviewBlobURL); } catch (_) {}
+        state.htmlPreviewBlobURL = null;
+    }
+
+    // 生成 blob URL：iframe 拥有独立地址，
+    // 原生锚点导航和页面内脚本均可正常工作
+    var blob = new Blob([resolvedHtml], { type: 'text/html;charset=utf-8' });
+    var blobURL = URL.createObjectURL(blob);
+    state.htmlPreviewBlobURL = blobURL;
+
+    // sandbox: allow-same-origin 使锚点原生生效
+    //          allow-scripts     使页面脚本可执行
+    bodyEl.innerHTML = '<iframe class="file-browser-html-preview" sandbox="allow-same-origin allow-scripts" title="HTML预览"></iframe>';
+    var iframe = bodyEl.querySelector('.file-browser-html-preview');
+    if (!iframe) return;
+
+    // 设置父页面消息监听：响应 iframe 内脚本的相对路径解析请求
+    iframe.addEventListener('load', function setupNavListener() {
+        var rootDir = state.rootDir;
+        var baseDir = htmlDir;
+        var msgHandler = function(e) {
+            if (!e.data || e.data.type !== 'oc-html-nav') return;
+            var path = e.data.path || '';
+            var resolvedPath = normalizeRelativePath(baseDir + path);
+            fileBrowserResolveRawResourceMulti(rootDir, resolvedPath).then(function(res) {
+                try { iframe.contentWindow.postMessage({ type: 'oc-html-nav-resolved', url: res.url }, '*'); } catch (_) {}
+            }).catch(function() {
+                try { iframe.contentWindow.postMessage({ type: 'oc-html-nav-resolved', url: null }, '*'); } catch (_) {}
+            });
+        };
+        window.addEventListener('message', msgHandler);
+        // 当 HTML 预览被替换时清理监听器
+        var prevCleanup = state._htmlNavMsgCleanup;
+        if (prevCleanup) { try { prevCleanup(); } catch (_) {} }
+        state._htmlNavMsgCleanup = function() {
+            window.removeEventListener('message', msgHandler);
+        };
+    }, { once: true });
+    iframe.src = blobURL;
+}
+
 async function renderTextualFilePreview(item, meta, readData, ext) {
     var state = window.fileBrowserState;
     var bodyEl = document.getElementById('filePreviewBody');
@@ -348,6 +560,10 @@ async function renderTextualFilePreview(item, meta, readData, ext) {
         var rawHtml = marked.parse(readData.content || '');
         var resolvedHtml = await resolveMarkdownImages(rawHtml, state.rootDir, item.path);
         bodyEl.innerHTML = '<div class="oc-text file-browser-markdown">' + fileBrowserSanitizeMarkedHtml(resolvedHtml) + '</div>';
+        return;
+    }
+    if (isHtmlExtension(ext)) {
+        await renderHtmlPreview(item, readData);
         return;
     }
     if (meta.previewKind === 'csv') {
