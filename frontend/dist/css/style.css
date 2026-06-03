@@ -958,7 +958,7 @@ input::placeholder, textarea::placeholder {
 .oc-tree {
     flex: 1;
     overflow-y: auto;
-    padding: 6px 8px;
+    padding: 6px 4px;
     font-size: 13px;
     user-select: none;
 }
@@ -968,7 +968,7 @@ input::placeholder, textarea::placeholder {
 }
 .oc-tree-toggle {
     display: inline-block;
-    width: 16px;
+    width: 12px;
     cursor: pointer;
     color: var(--text-muted);
     font-size: 10px;
@@ -977,12 +977,11 @@ input::placeholder, textarea::placeholder {
 }
 .oc-tree-indent {
     display: inline-block;
-    width: 16px;
+    width: 12px;
 }
 .oc-tree-row {
     display: flex;
     align-items: center;
-    gap: 4px;
     min-width: 0;
 }
 .oc-tree-project-row {
@@ -1006,13 +1005,13 @@ input::placeholder, textarea::placeholder {
     min-width: 0;
 }
 .oc-tree-project { padding-left: 0; }
-.oc-tree-directory { padding-left: 16px; }
-.oc-tree-session { padding-left: 32px; }
+.oc-tree-directory { padding-left: 8px; }
+
 .oc-tree-session {
     cursor: pointer;
     color: var(--text-secondary);
     border-radius: var(--radius-sm);
-    padding: 3px 6px 3px 32px;
+    padding: 3px 6px 3px 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1103,7 +1102,6 @@ input::placeholder, textarea::placeholder {
 .oc-tree-session:hover .oc-tree-tooltip {
     display: block;
 }
-.oc-tree-children { }
 .oc-tree-children { }
 .oc-chat {
     min-height: 0;
