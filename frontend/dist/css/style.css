@@ -1649,6 +1649,13 @@ input::placeholder, textarea::placeholder {
     overflow: hidden;
     transition: border 0.2s;
 }
+.oc-sidepanel-content {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
 .hide-right .oc-sidepanel {
     border-left: none;
 }
