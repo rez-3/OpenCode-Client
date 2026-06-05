@@ -394,27 +394,10 @@ function updateWebUI() {
 
 // ===== OpenCode 版本检测 =====
 
-/** 版本检测状态：idle / checking / latest / outdated */
-var ocVersionStatus = 'idle';
-var ocVersionLatest = '';
-
-/** 渲染版本检测按钮/状态 */
+/** 渲染版本检测按钮（始终显示，点击后 toast 提示结果） */
 function renderVersionCheck(version) {
     var el = document.getElementById('ocVersionCheck');
     if (!el) return;
-    if (ocVersionStatus === 'checking') {
-        el.innerHTML = ' <span class="oc-version-check-label checking">⏳ 检测中...</span>';
-        return;
-    }
-    if (ocVersionStatus === 'latest') {
-        el.innerHTML = ' <span class="oc-version-check-label latest">✅ 已是最新</span>';
-        return;
-    }
-    if (ocVersionStatus === 'outdated') {
-        el.innerHTML = ' <span class="oc-version-check-label outdated">⚠️ 最新版本: ' + escapeHtml(ocVersionLatest || '') + '</span>';
-        return;
-    }
-    // idle
     el.innerHTML = ' <a href="javascript:void(0)" class="oc-version-check-btn" id="ocVersionCheckBtn">检测更新</a>';
     var btn = document.getElementById('ocVersionCheckBtn');
     if (btn) {
@@ -424,20 +407,16 @@ function renderVersionCheck(version) {
     }
 }
 
-/** 执行版本检测 */
+/** 执行版本检测，结果通过 toast 展示 */
 async function checkOpenCodeVersion(version) {
-    ocVersionStatus = 'checking';
-    renderVersionCheck(version);
     try {
         var result = await api.CheckOpenCodeVersion(version || '');
         if (result.isLatest) {
-            ocVersionStatus = 'latest';
+            showToast('已是最新版本', 'success');
         } else {
-            ocVersionStatus = 'outdated';
-            ocVersionLatest = result.latestVersion || '';
+            showToast('发现新版本: ' + (result.latestVersion || ''), 'warning');
         }
     } catch (e) {
-        ocVersionStatus = 'idle'; // 失败回退到 idle
+        showToast('版本检测失败', 'error');
     }
-    renderVersionCheck(version);
 }
